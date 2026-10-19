@@ -160,7 +160,7 @@ tfoot td { font-weight: 700; }
 .tpanel { border: 2px solid var(--t); border-radius: 12px; background: var(--panel); padding: 14px 16px; display: grid; gap: 10px; }
 .tpanel ol { margin: 0; padding: 0; list-style: none; display: grid; gap: 4px; }
 .tpanel li button { display: flex; gap: 10px; align-items: baseline; width: 100%; text-align: left; border: 0; background: transparent; color: var(--fg); padding: 4px 6px; border-radius: 8px; font: .9rem var(--body); cursor: pointer; }
-.tpanel li button b { flex: none; display: inline-grid; place-items: center; width: 1.6em; height: 1.6em; border-radius: 50%; background: var(--t); color: #fff; font: 800 .8rem var(--display); }
+.tpanel li button b { flex: none; display: inline-grid; place-items: center; min-width: 1.6em; padding: 0 5px; height: 1.6em; border-radius: 999px; background: var(--t); color: #fff; font: 800 .8rem var(--display); }
 .tpanel li button[aria-pressed="true"] { background: color-mix(in srgb, var(--t) 14%, transparent); font-weight: 700; }
 .tpanel .ways { margin: 0; display: grid; grid-template-columns: minmax(8em, max-content) minmax(0, 1fr); gap: 6px 14px; font-size: .9rem; }
 .tpanel .ways dt { font: 700 .85rem var(--display); color: var(--t); }
@@ -184,6 +184,8 @@ tfoot td { font-weight: 700; }
 .code.diff .ln.add { background: color-mix(in srgb, var(--ok) 30%, var(--stmt)); }
 .code.diff .ln.del { background: color-mix(in srgb, var(--danger) 30%, var(--stmt)); text-decoration: line-through; text-decoration-color: color-mix(in srgb, var(--stmt-fg) 40%, transparent); }
 .code.diff .ln i { color: var(--stmt-fg); }
+.taskbar button.outside { border-style: dashed; }
+.c4 .tbadge text { font-size: 11px; }
 .tpanel .step { border-left: 4px solid var(--t); padding: 4px 0 4px 12px; display: grid; gap: 8px; }
 .hidden-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
@@ -698,7 +700,7 @@ const TASKS = {
       ["2つを組み合わせて変える", "stop_balance × 撤退条件、unit_bet × stop_balance のように、効き合いそうな2つを表（ヒートマップ）にする。1つずつでは見えない釣り合いが出る。"],
       ["同じ設定を何回も流す", "平均・標準偏差・95% 信頼区間（平均 ± 1.96 × 標準偏差 ÷ √回数）を出す。2つの設定の差が区間の幅より小さければ、偶然かもしれない（p.65 の「結果の信頼性」）。"],
       ["基準と比べる", "player_random と元の player_simple を毎回一緒に流す。player_random より悪い設定は悪い戦略（p.60）。"],
-      ["残高以外の列も見る", "ラウンド数（長く遊べるか）と ms。勝ち逃げできた割合や破産した割合は今は出ないので、出すなら autodealer の集計を少し足す（変えてよい範囲。タスク C に近い）。"],
+      ["残高以外の列も見る", "ラウンド数（長く遊べるか）と ms。勝ち逃げできた割合や破産した割合は今は出ないので、出すなら autodealer の集計を足すことになり、それはタスクの外の改修（上の「タスク外の改修」と同じ所）。"],
       ["山札の条件をそろえる", "deck はゲームをまたいで続く（緊5）。設定ごとに random.seed(1) のように種をそろえると、同じカードの列で比べられ、差が見えやすくなる。"],
       ["コピーを作らずにまとめて流す", "players.player_simple.BlackjackPlayer は stop_balance・unit_bet・hit_threshold を __init__ の引数で受け取れる。functools.partial(BlackjackPlayer, hit_threshold=t) を autodealer.game() に渡すと、ファイルを何十個もコピーせずに一気に流せる（変えてよい範囲の小さなスクリプト）。"]],
     wayEx: `import functools, random, statistics
@@ -753,7 +755,7 @@ for t in (12, 14, 16, 18, 20):
         rt: ["autodealer.game:87 -> players.player_simple.BlackjackPlayer.input"], rtNote: "「ヒットして勝つ」の1ラウンドで2回（hit と stand）。4000 ゲーム × 平均 20 ラウンドほどなので、1ファイルで十数万回呼ばれる。" },
       { a: ["main", 6], b: ["term", 2], label: "結果の1行で比べる", desc: "player_random より悪ければ、悪い戦略。player_simple と並べて、どれだけ良くなったかを見る。",
         code: [[AD, "end_time = time.perf_counter()", 3, ["print(f\"{module_name}"], []]] }] },
-  C: { t: "C 改造する", c: "var(--branch)", note: "例として、ダブルダウン（10・11 のときに掛け金を2倍にして1枚だけ引く）を足す。プレイヤー側・game() 側・dealer.py 側・集計の書き換えは並列（どれからでもよい）。7つのメソッドの形は変えずに、input の答えを増やす形にすると、今のプレイヤーも動き続ける。",
+  C: { t: "C 改造する", c: "var(--branch)", note: "例として、ダブルダウン（10・11 のときに掛け金を2倍にして1枚だけ引く）を足す。プレイヤー側・game() 側・dealer.py 側の書き換えは並列（どれからでもよい）。7つのメソッドの形は変えずに、input の答えを増やす形にすると、今のプレイヤーも動き続ける。",
     ctx: [["p_mod", "x_vscode", "autodealer.py を改造", "ブランチを切ってから直す。改造前の結果も残しておく。"],
       ["x_vscode", "sys", "python3 autodealer.py で試す", "is_print = True にすると、1ラウンドずつの流れが画面に出て、改造した所を確かめられる。"],
       ["sys", "p_mod", "新しい結果", "ルールを足す前と後で、player_simple の平均がどう変わるか。"],
@@ -790,7 +792,18 @@ for t in (12, 14, 16, 18, 20):
 -             if choice in ["hit", "stand"]:
 +             if choice in ["hit", "stand", "double"]:
   # dealer.py は、game() と同じ double の塊を 122 行の下に足す` },
-      { p: true, a: ["main", 5], b: null, label: "集計を足す（任意）", desc: "無効な掛け金の -1 を平均に入れず、別に数える（緊1 を直す）。勝率やブラックジャックの回数を出すのも、この集計の所。",
+      { a: ["printx", 0], b: ["term", 1], label: "is_print = True で確かめる", desc: "printx が print になり、1ラウンドずつの流れが出る。double の所を通ったかを見る。MAX も小さく（例: 3）しておかないと、4000 ゲーム分が流れる。確かめたら元に戻す。",
+        code: [[AD, "is_print:bool = False", 1, [], ["is_print:bool = False"]], [AD, "def printx", 3, ["if is_print:"], []]],
+        ex: "- is_print:bool = False\n+ is_print:bool = True   # 確かめるときだけ\n  …\n- MAX = 4000 # ゲームの最大回数\n+ MAX = 3" },
+      { a: ["main", 3], b: ["game", -1], label: "python3 autodealer.py で流す", desc: "is_print を False・MAX を 4000 に戻して流す。players/ の全部のプレイヤーが、新しいルールで比べられる。",
+        code: [[AD, "while game_round <= MAX:", 2, ["while game_round <= MAX:", "game(player_module.BlackjackPlayer)"], []]] },
+      { a: ["main", 6], b: ["term", 2], label: "改造の前と後を比べる", desc: "同じプレイヤー・同じ MAX で、改造の前と後の1行を並べる。",
+        code: [[AD, "end_time = time.perf_counter()", 3, ["print(f\"{module_name}"], []]] }] },
+  X: { t: "タスク外の改修", c: "var(--exit)", outside: true, note: "タスク A・B・C の中ではなく、教材（main）の側で直しておきたい所。どのタスクの結果にも効くので、タスクの手順からは外してある。直すなら、タスクの作業とは別のブランチ・別のコミットにする（自分のタスクの差分に混ぜない）。",
+    ctx: [["p_teacher", "x_github", "教材を直して公開", "教材の main を直す（またはフォークの main に入れる）。"],
+      ["x_github", "sys", "git pull で取り込む", "各自のブランチに main を取り込むと、どのタスクにも効く。"]],
+    c4: [
+      { a: ["main", 5], b: ["term", 2], issue: "緊1", label: "無効な掛け金の -1 を平均に入れない", desc: "game() は無効な掛け金で (-1, 0) を返し、集計の total += result がそれを「残高 -1 で終わったゲーム」として平均に混ぜる（旗 緊1）。どのタスクを選んでも結果の数字に効くので、タスクの中ではなく教材の側で直しておきたい所。-1 は別に数えて、平均は残りで割る。",
         code: [[AD, "total_turns = 0", 1, [], ["total_turns = 0"], 0, "← この下に足す"], [AD, "result, num_turn = game(", 3, [], ["total += result"]], [AD, "end_time = time.perf_counter()", 3, [], ["print(f\"{module_name}"]]],
         ex: `          total_turns = 0
 +         errors = 0
@@ -803,17 +816,13 @@ for t in (12, 14, 16, 18, 20):
   …
 -         print(f"{module_name}, {elapsed_time/MAX}, {total_turns/MAX}, {total/MAX}")
 +         print(f"{module_name}, {elapsed_time/MAX}, {total_turns/MAX}, {total/max(1, MAX - errors)}, {errors}")` },
-      { a: ["printx", 0], b: ["term", 1], label: "is_print = True で確かめる", desc: "printx が print になり、1ラウンドずつの流れが出る。double の所を通ったかを見る。MAX も小さく（例: 3）しておかないと、4000 ゲーム分が流れる。確かめたら元に戻す。",
-        code: [[AD, "is_print:bool = False", 1, [], ["is_print:bool = False"]], [AD, "def printx", 3, ["if is_print:"], []]],
-        ex: "- is_print:bool = False\n+ is_print:bool = True   # 確かめるときだけ\n  …\n- MAX = 4000 # ゲームの最大回数\n+ MAX = 3" },
-      { a: ["main", 3], b: ["game", -1], label: "python3 autodealer.py で流す", desc: "is_print を False・MAX を 4000 に戻して流す。players/ の全部のプレイヤーが、新しいルールで比べられる。",
-        code: [[AD, "while game_round <= MAX:", 2, ["while game_round <= MAX:", "game(player_module.BlackjackPlayer)"], []]] },
-      { a: ["main", 6], b: ["term", 2], label: "改造の前と後を比べる", desc: "同じプレイヤー・同じ MAX で、改造の前と後の1行を並べる。",
-        code: [[AD, "end_time = time.perf_counter()", 3, ["print(f\"{module_name}"], []]] }] },
+    ],
+    related: ["緊2", "緊5", "速1", "悪1"] },
 };
 const PREP_C = "var(--prep)";
 function c4Steps() { const T = TASKS[S.task]; return T ? T.c4 : []; }
-function stepTag(steps, i) { // 準備は a・b・c…、実行の流れは 1・2・3…
+function stepTag(steps, i) { // 準備は a・b・c…、実行の流れは 1・2・3…、タスク外は 外1・外2…
+  if (TASKS[S.task] && TASKS[S.task].outside) return "外" + (i + 1);
   let a = 0, n = 0;
   for (let j = 0; j <= i; j++) { if (steps[j].p) a++; else n++; }
   return steps[i].p ? String.fromCharCode(96 + a) : String(n);
@@ -821,7 +830,7 @@ function stepTag(steps, i) { // 準備は a・b・c…、実行の流れは 1・
 function taskBar(lv) {
   const el = document.getElementById(lv + "bar");
   el.innerHTML = `<span class="levels-label">タスクで見る</span><button type="button" class="none" data-task="" aria-pressed="${!S.task}">なし</button>` +
-    Object.entries(TASKS).map(([k, t]) => `<button type="button" data-task="${k}" style="--c:${t.c}" aria-pressed="${S.task === k}">${t.t}</button>`).join("");
+    Object.entries(TASKS).map(([k, t]) => `${t.outside ? '<span class="levels-label" style="margin-left:10px">｜</span>' : ""}<button type="button" data-task="${k}" style="--c:${t.c}" class="${t.outside ? "outside" : ""}" aria-pressed="${S.task === k}">${t.t}</button>`).join("");
 }
 // コードの抜き出し: 探した行から n 行（0 ならかたまり全部）。hl は光らせる行、ed は変える行
 function codeRange([f, find, n, hl = [], ed = [], pre = 0, edl = "← 変える"], idx = 0, all = []) {
@@ -854,6 +863,7 @@ function taskPanel(lv) {
     body = `<div class="step" style="--t:${st.p ? PREP_C : T.c}"><div class="dh"><span class="kind" style="--c:${st.p ? PREP_C : T.c}">${st.p ? "準備 " : ""}${tag(k)}</span><h3>${esc(st.label)}</h3>
       <div class="nav"><button type="button" data-tstep="${k - 1}" ${k ? "" : "disabled"}>← 前</button><button type="button" data-tstep="${k + 1}" ${k < steps.length - 1 ? "" : "disabled"}>次 →</button></div></div>
       <p class="note">${esc(name(st.a))}${st.b ? " → " + esc(name(st.b)) : ""}</p><p>${esc(st.desc)}</p>
+      ${st.issue ? `<p><button type="button" class="btn" data-ringissue="${st.issue}">3 環状線で ${st.issue} を見る →</button></p>` : ""}
       ${rts.length || st.rtNote ? `<div class="rt"><b>実行時の呼び出し</b>（本物を「ヒットして勝つ」で1ラウンド流して記録）${rts.map(([key, n]) => `<code>${esc(key.replace(" -> ", " → "))}</code><small>×${n}</small>`).join("")}${st.rtNote ? `<small>${esc(st.rtNote)}</small>` : ""}</div>` : ""}
       ${st.code ? `<h4>コード${st.code.some((c) => (c[4] || []).length) ? "（橙の行が変える所）" : ""}</h4><div class="code">${st.code.map((c, i, all) => codeRange(c, i, all)).join(`<div class="gap">  ⋮</div>`)}</div>` : ""}
       ${st.ex ? `<h4>変更の例（最低限）</h4>${diffHtml(st.ex)}${st.exNote ? `<p class="note">${esc(st.exNote)}</p>` : ""}` : ""}</div>`;
@@ -861,13 +871,15 @@ function taskPanel(lv) {
   const prep = steps.map((x, i) => [x, i]).filter(([x]) => x.p), flow = steps.map((x, i) => [x, i]).filter(([x]) => !x.p);
   el.innerHTML = `<section class="tpanel" style="--t:${T.c}"><div class="dh"><span class="kind" style="--c:${T.c}">タスク</span><h2>${esc(T.t)}</h2></div><p class="note">${esc(T.note)}</p>
     <div class="tcols">${prep.length ? `<div><h3 style="color:${PREP_C}">実行前の準備（並列・どれからでもよい）</h3><ol>${prep.map(([x, i]) => item(x, i)).join("")}</ol></div>` : ""}
-      <div><h3 style="color:${T.c}">${prep.length ? "実行の流れ（順番）" : "流れ（順番）"}</h3><ol>${flow.map(([x, i]) => item(x, i)).join("")}</ol></div></div>${body}
+      <div><h3 style="color:${T.c}">${T.outside ? "直したい所" : prep.length ? "実行の流れ（順番）" : "流れ（順番）"}</h3><ol>${flow.map(([x, i]) => item(x, i)).join("")}</ol></div></div>${body}
+    ${T.related ? `<p class="note">ほかにタスク外で直したい所は、3 環状線の旗にある: ${T.related.map((id) => `<button type="button" class="btn" data-ringissue="${id}">${id} ${esc(R.issues.find((x) => x.id === id).title)}</button>`).join(" ")}</p>` : ""}
+    ${!T.outside ? `<p class="note">タスク外で直したい所（どのタスクの結果にも効く所）は <button type="button" class="btn" data-task="X">タスク外の改修</button> にまとめてある。</p>` : ""}
     ${T.ways && lv === "c4" ? `<h3>分析のしかた（アプローチ）</h3><dl class="ways">${T.ways.map(([w, d]) => `<dt>${esc(w)}</dt><dd>${esc(d)}</dd>`).join("")}</dl>
       ${T.wayEx ? `<h4>まとめて流す例（コピーを作らない・信頼区間つき）</h4>${diffHtml(T.wayEx.split("\n").map((l) => "  " + l).join("\n"))}<p class="note">このページを作るときに 2000 ゲームずつ流した結果: 12 → 836 ± 24、16 → 863 ± 23、20 → 327 ± 23。12 と 16 の差は区間の幅とほぼ同じで、偶然かもしれない。</p>` : ""}` : ""}</section>`;
 }
 function badge(g, x, y, i, text, prep) {
   const b = svgEl("g", { class: "tbadge" + (S.tstep === i ? " cur" : "") + (prep ? " prep" : ""), "data-tstep": i, tabindex: 0, role: "button" }, g);
-  svgEl("circle", { cx: x, cy: y, r: 11 }, b);
+  svgEl("circle", { cx: x, cy: y, r: String(text || "").length > 1 ? 14 : 11 }, b);
   svgEl("text", { x, y: y + 4, "text-anchor": "middle" }, b).textContent = text == null ? i + 1 : text;
 }
 function flowCls(i) { return "tflow" + (S.tstep == null ? "" : S.tstep === i ? " cur" : " dim"); }
@@ -1047,6 +1059,10 @@ document.addEventListener("click", (ev) => {
   if (rs) { const st = rs.dataset.ringst; setLevel("ring");
     if (!path().some((e) => e.id === st)) { const r = R.routes.find((x) => TR[x.id].path.some((e) => e.id === st)); if (r) S.route = r.id; }
     S.pos = 0; goStation(st); return; }
+  const ri = ev.target.closest("[data-ringissue]");
+  if (ri) { const it = R.issues.find((x) => x.id === ri.dataset.ringissue); setLevel("ring"); S.layers[it.kind] = true;
+    if (!path().some((e) => e.id === it.station)) { const r = R.routes.find((x) => TR[x.id].path.some((e) => e.id === it.station)); if (r) S.route = r.id; }
+    S.issue = it.id; S.pos = 0; goStation(it.station); window.scrollTo({ top: 0 }); return; }
   const tk = ev.target.closest("[data-task]");
   if (tk) { S.task = tk.dataset.task || null; S.tstep = S.task ? 0 : null; store.set("task", S.task); redrawC4(); return; }
   const ts = ev.target.closest("[data-tstep]");
