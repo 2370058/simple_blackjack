@@ -1257,7 +1257,7 @@ function palChips(F) {
   const chip = (tok, m, extra) => `<button type="button" class="chip${m ? cls(m) : ""}" data-ins="${esc(tok)}" ${m ? `data-pm="${esc(m.n)}"` : ""} title="${esc(m ? m.d || m.now || "" : extra || "")}"><b>${esc(tok)}</b><small>${m ? (m.now ? ((ss) => ss.length ? (ss.length > 3 ? ss.length + " 駅" : "駅 " + ss.map((x) => idx[x]).join("・")) : "呼ばれない")(methodStations(m)) : "駅 " + idx[m.st] + (m.arg ? "（引数）" : "")) : esc(extra || "")}</small></button>`;
   if (tab === "val") return (MATS[F.task] || []).flatMap((m) => tokensOf(m.n).map((tk) => chip(tk, m))).join("");
   if (tab === "meth") return (METHODS[F.task] || []).map((m) => chip(tokensOf(m.n)[0], m)).join("");
-  if (tab === "memo") return ivars().map((v) => chip(memoTokens(v.n)[0] || v.n, null, `${mkLabel(v.kind)}`)).join("") || "<small>（まだ無い。「4. メモ」で足すと、ここに出る）</small>";
+  if (tab === "memo") return ivars().flatMap((v) => (memoTokens(v.n).length ? memoTokens(v.n) : [v.n]).map((tk) => chip(tk, null, `${mkLabel(v.kind)}${v.st && ST[v.st] ? "・駅 " + idx[v.st] : ""}`))).join("") || "<small>（まだ無い。「4. メモ」で足すと、ここに出る）</small>";
   const q = (S.palQ || "").trim().toLowerCase(), list = codeNames().filter((c) => !q || c.n.toLowerCase().includes(q) || c.f.includes(q) || c.kind.includes(q));
   return `<div class="codelist">${list.slice(0, 60).map((c) => `<button type="button" class="chip code" data-ins="${esc(c.n)}" title="${esc(c.kind)}"><b>${esc(c.n)}</b><small>${esc(c.f.replace("players/", ""))}:${c.ln}・${esc(c.kind)}</small></button>`).join("")}${list.length > 60 ? `<small>ほか ${list.length - 60} 件（上の欄で絞る）</small>` : ""}${list.length ? "" : "<small>（見つからない）</small>"}</div>`;
 }
@@ -1341,13 +1341,14 @@ function stepChecks(task, step, all) {
   for (const m of known) for (const tk of tokensOf(m.n)) { if (seen.has(m.n) || !text.includes(tk)) continue; seen.add(m.n);
     const a = availAt(m, step.st);
     out.push({ n: m.n, ok: a === true || a === "call", other: a === "other", msg: a === true ? `駅 ${idx[m.st]} から手に入る` : a === "call" ? "この駅で呼ばれる" : a === "other" ? `別の駅（${methodStations(m).map((x) => idx[x]).join("・")}）で呼ばれる。ここで使うなら、そこで覚えておく` : m.arg ? `引数なので駅 ${idx[m.st]} の中だけ` : `駅 ${idx[m.st]} から。この駅ではまだ無い` }); }
-  for (const v of ivars()) for (const tk of [...tokensOf(v.n), ...memoTokens(v.n)]) { if (seen.has("v:" + v.n) || !text.includes(tk)) continue; seen.add("v:" + v.n);
-    const stt = memoStatus(v, task);
-    if (!stt.isNew) { out.push({ n: v.n, ok: true, msg: "メモした材料。もうコードにある" }); continue; }
-    if (v.kind === "method") { out.push({ n: v.n, ok: true, msg: "新しいメソッド（定義と、game() の呼ぶ側を足す）" }); continue; }
-    if (step.k === "init") { out.push({ n: v.n, ok: true, msg: "新しい変数（ここで初期値）" }); continue; }
-    const hasInit = all.some((x) => x.k === "init" && (x.t || "").includes(tk));
-    out.push({ n: v.n, ok: hasInit, msg: hasInit ? "新しい変数（初期値のステップがある）" : "新しい変数だが、初期値を置くステップが無い" }); }
+  for (const v of ivars()) { const stt = memoStatus(v, task);
+    for (const tk of new Set([...tokensOf(v.n), ...memoTokens(v.n)])) { if (seen.has("v:" + tk) || !text.includes(tk)) continue; seen.add("v:" + tk);
+      const o = stt.out.find((x) => x.tk === tk), isNew = !o || o.st === "new";   // 名前ごとに、あるか・新しく作るかを見る
+      if (!isNew) { out.push({ n: tk, ok: true, msg: "メモした材料。もうコードにある" }); continue; }
+      if (v.kind === "method") { out.push({ n: tk, ok: true, msg: "新しいメソッド（定義と、game() の呼ぶ側を足す）" }); continue; }
+      if (step.k === "init") { out.push({ n: tk, ok: true, msg: "新しい変数（ここで初期値）" }); continue; }
+      const hasInit = all.some((x) => x.k === "init" && (x.t || "").includes(tk));
+      out.push({ n: tk, ok: hasInit, msg: hasInit ? "新しい変数（初期値のステップがある）" : "新しい変数だが、初期値を置くステップが無い" }); } }
   return out;
 }
 function stepWhere(task, step) {
@@ -1392,9 +1393,10 @@ function memoStatus(v, task) {
   if (isNew) {
     if (kind === "method") {
       const pf = "players/player_simple.py", callAt = k ? `${idx[k]}. ${ST[k].title}（autodealer.py ${ST[k].begin[0]} 行付近）` : "（使う駅を選ぶ）";
-      plan.push(`定義: ${pf} の class BlackjackPlayer に def ${toks[0]}(self, …) を足す（players/ の全員 — ${DATA.players.map((x) => x.replace("players/", "")).join("・")} — に要る。無いプレイヤーは、呼ばれたときに AttributeError になる）`,
-        `呼ぶ側: autodealer.py の game() の、駅 ${callAt} に player.${toks[0]}(…) を足す。ゲームのコードを変えるので、タスク B ではなくタスク C（dealer.py・player.py にも同じ変更）`);
-    } else if (kind === "var") plan.push(task === "C" ? "初期値: autodealer.py の上（定数。import のとき1回）か、game() の最初（駅 0・ゲームごと）" : "初期値: players/ のファイルの上（定数。import のとき1回）か、__init__（駅 0・ゲームごと）", "更新と判定は、どの駅のどのメソッドかを「自分の設計」のステップに書く");
+      const names = out.filter((o) => o.st === "new").map((o) => o.tk);
+      plan.push(`定義: ${pf} の class BlackjackPlayer に ${names.map((x) => `def ${x}(self, …)`).join("・")} を足す（players/ の全員 — ${DATA.players.map((x) => x.replace("players/", "")).join("・")} — に要る。無いプレイヤーは、呼ばれたときに AttributeError になる）`,
+        `呼ぶ側: autodealer.py の game() の、駅 ${callAt} に ${names.map((x) => `player.${x}(…)`).join("・")} を足す。ゲームのコードを変えるので、タスク B ではなくタスク C（dealer.py・player.py にも同じ変更）`);
+    } else if (kind === "var") plan.push((out.filter((o) => o.st === "new").length > 1 ? `新しく作るのは ${out.filter((o) => o.st === "new").map((o) => o.tk).join("・")}。` : "") + (task === "C" ? "初期値: autodealer.py の上（定数。import のとき1回）か、game() の最初（駅 0・ゲームごと）" : "初期値: players/ のファイルの上（定数。import のとき1回）か、__init__（駅 0・ゲームごと）"), "更新と判定は、どの駅のどのメソッドかを「自分の設計」のステップに書く");
     else plan.push("まず、変数（値）か、メソッドかを決める（種類を直すと、作る場所が出る）");
   }
   return { out, isNew, plan, kind };
