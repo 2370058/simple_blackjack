@@ -1,0 +1,39 @@
+# ブラックジャックの部品図と環状線
+
+抽選アプリ（daigakusai-lottery）の学習ページを、このブラックジャックに当てはめたものです。上のタブで図の細かさ（C4 モデル）を切り替えます。
+
+| 段 | 見るもの | 元にしたもの |
+|---|---|---|
+| 1 コンテキスト | simple_blackjack を1つの箱にして、遊ぶ人・タスク A/B/C の学生・授業の担当・GitHub・VS Code・Excel とのやりとり | main の `docs/map` のコンテキスト図 |
+| 2 コンテナ・コンポーネント | dealer.py・autodealer.py の2つのプログラムと、import される card.py・players/。行を押すとコード | main の `docs/map` の部品図 |
+| 3 環状線（コード） | 1ラウンドを1周として、駅ごとの行・変数・旗。部品図（駅 × 役割） | learning の `docs/blocks` |
+
+デプロイは無いので、デプロイ図は作っていません。1 と 2 の図のデータ（箱・行・矢印）は `ring.src.html` の `CTX`・`C4B`・`C4E` にあります。
+
+```bash
+python docs/map/build.py      # ring.html を作る（コミットしない）
+open docs/map/ring.html       # Mac（Windows は start、Linux は xdg-open）
+```
+
+| ファイル | 中身 |
+|---|---|
+| `ring.json` | 駅（`begin` = 駅が始まる autodealer.py の行）・ルート（配るカードの順番）・旗（緊急・悪意・速さ） |
+| `ring.src.html` | ページの骨組み・見た目・動き |
+| `build.py` | ルートごとに本物の `autodealer.game()` を1ラウンド流し、実行した行と変数を記録して `ring.html` に埋め込む |
+
+## 道路の決まり
+
+| 地図 | コードでは |
+|---|---|
+| 本線（環状線） | `autodealer.py` の `game()` の `while True` の1周 = 1ラウンド。時計回り |
+| 駅 | 手札・掛け金・残高の形が変わる所と、決まる所（if） |
+| 拠点とランプ | プレイヤー（players/*.py）・山札（deck）・点数の計算所（card.py）。駅から寄り道して、同じ駅に戻る |
+| 近道・出口 | `continue`（次のラウンドへ）と `return`（ゲーム終了） |
+| 旗 | 緊急（事故）・悪意（プレイヤーのプログラムによるずる）・速さ |
+
+部品図は、1ラウンドで実行した行を、駅 × 役割（表示・入力・判定・流れ・データ・つなぐ・計算・状態・定義）で数えた表です。役割は `build.py` の `ROLES` が行の書き方から決めます。
+
+## 直したとき
+
+- コードを変えて行がずれたら `build.py` が止まるので、`ring.json` の `begin` と `anchor` を今の行に直す
+- ルートを足すときは、`cards` に配る順（プレイヤー → ディーラー → プレイヤー → ディーラー → 引く順）を書く。プレイヤーは `players/player_simple.py`（16 未満で hit）

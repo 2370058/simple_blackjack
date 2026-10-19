@@ -1,0 +1,737 @@
+<title>ブラックジャックの環状線</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@500;800&family=Zen+Kaku+Gothic+New:wght@400;700&family=M+PLUS+1+Code:wght@400;600&display=swap">
+<style>
+/* 抽選アプリの学習の地図（learning ブランチ docs/blocks）と同じ色とフォント。本線＝ディーラー、内側の拠点＝プレイヤー・山札・計算所 */
+:root {
+  --bg: #eef0f3; --panel: #ffffff; --fg: #1c2230; --muted: #5d6676; --line: #d5dae3;
+  --asphalt: #3b4250; --paint: #e9edf3; --car: #ffcf3f; --car-fg: #2b2100;
+  --player: #2a9d8f; --dealer: #4c5bd4; --deck: #c9822b; --calc: #c2457a; --exit: #8a93a3;
+  --danger: #cf3a52; --danger-bg: #fde8eb; --ok: #23905e; --ok-bg: #e3f4ea; --attack: #6b3fa0; --attack-bg: #efe7f8; --perf: #2f6f8f; --perf-bg: #e4f0f6;
+  --pre: #3567d4; --branch: #d97a12; --check: #7f48cc;
+  --stmt: #2b3448; --stmt-fg: #f2f5fb; --stmt-dim: #9aa6bf; --hit: #3d4a66;
+  --display: "M PLUS Rounded 1c", "Hiragino Maru Gothic ProN", system-ui, sans-serif;
+  --body: "Zen Kaku Gothic New", "Hiragino Sans", "Yu Gothic", system-ui, sans-serif;
+  --mono: "M PLUS 1 Code", ui-monospace, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #141820; --panel: #1c222d; --fg: #e6e9f0; --muted: #9aa3b4; --line: #2d3442;
+  --asphalt: #0b0e14; --paint: #4a5262; --car: #ffd75e; --car-fg: #2b2100;
+  --player: #4cc3b4; --dealer: #8592f2; --deck: #e6a552; --calc: #e57aa6; --exit: #7c8596;
+  --danger: #f07386; --danger-bg: #3a1c22; --ok: #4fc488; --ok-bg: #173325; --attack: #b48ef0; --attack-bg: #2a1f3a; --perf: #6fb3d6; --perf-bg: #17293a;
+  --pre: #6e98f0; --branch: #f0a04b; --check: #ad85ee;
+  --stmt: #0e121a; --stmt-fg: #eef2f9; --stmt-dim: #6f7c96; --hit: #2a3550; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #141820; --panel: #1c222d; --fg: #e6e9f0; --muted: #9aa3b4; --line: #2d3442;
+  --asphalt: #0b0e14; --paint: #4a5262; --car: #ffd75e; --car-fg: #2b2100;
+  --player: #4cc3b4; --dealer: #8592f2; --deck: #e6a552; --calc: #e57aa6; --exit: #7c8596;
+  --danger: #f07386; --danger-bg: #3a1c22; --ok: #4fc488; --ok-bg: #173325; --attack: #b48ef0; --attack-bg: #2a1f3a; --perf: #6fb3d6; --perf-bg: #17293a;
+  --pre: #6e98f0; --branch: #f0a04b; --check: #ad85ee;
+  --stmt: #0e121a; --stmt-fg: #eef2f9; --stmt-dim: #6f7c96; --hit: #2a3550; color-scheme: dark }
+body { background: var(--bg); color: var(--fg); font-family: var(--body); font-size: 15px; line-height: 1.7; }
+.wrap { max-width: 1120px; margin: 0 auto; padding-block: 28px 64px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: grid; gap: 16px; }
+.wrap > * { min-width: 0; }
+h1, h2, h3 { font-family: var(--display); font-weight: 800; text-wrap: balance; margin: 0; line-height: 1.35; }
+h1 { font-size: 1.75rem; } h2 { font-size: 1.15rem; } h3 { font-size: 1rem; }
+p { margin: 0; }
+.crumb { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; font-family: var(--display); font-size: .85rem; color: var(--muted); }
+.crumb b { background: var(--fg); color: var(--bg); border-radius: 4px; padding: 0 6px; font-size: .75rem; }
+.lead { color: var(--muted); max-width: 62ch; }
+.bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.seg { display: inline-flex; flex-wrap: wrap; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; background: var(--panel); }
+.seg button { border: 0; background: transparent; color: var(--fg); font: 600 .88rem var(--display); padding: 8px 14px; cursor: pointer; }
+.seg button[aria-pressed="true"] { background: var(--fg); color: var(--bg); }
+.seg.layers button[aria-pressed="true"] { background: var(--c); color: #fff; }
+button:focus-visible, [tabindex]:focus-visible { outline: 3px solid var(--car); outline-offset: 2px; }
+.routes { display: flex; flex-wrap: wrap; gap: 6px; }
+.routes button { border: 1px solid var(--line); background: var(--panel); color: var(--fg); border-radius: 999px; padding: 4px 12px; font: 600 .85rem var(--display); cursor: pointer; }
+.routes button[aria-pressed="true"] { background: var(--fg); color: var(--bg); border-color: var(--fg); }
+.box { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 16px; display: grid; gap: 10px; align-content: start; }
+.summary { border: 2px solid var(--ok); border-radius: 12px; background: var(--panel); padding: 12px 16px; display: grid; gap: 8px; }
+.stats { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: .85rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+.stats b { color: var(--fg); font-family: var(--mono); font-weight: 600; }
+.map { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; overflow-x: auto; }
+.map svg { display: block; width: 100%; min-width: 760px; height: auto; font-family: var(--display); }
+.map .st { cursor: pointer; }
+.map .st:hover circle.dot { stroke-width: 4; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: .8rem; color: var(--muted); padding: 10px 14px; border-top: 1px solid var(--line); }
+.legend i { display: inline-block; width: 12px; height: 12px; border-radius: 3px; background: var(--c); vertical-align: -1px; margin-right: 4px; }
+.flags { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.ik { font: 800 .75rem var(--display); padding: 2px 8px; border-radius: 6px; color: #fff; background: var(--c); }
+.ichip { border: 1.5px solid var(--c); color: var(--c); background: var(--panel); border-radius: 6px; padding: 1px 8px; font: 700 .8rem var(--display); cursor: pointer; }
+.ichip.bad { background: var(--c); color: #fff; }
+.ichip.ops { background: color-mix(in srgb, var(--c) 18%, var(--panel)); }
+.ichip[aria-pressed="true"] { outline: 3px solid var(--car); outline-offset: 1px; }
+.detail { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; }
+@media (max-width: 820px) { .detail { grid-template-columns: minmax(0, 1fr); } }
+.dh { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.kind { font: 800 .75rem var(--display); color: #fff; background: var(--c); padding: 2px 8px; border-radius: 6px; }
+.nav { margin-left: auto; display: flex; gap: 6px; }
+.nav button, .btn { border: 1px solid var(--line); background: var(--panel); color: var(--fg); border-radius: 8px; padding: 4px 10px; font: 600 .82rem var(--display); cursor: pointer; }
+.shape { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 4px 10px; font-size: .88rem; }
+.shape dt { font: 700 .78rem var(--display); color: var(--muted); padding-top: 2px; }
+.shape dd { margin: 0; }
+.cargo { display: grid; gap: 4px; font-size: .85rem; }
+.cargo div { display: flex; flex-wrap: wrap; gap: 4px 8px; align-items: center; }
+.cargo code { font-family: var(--mono); color: var(--muted); min-width: 9.5em; }
+.cargo .chg { background: color-mix(in srgb, var(--car) 35%, transparent); border-radius: 4px; padding: 0 4px; }
+.card { display: inline-flex; align-items: center; justify-content: center; min-width: 2.1em; height: 1.7em; padding: 0 4px; border: 1px solid var(--line); border-radius: 4px; background: var(--panel); font: 600 .85rem var(--mono); }
+.card.red { color: var(--danger); }
+.card.new { border-color: var(--car); box-shadow: 0 0 0 2px color-mix(in srgb, var(--car) 60%, transparent); }
+.issue { border-left: 4px solid var(--c); background: color-mix(in srgb, var(--c) 8%, var(--panel)); border-radius: 0 8px 8px 0; padding: 8px 12px; display: grid; gap: 4px; font-size: .88rem; }
+.issue h3 { font-size: .92rem; }
+.issue small { color: var(--muted); }
+.code { background: var(--stmt); color: var(--stmt-fg); border-radius: 10px; font: .8rem/1.6 var(--mono); overflow-x: auto; padding: 8px 0; }
+.code .file { color: var(--stmt-dim); padding: 6px 12px 2px; font-weight: 600; }
+.code .gap { color: var(--stmt-dim); padding: 0 12px; }
+.code .ln { display: grid; grid-template-columns: 3.2em 4px auto 1fr; gap: 0 8px; white-space: pre; padding-right: 12px; }
+.code .ln i { font-style: normal; color: var(--stmt-dim); text-align: right; }
+.code .ln s { text-decoration: none; background: var(--r, transparent); }
+.code .ln.x { background: var(--hit); }
+.code .ln.dim { opacity: .45; }
+.code .ln em { font-style: normal; color: var(--car); font-size: .72rem; }
+.code .ln .fl { color: #fff; background: var(--c); border-radius: 4px; padding: 0 4px; font: 700 .7rem var(--display); margin-left: 6px; }
+.tablewrap { overflow-x: auto; }
+table { border-collapse: collapse; font-size: .82rem; font-variant-numeric: tabular-nums; }
+th, td { border: 1px solid var(--line); padding: 4px 6px; text-align: center; }
+thead th { font: 700 .78rem var(--display); background: var(--panel); position: sticky; top: 0; }
+thead th span { display: inline-block; width: 10px; height: 10px; border-radius: 2px; background: var(--c); margin-right: 3px; vertical-align: -1px; }
+td.name { text-align: left; white-space: nowrap; }
+td.name button { border: 1.5px solid var(--c); background: color-mix(in srgb, var(--c) 10%, var(--panel)); color: var(--fg); border-radius: 999px; padding: 1px 10px; font: 600 .8rem var(--display); cursor: pointer; }
+td.n button { width: 100%; min-width: 2.2em; border: 0; border-radius: 4px; padding: 3px 4px; font: 700 .8rem var(--mono); cursor: pointer; color: var(--fg); background: color-mix(in srgb, var(--c) calc(var(--a) * 1%), transparent); }
+td.n button[aria-pressed="true"] { outline: 2px solid var(--fg); }
+tr.cur td { background: color-mix(in srgb, var(--car) 18%, transparent); }
+tfoot td { font-weight: 700; }
+.note { color: var(--muted); font-size: .85rem; max-width: 70ch; }
+.lv { display: grid; gap: 16px; }
+.lv[hidden] { display: none; }
+.lv > * { min-width: 0; }
+.levels { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.levels-label { font: 700 .8rem var(--display); color: var(--muted); margin-right: 4px; }
+.levels button { border: 1px solid var(--line); background: var(--panel); color: var(--fg); border-radius: 10px; padding: 6px 14px; font: 700 .9rem var(--display); cursor: pointer; }
+.levels button[aria-selected="true"] { background: var(--fg); color: var(--bg); border-color: var(--fg); }
+.map.c4 svg { min-width: 820px; font-family: var(--body); }
+.c4 .box4 { cursor: pointer; }
+.c4 .box4 rect.body { fill: color-mix(in srgb, var(--c) 12%, var(--panel)); stroke: var(--c); stroke-width: 1.6; }
+.c4 .box4.sys rect.body { stroke-width: 2.6; }
+.c4 .box4.opt rect.body, .c4 .box4.mine rect.body { stroke-dasharray: 6 4; fill: var(--panel); }
+.c4 .box4:hover rect.body, .c4 .box4.on rect.body { stroke-width: 3.2; }
+.c4 .box4.on rect.body { stroke: var(--fg); }
+.c4 .t { font: 800 14px var(--display); fill: var(--fg); }
+.c4 .tm { font: 600 13px var(--mono); fill: var(--fg); }
+.c4 .sub { font-size: 11.5px; fill: var(--muted); }
+.c4 .tag { font: 600 10.5px var(--mono); fill: var(--muted); }
+.c4 .row { cursor: pointer; }
+.c4 .row rect { fill: transparent; }
+.c4 .row:hover rect, .c4 .row.on rect { fill: color-mix(in srgb, var(--car) 30%, transparent); }
+.c4 .row .l { font: 12px var(--mono); fill: var(--fg); }
+.c4 .row .r { font-size: 11.5px; fill: var(--muted); }
+.c4 .row .ring { font: 700 10px var(--display); fill: var(--dealer); }
+.c4 .frame { fill: none; stroke: var(--c); stroke-width: 1.6; stroke-dasharray: 7 5; }
+.c4 .ft { font: 800 15px var(--display); fill: var(--fg); }
+.c4 .edge { cursor: pointer; }
+.c4 .edge path { fill: none; stroke: var(--muted); stroke-width: 1.5; }
+.c4 .edge.imp path { stroke-dasharray: 5 4; }
+.c4 .edge.cfg path { stroke-dasharray: 2 3; }
+.c4 .edge text { font-size: 11.5px; fill: var(--muted); paint-order: stroke; stroke: var(--panel); stroke-width: 4px; }
+.c4 .edge:hover path, .c4 .edge.on path { stroke: var(--fg); stroke-width: 2.6; }
+.c4 .edge.on text { fill: var(--fg); font-weight: 700; }
+.c4 .ahd { fill: var(--muted); }
+.d4 { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 16px; display: grid; gap: 10px; align-content: start; }
+.d4 .dh h2 { font-size: 1.05rem; }
+.hidden-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+</style>
+
+<div class="wrap" id="app">
+  <div class="crumb"><b>1</b>simple_blackjack<span>›</span><b>2</b><span id="crumb-ring">部品図</span></div>
+  <div class="levels" role="tablist" aria-label="図の細かさ（C4 モデル）" id="levels">
+    <span class="levels-label">図の細かさ</span>
+    <button type="button" role="tab" data-level="ctx">1 コンテキスト</button>
+    <button type="button" role="tab" data-level="c4">2 コンテナ・コンポーネント</button>
+    <button type="button" role="tab" data-level="ring">3 環状線（コード）</button>
+  </div>
+  <section class="lv" data-lv="ctx" hidden>
+    <h1>コンテキスト図</h1>
+    <p class="lead">C4 モデルの1段目。simple_blackjack 全体を1つの箱にして、周りの人と外部のものとのやりとりだけを描く。授業の3つのタスク（A 分析・B 戦略・C 改造）をする人も、ここでは別の人として並べる。箱や矢印を押すと、下に説明が出る。</p>
+    <div class="map c4"><svg id="ctxmap" viewBox="0 0 1150 440" role="img" aria-label="遊ぶ人・タスク A B C の学生・授業の担当と、GitHub・Ubuntu と VS Code・Excel が、simple_blackjack とどうやりとりするかを表したコンテキスト図"></svg></div>
+    <div id="ctxdetail"></div>
+  </section>
+  <section class="lv" data-lv="c4" hidden>
+    <h1>コンテナ図とコンポーネント図</h1>
+    <p class="lead">C4 モデルの2段目と3段目。点線の大きな枠がコンテナ（python3 で動かす単位と、import される部品の置き場）、中の箱がコンポーネント（ファイルや関数のまとまり）。
+      いちばん大事な境目は、ディーラーとプレイヤーをつなぐ <b>7つの命令</b>（start_turn・place_bet・receive_hand・look_dealer_hand・input・finish_dealer_hand・notify_result）。この形を変えると、players/ の全部のファイルが動かなくなる。
+      同じ1ラウンドの流れが dealer.py と autodealer.py の game() の2か所に書いてあるので、ルールを直すときは両方を直す。行を押すとそのコードが出る。右端に ◯ がある行は環状線に駅があり、「環状線で見る」で3段目に下りられる。</p>
+    <div class="map c4"><svg id="c4map" viewBox="0 0 1150 1000" role="img" aria-label="dealer.py と autodealer.py の2つのプログラムが、card.py と players/ のプレイヤーを import して使い、ターミナルに入出力する構成図"></svg></div>
+    <div id="c4detail"></div>
+  </section>
+  <section class="lv" data-lv="ring">
+  <h1 id="title">環状線</h1>
+  <p class="lead" id="lead"></p>
+  <div class="bar">
+    <div class="seg" id="modes"></div>
+    <div class="seg layers" id="layers"></div>
+    <button type="button" class="btn" id="auto">⏵ 自動で走る</button>
+  </div>
+  <div class="routes" id="routes" role="group" aria-label="ルート"></div>
+  <section class="summary" id="summary"></section>
+  <div class="flags" id="flags"></div>
+  <div class="map" id="map"></div>
+  <div id="main"></div>
+  </section>
+</div>
+
+<script>
+(() => {
+const DATA = /*__DATA__*/{};
+const R = DATA.ring, SRC = {}, TR = DATA.traces, ROLE = DATA.roles;
+for (const f in DATA.sources) SRC[f] = DATA.sources[f].split("\n");
+const ST = Object.fromEntries(R.stations.map((s) => [s.id, s]));
+const RING = R.stations.filter((s) => s.id !== "end");           // 環状線に並ぶ駅（s0〜s21）
+const ROLES = DATA.roleNames;
+const RC = { "定義": "var(--muted)", "表示": "var(--calc)", "入力": "var(--player)", "判定": "var(--branch)", "流れ": "var(--exit)",
+  "データ": "var(--ok)", "つなぐ": "var(--dealer)", "計算": "var(--pre)", "状態": "var(--check)", "その他": "var(--line)" };
+const SITE = { player: { t: "プレイヤー", sub: "players/player_simple.py", c: "var(--player)" },
+  deck: { t: "山札（deck）", sub: "autodealer.py の global", c: "var(--deck)" },
+  calc: { t: "点数の計算所", sub: "card.py の Card.sum など", c: "var(--calc)" } };
+const IK = { "緊急": { c: "var(--danger)" }, "悪意": { c: "var(--attack)" }, "速さ": { c: "var(--perf)" } };
+const G = { bad: "まだ守れていない", ops: "ルールとして受け入れる", good: "守っている" };
+const LBL = { player_hand: "player_hand", dealer_hand: "dealer_hand", bet_amount: "bet_amount", player_balance: "player_balance",
+  is_burst: "is_burst", turns: "turns", player_choice: "player_choice", deck_left: "len(deck)", round: "round" };
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+
+const store = { get(k, d) { try { const v = localStorage.getItem("bjmap:" + k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } },
+  set(k, v) { try { localStorage.setItem("bjmap:" + k, JSON.stringify(v)); } catch (e) { /* 保存できなくても動く */ } } };
+const S = { route: store.get("route", "main"), pos: 0, mode: store.get("mode", "drive"),
+  layers: store.get("layers", { "緊急": true, "悪意": true, "速さ": false }), issue: null, role: null, timer: null };
+if (!TR[S.route]) S.route = "main";
+
+// 駅ごとに、そのルートで寄った拠点（ファイルと山札）を、実行した行から出す
+function sitesOf(entry) {
+  const out = new Set();
+  for (const k of Object.keys(entry.lines)) {
+    const [f, n] = splitKey(k);
+    if (f === "card.py") out.add("calc");
+    if (f.startsWith("players/")) out.add("player");
+    if (f === "autodealer.py" && /deck/.test(SRC[f][n - 1])) out.add("deck");
+  }
+  return [...out];
+}
+function splitKey(k) { const i = k.lastIndexOf(":"); return [k.slice(0, i), +k.slice(i + 1)]; }
+const path = () => TR[S.route].path;
+const cur = () => path()[Math.min(S.pos, path().length - 1)];
+const routeOf = (id) => R.routes.find((r) => r.id === id);
+
+// ---- 地図の形 ----
+const W = 1200, H = 700, CX = 600, CY = 350, RX = 420, RY = 240;
+const N = RING.length, A0 = -Math.PI + 0.42, STEP = (2 * Math.PI) / N;
+const ang = (i) => A0 + i * STEP;
+const pt = (i, dr = 0) => { const a = ang(i); return [CX + (RX + dr) * Math.cos(a), CY + (RY + dr * RY / RX) * Math.sin(a)]; };
+const idx = Object.fromEntries(RING.map((s, i) => [s.id, i]));
+const END = [92, 70];
+const BOX = { player: { x: 470, y: 178, w: 260, h: 64 }, calc: { x: 330, y: 400, w: 230, h: 64 }, deck: { x: 640, y: 400, w: 230, h: 64 } };
+const posOf = (id) => id === "end" ? END : pt(idx[id]);
+
+function svgMap() {
+  const P = path(), here = cur(), visited = new Set(P.map((p) => p.id));
+  let s = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="1ラウンドの環状線。駅を押すと詳しい所が出る">`;
+  s += `<defs><marker id="ah" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0 10 5 0 10z" fill="var(--exit)"/></marker>
+    <marker id="ahc" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0 10 5 0 10z" fill="var(--car)"/></marker></defs>`;
+  // 本線（ディーラー）の道路
+  s += `<ellipse cx="${CX}" cy="${CY}" rx="${RX}" ry="${RY}" fill="none" stroke="var(--dealer)" stroke-opacity=".18" stroke-width="58"/>`;
+  s += `<ellipse cx="${CX}" cy="${CY}" rx="${RX}" ry="${RY}" fill="none" stroke="var(--asphalt)" stroke-width="34"/>`;
+  s += `<ellipse cx="${CX}" cy="${CY}" rx="${RX}" ry="${RY}" fill="none" stroke="var(--paint)" stroke-width="2" stroke-dasharray="14 12"/>`;
+  for (let i = 0; i < N; i += 2) { // 向きの矢印（時計回り）
+    const a = ang(i + 1), [x, y] = pt(i + 1), dx = -RX * Math.sin(a), dy = RY * Math.cos(a), d = Math.atan2(dy, dx) * 180 / Math.PI;
+    s += `<path d="M-5 -4 3 0 -5 4" transform="translate(${x},${y}) rotate(${d})" fill="none" stroke="var(--paint)" stroke-width="2"/>`;
+  }
+  s += `<text x="${CX}" y="${CY - RY - 46}" text-anchor="middle" font-size="13" fill="var(--dealer)" font-weight="800">本線 = ディーラー（autodealer.py の game()）→ 時計回り</text>`;
+  // 内側の拠点
+  for (const [k, b] of Object.entries(BOX)) {
+    const on = sitesOf(here).includes(k);
+    s += `<g><rect x="${b.x}" y="${b.y}" width="${b.w}" height="${b.h}" rx="10" fill="var(--panel)" stroke="${SITE[k].c}" stroke-width="${on ? 3 : 1.5}" ${on ? "" : 'stroke-dasharray="5 4"'}/>
+      <text x="${b.x + 14}" y="${b.y + 27}" font-size="15" font-weight="800" fill="${SITE[k].c}">${SITE[k].t}</text>
+      <text x="${b.x + 14}" y="${b.y + 48}" font-size="11.5" fill="var(--muted)" font-family="var(--mono)">${SITE[k].sub}</text></g>`;
+  }
+  // ランプ（駅 → 拠点 → 同じ駅）
+  P.forEach((e, j) => { for (const k of sitesOf(e)) {
+    if (e.id === "end") continue;
+    const [x, y] = posOf(e.id), b = BOX[k], tx = Math.max(b.x + 12, Math.min(b.x + b.w - 12, x)), ty = y < b.y ? b.y : y > b.y + b.h ? b.y + b.h : b.y + b.h / 2;
+    const isCur = e === here, mx = (x + tx) / 2 + (CX - x) * .08, my = (y + ty) / 2 + (CY - y) * .08;
+    s += `<path d="M${x} ${y} Q${mx} ${my} ${tx} ${ty}" fill="none" stroke="${SITE[k].c}" stroke-width="${isCur ? 4 : 2}" stroke-opacity="${isCur ? .95 : .22}"/>`;
+  } });
+  // 近道（出口）と戻り（もう1枚）: となりでない駅へ進んだ所
+  const drawn = new Set();
+  for (let j = 0; j + 1 < P.length; j++) {
+    const a = P[j].id, b = P[j + 1].id, key = a + ">" + b;
+    if (drawn.has(key)) continue; drawn.add(key);
+    if (b !== "end" && idx[b] === idx[a] + 1) continue;
+    const [x1, y1] = posOf(a), [x2, y2] = posOf(b), back = b !== "end" && idx[b] < idx[a];
+    const mx = (x1 + x2) / 2, my = (y1 + y2) / 2, k = back ? .55 : -.75;
+    const cx = mx + (mx - CX) * -k * (back ? 1 : 1), cy = my + (my - CY) * -k;
+    const live = (S.pos > j && S.pos === j + 1);
+    s += `<path d="M${x1} ${y1} Q${cx} ${cy} ${x2} ${y2}" fill="none" stroke="${live ? "var(--car)" : "var(--exit)"}" stroke-width="${live ? 4 : 2.5}" stroke-dasharray="7 6" marker-end="url(#${live ? "ahc" : "ah"})"/>`;
+    const lx = .25 * x1 + .5 * cx + .25 * x2, ly = .25 * y1 + .5 * cy + .25 * y2;
+    s += `<text x="${lx}" y="${ly - 6}" text-anchor="middle" font-size="12" font-weight="800" fill="var(--muted)">${back ? "もう1枚（hit の輪）" : b === "end" ? "出口: return" : "近道: continue"}</text>`;
+  }
+  // 終了の駅
+  { const on = visited.has("end"), isCur = here.id === "end";
+    s += `<g class="st" data-st="end" tabindex="0"><rect x="${END[0] - 60}" y="${END[1] - 20}" width="120" height="40" rx="8" fill="${isCur ? "var(--car)" : "var(--panel)"}" stroke="var(--exit)" stroke-width="2" ${on ? "" : 'opacity=".4"'}/>
+      <text x="${END[0]}" y="${END[1] + 5}" text-anchor="middle" font-size="13" font-weight="800" fill="${isCur ? "var(--car-fg)" : "var(--fg)"}">ゲーム終了</text></g>`; }
+  // 駅
+  const issuesAt = {};
+  for (const it of R.issues) if (S.layers[it.kind]) (issuesAt[it.station] = issuesAt[it.station] || []).push(it);
+  RING.forEach((st, i) => {
+    const [x, y] = pt(i), [lx, ly] = pt(i, 44), on = visited.has(st.id), isCur = here.id === st.id;
+    const anchor = Math.abs(lx - CX) < 60 ? "middle" : lx < CX ? "end" : "start";
+    const col = st.kind === "分岐" ? "var(--branch)" : st.kind === "入口" ? "var(--exit)" : "var(--dealer)";
+    const shape = st.kind === "分岐" ? `<rect class="dot" x="-13" y="-13" width="26" height="26" rx="3" transform="rotate(45)" fill="${isCur ? "var(--car)" : "var(--panel)"}" stroke="${col}" stroke-width="2.5"/>`
+      : `<circle class="dot" r="15" fill="${isCur ? "var(--car)" : "var(--panel)"}" stroke="${col}" stroke-width="2.5"/>`;
+    s += `<g class="st" data-st="${st.id}" tabindex="0" role="button" aria-label="${esc(st.title)}" opacity="${on ? 1 : .32}"><g transform="translate(${x},${y})">${shape}
+      <text y="4.5" text-anchor="middle" font-size="12" font-weight="800" fill="${isCur ? "var(--car-fg)" : "var(--fg)"}">${i}</text></g>
+      <text x="${lx}" y="${ly + 4}" text-anchor="${anchor}" font-size="12.5" font-weight="${isCur ? 800 : 500}" fill="var(--fg)">${esc(st.title)}</text></g>`;
+    (issuesAt[st.id] || []).forEach((it, k) => {
+      const [fx, fy] = pt(i, -56), ox = (k - ((issuesAt[st.id].length - 1) / 2)) * 34;
+      const c = IK[it.kind].c, fill = it.g === "bad" ? c : "var(--panel)", tc = it.g === "bad" ? "#fff" : c;
+      s += `<g class="st" data-issue="${it.id}" tabindex="0" role="button" aria-label="${esc(it.id + " " + it.title)}" transform="translate(${fx + ox},${fy})">
+        <rect x="-16" y="-10" width="32" height="20" rx="4" fill="${fill}" stroke="${c}" stroke-width="1.5" ${S.issue === it.id ? 'stroke-width="3"' : ""}/>
+        <text y="4" text-anchor="middle" font-size="11" font-weight="800" fill="${tc}">${esc(it.id)}${it.g === "good" ? "✓" : ""}</text></g>`;
+    });
+  });
+  // 旗（今データがいる駅）
+  if (here.id !== "end") { const [x, y] = pt(idx[here.id], -1);
+    s += `<g transform="translate(${x},${y - 22})" pointer-events="none"><path d="M0 0 V-26" stroke="var(--fg)" stroke-width="2"/><path d="M0 -26 L18 -20 0 -14z" fill="var(--car)" stroke="var(--fg)" stroke-width="1"/></g>`; }
+  return s + `</svg><div class="legend"><span><i style="--c:var(--dealer)"></i>本線の駅（ディーラー）</span><span><i style="--c:var(--branch)"></i>◇ 分岐（if）</span>
+    <span><i style="--c:var(--player)"></i>プレイヤーへのランプ</span><span><i style="--c:var(--deck)"></i>山札へのランプ</span><span><i style="--c:var(--calc)"></i>card.py へのランプ</span>
+    <span><i style="--c:var(--exit)"></i>点線 = 近道・出口・戻り</span><span><i style="--c:var(--car)"></i>旗 = 今データがいる駅（← → で動く）</span></div>`;
+}
+
+// ---- 荷物（その駅に着いたときの game() の変数） ----
+function cardChip(c, isNew) { return `<span class="card${/[♡♢]/.test(c) ? " red" : ""}${isNew ? " new" : ""}">${esc(c)}</span>`; }
+function cargoHtml(entry) {
+  const c = entry.after || entry.cargo, p = entry.cargo, prev = !!entry.after;
+  return Object.keys(LBL).filter((k) => k in c).map((k) => {
+    const v = c[k], chg = prev && JSON.stringify(p[k]) !== JSON.stringify(v);
+    const val = Array.isArray(v) ? (v.length ? v.map((x, i) => cardChip(x, Array.isArray(p[k]) && i >= p[k].length)).join("") : "<span>[]</span>")
+      : `<span class="${chg ? "chg" : ""}">${esc(typeof v === "string" ? `"${v}"` : v === true ? "True" : v === false ? "False" : v)}</span>`;
+    return `<div><code>${LBL[k]}</code>${val}</div>`;
+  }).join("");
+}
+
+// ---- この駅のコード ----
+function codeHtml(entry, roleFilter) {
+  const byFile = {};
+  for (const [k, n] of Object.entries(entry.lines)) { const [f, ln] = splitKey(k); (byFile[f] = byFile[f] || {})[ln] = n; }
+  const flagAt = {};
+  for (const it of R.issues) if (S.layers[it.kind] && it.station === entry.id) flagAt[it.line] = it;
+  const order = ["autodealer.py", "players/player_simple.py", "card.py"];
+  let h = "";
+  for (const f of order) { if (!byFile[f]) continue;
+    const ls = Object.keys(byFile[f]).map(Number).sort((a, b) => a - b), show = new Set();
+    for (const n of ls) for (let d = -1; d <= 1; d++) if (n + d >= 1 && n + d <= SRC[f].length) show.add(n + d);
+    if (f === "autodealer.py") for (const n of Object.keys(flagAt).map(Number)) show.add(n);
+    const all = [...show].sort((a, b) => a - b);
+    h += `<div class="file">${esc(f)}</div>`;
+    let last = 0;
+    for (const n of all) {
+      if (last && n > last + 1) h += `<div class="gap">  ⋮</div>`;
+      last = n;
+      const text = SRC[f][n - 1], key = `${f}:${n}`, r = ROLE[key], hit = byFile[f][n];
+      const dim = roleFilter && r !== roleFilter;
+      const fl = f === "autodealer.py" && flagAt[n] ? `<span class="fl" style="--c:${IK[flagAt[n].kind].c}">${flagAt[n].id}</span>` : "";
+      h += `<div class="ln${hit ? " x" : ""}${dim ? " dim" : ""}" ${r ? `title="${r}"` : ""}><i>${n}</i><s style="--r:${hit && r ? RC[r] : "transparent"}"></s><span>${esc(text)}</span><span>${hit > 1 ? `<em>×${hit}</em>` : ""}${fl}</span></div>`;
+    }
+  }
+  return `<div class="code">${h}</div>`;
+}
+
+function issueHtml(it) {
+  const c = IK[it.kind].c;
+  return `<div class="issue" style="--c:${c}"><div class="dh"><span class="kind" style="--c:${c}">${it.kind} ${it.id}</span><h3>${esc(it.title)}</h3></div>
+    <p>${esc(it.what)}</p><p><small>${G[it.g]}（autodealer.py:${it.line}）</small></p><p><b>${it.g === "good" ? "" : "直すなら: "}</b>${esc(it.fix)}</p>
+    ${it.proof ? `<p><small>${esc(it.proof)}</small></p>` : ""}</div>`;
+}
+
+function roleCounts(entries) {
+  const out = {}, uniq = new Set();
+  for (const e of entries) for (const k of Object.keys(e.lines)) uniq.add(k);
+  for (const k of uniq) { const r = ROLE[k]; if (r) out[r] = (out[r] || 0) + 1; }
+  return out;
+}
+
+function stationDetail() {
+  const P = path(), e = cur(), st = ST[e.id], prev = S.pos > 0 ? P[S.pos - 1] : null;
+  const col = st.kind === "分岐" ? "var(--branch)" : st.kind === "出口" || st.kind === "入口" ? "var(--exit)" : "var(--dealer)";
+  const issues = R.issues.filter((it) => it.station === e.id && S.layers[it.kind]);
+  const rc = roleCounts([e]), calls = e.calls ? Object.entries(e.calls).map(([k, v]) => `${k} ×${v}`).join("・") : "なし";
+  const sites = sitesOf(e).map((k) => `<span class="kind" style="--c:${SITE[k].c}">${SITE[k].t}</span>`).join(" ");
+  return `<div class="detail">
+    <section class="box"><div class="dh"><span class="kind" style="--c:${col}">${st.kind || "駅"} ${e.id === "end" ? "" : idx[e.id]}</span><h2>${esc(st.title)}</h2>
+      <div class="nav"><button type="button" data-step="-1" ${S.pos ? "" : "disabled"}>← 前</button><button type="button" data-step="1" ${S.pos < P.length - 1 ? "" : "disabled"}>次 →</button></div></div>
+      <p class="note">${S.pos + 1} / ${P.length} 番目の駅（このルートで）${sites ? " ・寄る拠点 " + sites : ""}</p>
+      <dl class="shape"><dt>入る形</dt><dd>${esc(st.in)}</dd><dt>出る形</dt><dd>${esc(st.out)}</dd>${st.note ? `<dt>メモ</dt><dd>${esc(st.note)}</dd>` : ""}</dl>
+      <h3>旗の荷物（この駅を出るときの変数）</h3><div class="cargo">${cargoHtml(e)}</div>
+      <p class="note">黄色 = この駅で変わった値・光るカード = この駅で増えたカード。本物の game() を流して記録した値。</p>
+      <p class="stats"><span>この駅で実行した行 <b>${Object.keys(e.lines).length}</b></span><span>card.py を呼んだ回数 <b>${esc(calls)}</b></span></p>
+      ${issues.map(issueHtml).join("")}
+    </section>
+    <section class="box"><div class="dh"><h2>この駅のコード</h2></div>
+      <p class="note">濃い行 = このルートで実行した行（×n は回数）。左の色は部品図の役割: ${Object.entries(rc).map(([r, n]) => `<span style="color:${RC[r]}">■</span>${r} ${n}`).join("　")}</p>
+      ${codeHtml(e, S.role)}</section></div>`;
+}
+
+function partsTable() {
+  const P = path(), groups = [];
+  for (const e of P) { let g = groups.find((x) => x.id === e.id); if (!g) groups.push(g = { id: e.id, entries: [], first: P.indexOf(e) }); g.entries.push(e); }
+  const counts = groups.map((g) => roleCounts(g.entries));
+  const used = ROLES.filter((r) => counts.some((c) => c[r]));
+  const max = Math.max(1, ...counts.flatMap((c) => Object.values(c)));
+  const tot = Object.fromEntries(used.map((r) => [r, counts.reduce((a, c) => a + (c[r] || 0), 0)]));
+  const head = `<tr><th>駅（このルートで通った順）</th>${used.map((r) => `<th style="--c:${RC[r]}"><span></span>${r}</th>`).join("")}<th>計</th></tr>`;
+  const rows = groups.map((g, i) => { const st = ST[g.id], c = counts[i], sum = Object.values(c).reduce((a, b) => a + b, 0);
+    const col = st.kind === "分岐" ? "var(--branch)" : st.kind ? "var(--exit)" : "var(--dealer)";
+    return `<tr class="${cur().id === g.id ? "cur" : ""}"><td class="name"><button type="button" style="--c:${col}" data-goto="${g.first}">${g.id === "end" ? "" : idx[g.id] + ". "}${esc(st.title)}</button>${g.entries.length > 1 ? ` <small>×${g.entries.length}回</small>` : ""}</td>
+      ${used.map((r) => c[r] ? `<td class="n"><button type="button" style="--c:${RC[r]};--a:${Math.round(15 + 70 * c[r] / max)}" data-goto="${g.first}" data-role="${r}" aria-pressed="${cur().id === g.id && S.role === r}">${c[r]}</button></td>` : "<td></td>").join("")}<td>${sum}</td></tr>`; }).join("");
+  const foot = `<tr><td>計（ちがう行の数）</td>${used.map((r) => `<td>${tot[r]}</td>`).join("")}<td>${Object.values(tot).reduce((a, b) => a + b, 0)}</td></tr>`;
+  // ルートどうしの比べ
+  const cmp = R.routes.map((r) => { const t = TR[r.id], lines = new Set(t.path.flatMap((e) => Object.keys(e.lines)));
+    const sum = t.calls["Card.sum"] || 0, stops = new Set(t.path.map((e) => e.id)).size;
+    return `<tr class="${r.id === S.route ? "cur" : ""}"><td class="name"><button type="button" style="--c:var(--dealer)" data-route="${r.id}">${esc(r.title)}</button></td><td>${stops}</td><td>${lines.size}</td><td>${sum}</td><td>${Object.entries(t.calls).filter(([k]) => k !== "Card.sum").map(([k, v]) => `${k.slice(5)} ×${v}`).join("・") || "—"}</td><td>${t.result[0]}</td></tr>`; }).join("");
+  return `<section class="box"><div class="dh"><h2>部品図（駅 × 役割）</h2></div>
+    <p class="note">このルートで通った駅ごとに、実行した行を役割で数えた表（ちがう行の数。同じ行を何回通っても1）。数字を押すと、その駅のコードで、その役割の行だけが濃く出る。
+    空いている所は、その駅に無い部品。たとえば「掛け金を確かめる」に判定はあるが型を見る行は無い（悪5）。</p>
+    <div class="tablewrap"><table><thead>${head}</thead><tbody>${rows}</tbody><tfoot>${foot}</tfoot></table></div>
+    <h3>ルートを比べる</h3><p class="note">どれも本物の autodealer.game() を1ラウンド流して数えた。Card.sum の回数は「表示しないのに計算している」（速2）の目安。</p>
+    <div class="tablewrap"><table><thead><tr><th>ルート</th><th>通った駅</th><th>実行した行</th><th>Card.sum</th><th>ほかの card.py</th><th>残高</th></tr></thead><tbody>${cmp}</tbody></table></div></section>
+    ${stationDetail()}`;
+}
+
+function render() {
+  document.getElementById("crumb-ring").textContent = R.title;
+  document.getElementById("title").textContent = R.title;
+  document.getElementById("lead").textContent = R.note;
+  document.getElementById("modes").innerHTML = [["drive", "走る（データを追う）"], ["parts", "部品図（役割ごと）"]]
+    .map(([k, t]) => `<button type="button" data-mode="${k}" aria-pressed="${S.mode === k}">${t}</button>`).join("");
+  document.getElementById("layers").innerHTML = Object.keys(IK).map((k) => `<button type="button" data-layer="${k}" style="--c:${IK[k].c}" aria-pressed="${!!S.layers[k]}">${k}</button>`).join("");
+  document.getElementById("routes").innerHTML = R.routes.map((r) => `<button type="button" data-route="${r.id}" aria-pressed="${S.route === r.id}">${esc(r.title)}</button>`).join("");
+  const r = routeOf(S.route), t = TR[S.route], dealt = r.cards.length;
+  const delta = t.result[0] < 0 ? "エラー（-1 を返す）" : `${t.result[0] - 1000 >= 0 ? "+" : ""}${t.result[0] - 1000}`;
+  document.getElementById("summary").innerHTML = `<p><b>このルートの結末:</b> ${esc(r.summary)}</p>
+    <div class="stats"><span>配る順 ${dealt ? r.cards.map((c, i) => `${cardChip(c)}<small>${i < 4 ? ["P", "D", "P", "D"][i] : "引"}</small>`).join(" ") : "<b>なし</b>"}</span>
+    <span>game() の戻り値 <b>(${t.result.join(", ")})</b></span><span>残高 <b>${delta}</b></span><span>Card.sum <b>${t.calls["Card.sum"] || 0} 回</b></span></div>`;
+  const shown = R.issues.filter((it) => S.layers[it.kind]);
+  document.getElementById("flags").innerHTML = shown.length ? Object.keys(IK).filter((k) => S.layers[k]).map((k) =>
+    `<span class="ik" style="--c:${IK[k].c}">${k}</span>` + shown.filter((it) => it.kind === k).map((it) =>
+      `<button type="button" class="ichip ${it.g}" style="--c:${IK[k].c}" data-issue="${it.id}" aria-pressed="${S.issue === it.id}" title="${esc(it.title)}">${it.id}${it.g === "good" ? "✓" : it.g === "bad" ? "!" : ""}</button>`).join("")).join("") : "";
+  document.getElementById("map").innerHTML = svgMap();
+  document.getElementById("main").innerHTML = S.mode === "parts" ? partsTable() : stationDetail();
+  document.getElementById("auto").textContent = S.timer ? "⏸ 止める" : "⏵ 自動で走る";
+}
+
+function go(pos) { S.pos = Math.max(0, Math.min(path().length - 1, pos)); render(); }
+function goStation(id) { const P = path(); let i = P.findIndex((e, j) => e.id === id && j > S.pos); if (i < 0) i = P.findIndex((e) => e.id === id); if (i >= 0) { S.role = null; go(i); } }
+function setRoute(id) { S.route = id; S.pos = 0; S.role = null; store.set("route", id); render(); }
+function stopAuto() { if (S.timer) { clearInterval(S.timer); S.timer = null; } }
+
+document.addEventListener("click", (ev) => {
+  const b = ev.target.closest("[data-mode],[data-layer],[data-route],[data-step],[data-st],[data-issue],[data-goto],#auto");
+  if (!b) return;
+  if (b.id === "auto") { if (S.timer) stopAuto(); else { if (S.pos >= path().length - 1) S.pos = 0;
+    S.timer = setInterval(() => { if (S.pos >= path().length - 1) { stopAuto(); render(); } else go(S.pos + 1); }, 1100); } render(); return; }
+  if (b.dataset.mode) { S.mode = b.dataset.mode; store.set("mode", S.mode); render(); }
+  else if (b.dataset.layer) { S.layers[b.dataset.layer] = !S.layers[b.dataset.layer]; store.set("layers", S.layers); render(); }
+  else if (b.dataset.route) { stopAuto(); setRoute(b.dataset.route); }
+  else if (b.dataset.step) go(S.pos + +b.dataset.step);
+  else if (b.dataset.goto) { S.role = b.dataset.role || null; S.pos = +b.dataset.goto; render(); }
+  else if (b.dataset.issue) { const it = R.issues.find((x) => x.id === b.dataset.issue); S.issue = S.issue === it.id ? null : it.id;
+    if (S.issue) { if (!path().some((e) => e.id === it.station)) { const r = R.routes.find((x) => TR[x.id].path.some((e) => e.id === it.station)); if (r) S.route = r.id; }
+      goStation(it.station); } else render(); }
+  else if (b.dataset.st) goStation(b.dataset.st);
+});
+document.addEventListener("keydown", (ev) => {
+  if (S.level !== "ring" || (ev.target.closest && ev.target.closest("input,textarea"))) return;
+  const el = ev.target.closest && ev.target.closest("[data-st],[data-issue]");
+  if (el && (ev.key === "Enter" || ev.key === " ")) { ev.preventDefault(); el.dispatchEvent(new MouseEvent("click", { bubbles: true })); return; }
+  const ids = R.routes.map((r) => r.id), i = ids.indexOf(S.route);
+  if (ev.key === "ArrowRight") { ev.preventDefault(); go(S.pos + 1); }
+  else if (ev.key === "ArrowLeft") { ev.preventDefault(); go(S.pos - 1); }
+  else if (ev.key === "ArrowDown") { ev.preventDefault(); setRoute(ids[(i + 1) % ids.length]); }
+  else if (ev.key === "ArrowUp") { ev.preventDefault(); setRoute(ids[(i - 1 + ids.length) % ids.length]); }
+  else if (ev.key === "Home") go(0);
+  else if (ev.key === "End") go(path().length - 1);
+});
+// ================= C4 モデル（1 コンテキスト・2 コンテナとコンポーネント） =================
+// kind: person（人）/ sys（このシステム）/ ext（外のもの）
+const C4K = { person: { c: "var(--calc)", t: "人" }, sys: { c: "var(--dealer)", t: "このシステム" }, ext: { c: "var(--ok)", t: "外のもの" } };
+const CTX = [
+  { id: "p_play", kind: "person", x: 30, y: 30, w: 250, h: 72, title: "遊ぶ人（学生）", sub: "dealer.py をターミナルで遊ぶ",
+    desc: "python3 dealer.py（または VS Code の実行）で遊ぶ。掛け金と hit / stand をキーボードで打ち、手札・点数・残高を画面で見る。0 を打つと終わる。" },
+  { id: "p_strat", kind: "person", x: 30, y: 184, w: 250, h: 72, title: "戦略を書く人（タスク B）", sub: "players/player_xxx.py",
+    desc: "player_simple.py をコピーして player_xxx.py を作り、place_bet（いくら賭けるか・いつやめるか）と input（hit か stand か）を書き換える。dealer.py の import を差し替えて試し、autodealer.py で結果を出す。" },
+  { id: "p_anal", kind: "person", x: 30, y: 340, w: 250, h: 72, title: "分析する人（タスク A）", sub: "パラメータを変えて比べる",
+    desc: "player_simple.py の stop_balance・unit_bet・hit_threshold や、autodealer.py の MAX・initial_balance を変え、出てきた平均を表やグラフにする。player_random が比べる基準（これより悪ければ悪い戦略）。" },
+  { id: "p_mod", kind: "person", x: 870, y: 30, w: 250, h: 72, title: "改造する人（タスク C）", sub: "autodealer.py に機能・特殊ルール",
+    desc: "autodealer.py を改造して、ダブルダウン・サレンダーなどの特殊ルールや新しい機能を足す。7つの命令の形を変えると players/ が全部動かなくなるので、足すなら引数や命令を増やす形にする。" },
+  { id: "p_teacher", kind: "person", x: 870, y: 340, w: 250, h: 72, title: "授業の担当", sub: "教材を配る・レポートを受け取る",
+    desc: "GitHub で教材（simple_blackjack）を公開し、次の回にレポートとプログラムを受け取る。コードには出てこないが、ルール（1対1・hit と stand だけ・シングルデッキ・penetration 0.5）を決めている人。" },
+  { id: "sys", kind: "sys", x: 420, y: 175, w: 310, h: 96, title: "simple_blackjack", sub: "4つのファイルと players/（中身は 2 の図）",
+    desc: "このシステム全体。中身は「2 コンテナ・コンポーネント」の図。サーバーも DB も無く、手元の python3 で動くプログラムのまとまり。" },
+  { id: "x_github", kind: "ext", x: 870, y: 184, w: 250, h: 72, title: "GitHub", sub: "教材の元とフォーク・ブランチ",
+    desc: "教材の元（JunzoKamahara/simple_blackjack）と、そのフォーク。git clone で手元に持ってきて、自分の修正は「学籍番号develop」のブランチに入れる。" },
+  { id: "x_vscode", kind: "ext", x: 430, y: 24, w: 290, h: 62, title: "Ubuntu・VS Code", sub: "実行・ブランチ・コミット",
+    desc: "Ubuntu のターミナルで git clone・python3 を動かし、VS Code でファイルを開いて、実行・デバッグ・ブランチ作成・コミットをする場所。" },
+  { id: "x_excel", kind: "ext", x: 430, y: 352, w: 290, h: 62, title: "Excel など", sub: "表とグラフ・レポート",
+    desc: "autodealer.py が出した1行（名前, 1ゲームの ms, ラウンド数, 残高の平均）を写して、表やグラフにする。統計で結果の信頼性を見る。" },
+];
+// [id, from, to, label, desc, dx, dy]（dx・dy は文字の位置のずらし）
+const CTX_E = [
+  ["e1", "p_play", "sys", "掛け金・hit / stand", "キーボードから打つ。player.py の BlackjackPlayer が input() で受け取る。", 30, 4],
+  ["e2", "sys", "p_play", "手札・点数・残高", "dealer.py が print でターミナルに出す。", -34, 0],
+  ["e3", "p_strat", "sys", "player_xxx.py を置く", "players/ に置いた .py は、autodealer.py が全部読み込んで比べる。BlackjackPlayer クラスでないと動かない。", 0, -8],
+  ["e4", "sys", "p_anal", "平均の1行", "autodealer.py がプレイヤーのファイルごとに「名前, ms, ラウンド数, 残高の平均」を print する。", 0, 14],
+  ["e5", "p_anal", "x_excel", "表・グラフにする", "パラメータごとの平均を並べて、何が結果を変えるかを探す。", 0, -8],
+  ["e6", "p_mod", "sys", "autodealer.py を改造", "game() の中に特殊ルールを足す。dealer.py にも同じ流れがあるので、対話でも遊ぶなら両方を直す。", 10, 14],
+  ["e7", "x_github", "sys", "git clone", "教材を手元に持ってくる。", 0, -8],
+  ["e8", "p_teacher", "x_github", "教材を公開", "simple_blackjack を Public で公開している。", 44, 0],
+  ["e9", "x_excel", "p_teacher", "レポートとプログラム", "次の回に提出する。コードはスクリーンショットではなくテキストで貼る。", 0, -8],
+  ["e10", "x_vscode", "sys", "python3 で実行・コミット", "実行とデバッグ、ブランチ（学籍番号develop）でのコミット。", 60, 0],
+];
+
+// コンテナ（大きな点線の枠）とコンポーネント（中の箱）。rows: [左（コード）, 右（説明）, { f, find, st }]
+const C4F = [
+  { id: "f_dealer", x: 10, y: 34, w: 320, title: "dealer.py で遊ぶ", sub: "python3 dealer.py（対話）", c: "var(--dealer)" },
+  { id: "f_lib", x: 420, y: 34, w: 320, title: "import される部品", sub: "card.py・player.py・players/", c: "var(--calc)" },
+  { id: "f_auto", x: 830, y: 34, w: 310, title: "autodealer.py で比べる", sub: "python3 autodealer.py（自動）", c: "var(--dealer)" },
+];
+const C4B = [
+  { id: "dealer", f: "f_dealer", c: "var(--dealer)", title: "dealer.py", tag: "1ラウンドの流れ（1つ目）", file: "dealer.py",
+    desc: "ファイルの上から順に動くプログラム。山札を作り、while True で1ラウンドずつ回す。プレイヤーは player.py（人がキーボードで打つ）。autodealer.py の game() と同じ流れが、関数にならずに書いてある。",
+    rows: [["deck = [Card(...)…]", "52枚を作って混ぜる", { f: "dealer.py", find: "deck = [Card(suit, value)", st: "s5" }],
+      ["turn_end()", "次のラウンド・シャッフル", { f: "dealer.py", find: "def turn_end():" }],
+      ["from player import …", "人が打つプレイヤー", { f: "dealer.py", find: "from player import BlackjackPlayer" }],
+      ["while True:", "1ラウンドずつ（環状線）", { f: "dealer.py", find: "while True:", st: "s1" }],
+      ["player.xxx(…)", "7つの命令を呼ぶ", { f: "dealer.py", find: "player.start_turn(round)", st: "s2" }],
+      ["exit()", "掛け金 0・無効で終わる", { f: "dealer.py", find: "exit()", st: "end" }]] },
+  { id: "playerpy", f: "f_dealer", c: "var(--player)", title: "player.py", tag: "人が打つプレイヤー", file: "player.py",
+    desc: "dealer.py で遊ぶときのプレイヤー。place_bet と input が、ターミナルの input() で人に聞く。ほかの命令は記録するだけ。players/ のプレイヤーと同じ7つの命令を持つ。",
+    rows: [["place_bet(balance)", "キーボードで掛け金", { f: "player.py", find: "def place_bet", st: "s3" }],
+      ["input(message)", "hit / stand を打つ", { f: "player.py", find: "def input", st: "s8" }],
+      ["start_turn ほか4つ", "self に記録するだけ", { f: "player.py", find: "def start_turn" }],
+      ["notify_result(…)", "自分の残高のメモ", { f: "player.py", find: "def notify_result", st: "s19" }]] },
+  { id: "card", f: "f_lib", c: "var(--calc)", title: "card.py", tag: "点数の計算所", file: "card.py",
+    desc: "カード1枚の形（Card）と、点数の数え方。両方のプログラムとプレイヤーから使われる。vals はモジュールの辞書なので、どこからでも書き換えられてしまう（悪4）。",
+    rows: [["vals", "2〜10・JQK=10・A=11", { f: "card.py", find: "vals = {" }],
+      ["Card(suit, value)", "1枚のカード", { f: "card.py", find: "class Card:" }],
+      ["Card.sum(cards)", "合計（A を 1 に直す）", { f: "card.py", find: "def sum(cards):", st: "s10" }],
+      ["Card.is_blackjack()", "A と 10 の2枚か", { f: "card.py", find: "def is_blackjack", st: "s18" }],
+      ["Card.is_soft()", "A を 11 と数えているか", { f: "card.py", find: "def is_soft", st: "s14" }]] },
+  { id: "simple", f: "f_lib", c: "var(--player)", title: "players/player_simple.py", tag: "決まった値で打つ", file: "players/player_simple.py",
+    desc: "掛け金は一定（unit_bet）、合計が hit_threshold 未満なら hit、残高が stop_balance を超えたらやめる。タスク A で変えるパラメータは、ファイルの一番上の3つ。",
+    rows: [["stop_balance = 1100", "勝ち逃げ（超えたら 0）", { f: "players/player_simple.py", find: "stop_balance = 1100" }],
+      ["unit_bet = 100", "掛け金の単位", { f: "players/player_simple.py", find: "unit_bet = 100" }],
+      ["hit_threshold = 16", "これ未満なら hit", { f: "players/player_simple.py", find: "hit_threshold = 16" }],
+      ["place_bet(balance)", "0 か unit_bet を返す", { f: "players/player_simple.py", find: "def place_bet", st: "s3" }],
+      ["input(message)", "Card.sum で hit / stand", { f: "players/player_simple.py", find: "def input", st: "s8" }]] },
+  { id: "random", f: "f_lib", c: "var(--player)", title: "players/player_random.py", tag: "比べる基準", file: "players/player_random.py",
+    desc: "掛け金も hit / stand も乱数で決める。これより悪い結果になる戦略は悪い戦略、という比べる基準。",
+    rows: [["place_bet(balance)", "1〜残高の乱数", { f: "players/player_random.py", find: "def place_bet" }],
+      ["input(message)", "hit / stand を乱数", { f: "players/player_random.py", find: "def input" }]] },
+  { id: "mine", f: "f_lib", c: "var(--player)", mine: true, title: "players/player_xxx.py", tag: "自分で書く（タスク B）",
+    desc: "player_simple.py をコピーして作る。撤退条件（〇〇円を下回ったらやめる）や、ベーシックストラテジー（自分の合計 × ディーラーの表のカードの表）を書く。7つの命令は消さない。",
+    rows: [["place_bet(balance)", "撤退条件・掛け方"], ["input(message)", "ベーシックストラテジー"], ["self.dealer_card", "ディーラーの表のカード"]] },
+  { id: "main", f: "f_auto", c: "var(--dealer)", title: "__main__（集計）", tag: "if __name__ == \"__main__\"", file: "autodealer.py",
+    desc: "players/ の .py を全部探して、1つずつ import し、game() を MAX 回くり返して平均を出す。結果は1ファイル1行。無効な掛け金の -1 も、そのまま平均に入る（緊1）。",
+    rows: [["os.listdir('players')", ".py を探す", { f: "autodealer.py", find: "file_names = os.listdir(directory_path)" }],
+      ["import_module(…)", "1つずつ読み込む", { f: "autodealer.py", find: "player_module = import_module(" }],
+      ["while game_round <= MAX", "MAX 回くり返す", { f: "autodealer.py", find: "while game_round <= MAX:" }],
+      ["total += result", "残高をたしていく", { f: "autodealer.py", find: "total += result" }],
+      ["print(…)", "名前, ms, ラウンド, 残高", { f: "autodealer.py", find: "print(f\"{module_name}" }]] },
+  { id: "game", f: "f_auto", c: "var(--dealer)", title: "game(Player)", tag: "1ラウンドの流れ（2つ目）", file: "autodealer.py",
+    desc: "dealer.py と同じ流れを関数にしたもの。Player クラスを受け取ってプレイヤーを作り、残高が尽きるかプレイヤーがやめるまでラウンドを回す。中身は「3 環状線」で1行ずつ追える。",
+    rows: [["Player(initial_balance)", "プレイヤーを作る", { f: "autodealer.py", find: "player = Player(initial_balance)", st: "s0" }],
+      ["while True:", "1ラウンド = 環状線1周", { f: "autodealer.py", find: "    while True:\n", st: "s1" }],
+      ["player.xxx(…)", "7つの命令を呼ぶ", { f: "autodealer.py", find: "player.start_turn(round)", st: "s2" }],
+      ["if Card.sum(…) > …", "勝ち負けを決める", { f: "autodealer.py", find: "if Card.sum(player_hand) > Card.sum(dealer_hand):", st: "s18" }],
+      ["return …, turns", "残高とターン数", { f: "autodealer.py", find: "return player_balance, turns", st: "end" }]] },
+  { id: "deck", f: "f_auto", c: "var(--deck)", title: "山札（モジュールの global）", tag: "deck・round", file: "autodealer.py",
+    desc: "deck と round は関数の外の変数。game() を何回呼んでも、前のゲームの続きの山札から始まる（緊5）。プレイヤーのファイルから __main__.deck を読めば次のカードが分かってしまう（悪3）。",
+    rows: [["deck", "list[Card]・末尾から pop", { f: "autodealer.py", find: "deck = [Card(suit, value)", st: "s6" }],
+      ["penetration = 0.5", "半分を切ったら混ぜ直す", { f: "autodealer.py", find: "penetration=0.5" }],
+      ["check_shuffle()", "26 枚未満で作り直す", { f: "autodealer.py", find: "def check_shuffle", st: "s5" }],
+      ["turn_end()", "round + 1", { f: "autodealer.py", find: "def turn_end", st: "s21" }]] },
+  { id: "printx", f: "f_auto", c: "var(--exit)", title: "printx(*args)", tag: "is_print = False", file: "autodealer.py",
+    desc: "is_print が True のときだけ print する。False でも、渡す引数（Card.sum やリスト）は先に計算される（速2）。",
+    rows: [["is_print: bool = False", "途中を出すか", { f: "autodealer.py", find: "is_print:bool = False" }],
+      ["def printx(*args)", "True のときだけ print", { f: "autodealer.py", find: "def printx" }]] },
+  { id: "term", f: null, c: "var(--exit)", title: "ターミナル（Ubuntu・VS Code）", tag: "標準入力と標準出力", wide: true,
+    desc: "人とプログラムの境目。dealer.py ではキーボードで打ち、画面で読む。autodealer.py では、最後の1行（名前, 1ゲームの ms, ラウンド数, 残高の平均）だけが出る。",
+    rows: [["input()  ← キーボード", "掛け金・hit / stand（player.py）"], ["print()  → 画面", "手札・点数・残高（dealer.py）"],
+      ["player_simple, 0.04, 6.1, 1012.4", "autodealer.py の結果の1行（例）"]] },
+];
+// [id, from, fromRow, to, toRow, label, desc, style]（row が -1 なら箱の題名の高さ）
+const C4E = [
+  ["k1", "dealer", 4, "playerpy", -1, "7つの命令", "start_turn → place_bet → receive_hand → look_dealer_hand → input（hit のあいだ receive_hand）→ finish_dealer_hand → notify_result の順に呼ぶ。相手は from player import BlackjackPlayer で決まる。自分のプレイヤーを試すときは、この import を from players.player_xxx import BlackjackPlayer に差し替える。", "call"],
+  ["k2", "dealer", 3, "card", 2, "Card.sum など", "点数を数える・バーストか・ブラックジャックか・ソフト 17 か。", "call"],
+  ["k3", "playerpy", 1, "term", -1, "input()", "掛け金と hit / stand を人が打つ。hit・stand 以外は打ち直し。", "call"],
+  ["k4", "main", 1, "simple", -1, "import_module", "players/ の .py を1つずつ読み込み、その中の BlackjackPlayer クラスを game() に渡す。player_random・player_xxx も同じ。", "imp"],
+  ["k5", "main", 2, "game", -1, "×MAX 回", "1ファイルにつき MAX（4000）回 game() を呼び、戻り値の残高とターン数をたす。", "call"],
+  ["k6", "game", 2, "simple", 3, "7つの命令", "dealer.py と同じ順番で呼ぶ。プレイヤーが返す値は place_bet と input の2つだけ。", "call"],
+  ["k7", "game", 3, "card", 2, "点数・判定", "Card.sum・is_soft・is_blackjack。1ラウンドで 8〜15 回ほど Card.sum を呼ぶ（3 の部品図で数えた）。", "call"],
+  ["k8", "game", 1, "deck", -1, "deck.pop()", "配る・引くのたびに山札の末尾から1枚取る。配る前に check_shuffle()。", "call"],
+  ["k9", "simple", 4, "card", 2, "Card.sum(self.hand)", "プレイヤーも同じ card.py で自分の合計を数える。", "call"],
+  ["k10", "game", 0, "printx", -1, "printx(…)", "途中経過を出す（ふだんは出ない）。", "call"],
+  ["k11", "main", 4, "term", -1, "結果の1行", "print で「名前, 1ゲームの ms, ラウンド数, 残高の平均」。", "call"],
+];
+
+const svgEl = (tag, attrs, parent) => { const e = document.createElementNS("http://www.w3.org/2000/svg", tag); for (const k in attrs) e.setAttribute(k, attrs[k]); if (parent) parent.appendChild(e); return e; };
+function arrowDefs(root, id) { const d = svgEl("defs", {}, root), m = svgEl("marker", { id, viewBox: "0 0 10 10", refX: 9, refY: 5, markerWidth: 7, markerHeight: 7, orient: "auto-start-reverse" }, d); svgEl("path", { d: "M0 0 L10 5 L0 10 z", class: "ahd" }, m); }
+function clip(b, tx, ty) { // 箱の中心から (tx, ty) へ向かう線が、箱の縁と交わる点
+  const cx = b.x + b.w / 2, cy = b.y + b.h / 2, dx = tx - cx, dy = ty - cy, s = Math.min(Math.abs((b.w / 2) / (dx || 1e-9)), Math.abs((b.h / 2) / (dy || 1e-9)));
+  return [cx + dx * s, cy + dy * s]; }
+// コードの折り畳み: find を含む行から、その字下げのかたまりの終わりまで
+function funcLines(f, find) {
+  const L = SRC[f]; if (!L) return null;
+  let i = find.includes("\n") ? L.findIndex((l) => (l + "\n").includes(find)) : L.findIndex((l) => l.includes(find));
+  if (i < 0) return null;
+  const ind = (l) => l.match(/^\s*/)[0].length, base = ind(L[i]);
+  let j = i;
+  if (/:\s*(#.*)?$/.test(L[i])) { while (j + 1 < L.length && (!L[j + 1].trim() || ind(L[j + 1]) > base)) j++; while (j > i && !L[j].trim()) j--; }
+  else { while (j + 1 < L.length && L[j + 1].trim() && ind(L[j + 1]) > base) j++; }
+  return { from: i + 1, to: Math.min(j + 1, i + 60), hit: i + 1, more: j + 1 > i + 60 };
+}
+function codeBlock(f, find) {
+  const r = funcLines(f, find); if (!r) return `<p class="note">（${esc(f)} に「${esc(find)}」が見つからない）</p>`;
+  let h = `<div class="file">${esc(f)}</div>`;
+  for (let n = r.from; n <= r.to; n++) { const role = ROLE[`${f}:${n}`];
+    h += `<div class="ln${n === r.hit ? " x" : ""}" ${role ? `title="${role}"` : ""}><i>${n}</i><s style="--r:${role ? RC[role] : "transparent"}"></s><span>${esc(SRC[f][n - 1])}</span><span></span></div>`; }
+  if (r.more) h += `<div class="gap">  ⋮（続きは省略）</div>`;
+  return `<div class="code">${h}</div>`;
+}
+
+function drawCtx() {
+  const root = document.getElementById("ctxmap"); root.innerHTML = ""; arrowDefs(root, "ahx");
+  const B = Object.fromEntries(CTX.map((b) => [b.id, b])), eg = svgEl("g", {}, root), bg = svgEl("g", {}, root);
+  for (const [id, a, b, label, , dx, dy] of CTX_E) {
+    const A = B[a], Z = B[b], par = CTX_E.some((e) => e[1] === b && e[2] === a) ? (a < b ? -9 : 9) : 0;
+    let [x1, y1] = clip(A, Z.x + Z.w / 2, Z.y + Z.h / 2), [x2, y2] = clip(Z, A.x + A.w / 2, A.y + A.h / 2);
+    const [p, q] = a < b ? [[x1, y1], [x2, y2]] : [[x2, y2], [x1, y1]], len = Math.hypot(q[0] - p[0], q[1] - p[1]) || 1;
+    const nx = -(q[1] - p[1]) / len * par, ny = (q[0] - p[0]) / len * par;
+    const g = svgEl("g", { class: "edge" + (S.c4pick === id ? " on" : ""), "data-c4": id, tabindex: 0, role: "button" }, eg);
+    svgEl("path", { d: `M${x1 + nx} ${y1 + ny} L${x2 + nx} ${y2 + ny}`, "marker-end": "url(#ahx)" }, g);
+    svgEl("text", { x: (x1 + x2) / 2 + nx * 2 + dx, y: (y1 + y2) / 2 + ny * 2 + dy, "text-anchor": "middle" }, g).textContent = label;
+  }
+  for (const b of CTX) {
+    const g = svgEl("g", { class: `box4 ${b.kind}${S.c4pick === b.id ? " on" : ""}`, "data-c4": b.id, tabindex: 0, role: "button", style: `--c:${C4K[b.kind].c}` }, bg);
+    svgEl("rect", { class: "body", x: b.x, y: b.y, width: b.w, height: b.h, rx: b.kind === "person" ? 30 : 8 }, g);
+    svgEl("text", { class: "t", x: b.x + 16, y: b.y + (b.kind === "sys" ? 40 : 30) }, g).textContent = b.title;
+    svgEl("text", { class: "sub", x: b.x + 16, y: b.y + (b.kind === "sys" ? 62 : 51) }, g).textContent = b.sub;
+  }
+}
+
+const RH = 21, HEAD = 46;
+function c4Layout() { // 箱の高さを行の数から決め、コンテナごとに上から積む
+  const pos = {}, colY = {}; let bottom = 0;
+  for (const f of C4F) colY[f.id] = f.y + 52;
+  for (const b of C4B) { if (b.wide) continue;
+    const f = C4F.find((x) => x.id === b.f), h = HEAD + b.rows.length * RH + 10;
+    pos[b.id] = { x: f.x + 14, y: colY[f.id], w: f.w - 28, h }; colY[f.id] += h + 22; bottom = Math.max(bottom, colY[f.id]); }
+  const fb = {}; for (const f of C4F) fb[f.id] = { ...f, h: bottom - f.y + 4 };
+  const t = C4B.find((b) => b.wide); pos[t.id] = { x: 10, y: bottom + 70, w: 1130, h: HEAD + t.rows.length * RH + 10 };
+  return { pos, fb, H: pos[t.id].y + pos[t.id].h + 16 };
+}
+function rowY(p, r) { return r < 0 ? p.y + 22 : p.y + HEAD + r * RH + RH / 2 - 2; }
+function drawC4() {
+  const root = document.getElementById("c4map"); root.innerHTML = ""; arrowDefs(root, "ahk");
+  const { pos, fb, H } = c4Layout(); root.setAttribute("viewBox", `0 0 1150 ${H}`);
+  const fg = svgEl("g", {}, root), eg = svgEl("g", {}, root), bg = svgEl("g", {}, root);
+  for (const f of Object.values(fb)) {
+    svgEl("rect", { class: "frame", x: f.x, y: f.y, width: f.w, height: f.h, rx: 12, style: `--c:${f.c}` }, fg);
+    svgEl("text", { class: "ft", x: f.x + 14, y: f.y + 24 }, fg).textContent = f.title;
+    svgEl("text", { class: "tag", x: f.x + 14, y: f.y + 42 }, fg).textContent = f.sub;
+  }
+  const side = {}; // 同じ列の中の線は、箱の右の溝を少しずつずらして通す
+  for (const [id, a, ra, b, rb, label, , style] of C4E) {
+    const A = pos[a], Z = pos[b]; let d, lx, ly, anchor = "middle";
+    const y1 = rowY(A, ra), y2 = rowY(Z, rb);
+    if (b === "term") { // ターミナルへは真下に下ろす
+      const x = A.x + A.w * (a === "main" ? .7 : .5), sx = A.x + A.w;
+      const gx = a === "main" ? sx + 14 : sx + 12;
+      d = `M${sx} ${y1} H${gx} V${Z.y - 30} H${x} V${Z.y}`; lx = x + 6; ly = Z.y - 36; anchor = "start";
+    } else if (Math.abs(A.x - Z.x) < 5) { // 同じ列: 右の溝を回る
+      const k = (side[A.x] = (side[A.x] || 0) + 1), gx = A.x + A.w + 6 + k * 9;
+      const lo = A.y > Z.y ? A : Z; d = `M${A.x + A.w} ${y1} H${gx} V${y2} H${Z.x + Z.w}`; lx = lo.x + lo.w - 8; ly = lo.y - 7; anchor = "end";
+    } else if (A.x < Z.x) { const gx = (A.x + A.w + Z.x) / 2; d = `M${A.x + A.w} ${y1} H${gx} V${y2} H${Z.x}`; lx = Z.x - 6; ly = y2 - 6; anchor = "end"; }
+    else { const gx = (Z.x + Z.w + A.x) / 2; d = `M${A.x} ${y1} H${gx} V${y2} H${Z.x + Z.w}`; lx = Z.x + Z.w + 6; ly = y2 - 6; anchor = "start"; }
+    const g = svgEl("g", { class: `edge ${style}${S.c4pick === id ? " on" : ""}`, "data-c4": id, tabindex: 0, role: "button" }, eg);
+    svgEl("path", { d, "marker-end": "url(#ahk)" }, g);
+    svgEl("text", { x: lx, y: ly, "text-anchor": anchor }, g).textContent = label;
+  }
+  for (const b of C4B) {
+    const p = pos[b.id], g = svgEl("g", { class: `box4${b.mine ? " mine" : ""}${S.c4pick === b.id ? " on" : ""}`, "data-c4": b.id, tabindex: 0, role: "button", style: `--c:${b.c}` }, bg);
+    svgEl("rect", { class: "body", x: p.x, y: p.y, width: p.w, height: p.h, rx: 8 }, g);
+    svgEl("text", { class: "tm", x: p.x + 12, y: p.y + 22 }, g).textContent = b.title;
+    svgEl("text", { class: "tag", x: p.x + p.w - 12, y: p.y + 22, "text-anchor": "end" }, g).textContent = b.tag;
+    b.rows.forEach(([l, r, ln], i) => {
+      const y = p.y + HEAD + i * RH, rg = svgEl("g", { class: "row" + (S.c4pick === b.id && S.c4row === i ? " on" : ""), "data-c4": b.id, "data-row": i }, g);
+      svgEl("rect", { x: p.x + 4, y: y - 4, width: p.w - 8, height: RH }, rg);
+      svgEl("text", { class: "l", x: p.x + 12, y: y + 11 }, rg).textContent = l;
+      svgEl("text", { class: "r", x: p.x + p.w - (ln && ln.st ? 30 : 12), y: y + 11, "text-anchor": "end" }, rg).textContent = r;
+      if (ln && ln.st) svgEl("text", { class: "ring", x: p.x + p.w - 10, y: y + 11, "text-anchor": "end" }, rg).textContent = "◯";
+    });
+  }
+}
+
+function c4Detail(level) {
+  const box = document.getElementById(level === "ctx" ? "ctxdetail" : "c4detail"), id = S.c4pick;
+  if (!id) { box.innerHTML = `<div class="d4"><p class="note">箱・行・矢印を押すと、ここに説明${level === "c4" ? "とコード" : ""}が出る。</p></div>`; return; }
+  if (level === "ctx") {
+    const b = CTX.find((x) => x.id === id), e = CTX_E.find((x) => x[0] === id);
+    box.innerHTML = b ? `<div class="d4"><div class="dh"><span class="kind" style="--c:${C4K[b.kind].c}">${C4K[b.kind].t}</span><h2>${esc(b.title)}</h2></div><p>${esc(b.desc)}</p>
+        ${b.id === "sys" ? `<p><button type="button" class="btn" data-level="c4">2 コンテナ・コンポーネントで中を見る →</button></p>` : ""}</div>`
+      : `<div class="d4"><div class="dh"><span class="kind" style="--c:var(--muted)">やりとり</span><h2>${esc(CTX.find((x) => x.id === e[1]).title)} → ${esc(CTX.find((x) => x.id === e[2]).title)}：${esc(e[3])}</h2></div><p>${esc(e[4])}</p></div>`;
+    return;
+  }
+  const b = C4B.find((x) => x.id === id), e = C4E.find((x) => x[0] === id);
+  if (e) { const A = C4B.find((x) => x.id === e[1]), Z = C4B.find((x) => x.id === e[3]);
+    box.innerHTML = `<div class="d4"><div class="dh"><span class="kind" style="--c:var(--muted)">${e[7] === "imp" ? "読み込む" : "呼ぶ"}</span><h2>${esc(A.title)} → ${esc(Z.title)}：${esc(e[5])}</h2></div><p>${esc(e[6])}</p></div>`; return; }
+  const row = S.c4row != null ? b.rows[S.c4row] : null, ln = row && row[2];
+  const ringBtn = (st) => st ? `<button type="button" class="btn" data-ringst="${st}">環状線で見る（${st === "end" ? "終了" : idx[st] + ". "}${esc(ST[st].title)}）→</button>` : "";
+  box.innerHTML = `<div class="detail"><section class="d4"><div class="dh"><span class="kind" style="--c:${b.c}">${b.mine ? "自分で書く" : "コンポーネント"}</span><h2>${esc(b.title)}</h2></div>
+      <p>${esc(b.desc)}</p>${row ? `<h3>${esc(row[0])}</h3><p>${esc(row[1])}</p>` : ""}
+      <p class="flags">${b.rows.filter((r) => r[2] && r[2].st).map((r) => ringBtn(r[2].st)).filter((x, i, a) => a.indexOf(x) === i).join("")}</p></section>
+    <section class="d4"><div class="dh"><h2>${ln ? "この行のコード" : "コード"}</h2></div>
+      ${ln ? codeBlock(ln.f, ln.find) : b.file ? codeBlock(b.file, b.rows.find((r) => r[2])[2].find) : `<p class="note">まだ無いファイル。players/player_simple.py をコピーして作る。</p>`}</section></div>`;
+}
+
+function setLevel(lv) {
+  S.level = lv; store.set("level", lv); S.c4pick = null; S.c4row = null;
+  document.querySelectorAll("#levels button").forEach((b) => b.setAttribute("aria-selected", String(b.dataset.level === lv)));
+  document.querySelectorAll(".lv").forEach((s) => { s.hidden = s.dataset.lv !== lv; });
+  document.getElementById("crumb-ring").textContent = { ctx: "コンテキスト図", c4: "コンテナ・コンポーネント図", ring: R.title }[lv];
+  if (lv === "ctx") { drawCtx(); c4Detail("ctx"); }
+  if (lv === "c4") { drawC4(); c4Detail("c4"); }
+}
+document.addEventListener("click", (ev) => {
+  const lv = ev.target.closest("[data-level]");
+  if (lv) { setLevel(lv.dataset.level); window.scrollTo({ top: 0 }); return; }
+  const rs = ev.target.closest("[data-ringst]");
+  if (rs) { const st = rs.dataset.ringst; setLevel("ring");
+    if (!path().some((e) => e.id === st)) { const r = R.routes.find((x) => TR[x.id].path.some((e) => e.id === st)); if (r) S.route = r.id; }
+    S.pos = 0; goStation(st); return; }
+  const g = ev.target.closest("[data-c4]");
+  if (!g) return;
+  const row = ev.target.closest("[data-row]");
+  S.c4pick = g.dataset.c4; S.c4row = row ? +row.dataset.row : null;
+  if (S.level === "ctx") { drawCtx(); c4Detail("ctx"); } else { drawC4(); c4Detail("c4"); }
+});
+document.addEventListener("keydown", (ev) => {
+  const g = ev.target.closest && ev.target.closest("[data-c4]");
+  if (g && (ev.key === "Enter" || ev.key === " ")) { ev.preventDefault(); g.dispatchEvent(new MouseEvent("click", { bubbles: true })); }
+}, true);
+
+render();
+setLevel(["ctx", "c4", "ring"].includes(store.get("level", "c4")) ? store.get("level", "c4") : "c4");
+})();
+</script>
