@@ -70,6 +70,10 @@ button:focus-visible, [tabindex]:focus-visible { outline: 3px solid var(--car); 
 .refc p { margin: 4px 0; } .refc code { font-family: var(--mono); font-size: .76rem; overflow-wrap: anywhere; } .refc small { color: var(--muted); }
 .rex .code { max-width: 100%; overflow-x: auto; }
 .rex { margin-top: 4px; }
+.logic { margin: 6px 0; padding: 6px 10px; border-left: 3px solid var(--line); background: color-mix(in srgb, var(--fg) 3%, transparent); border-radius: 0 8px 8px 0; }
+.logic h5 { margin: 6px 0 2px; font: 800 .78rem var(--display); } .logic h5:first-child { margin-top: 0; }
+.logic ol, .logic ul { margin: 0; padding-left: 1.4em; } .logic li { margin: 2px 0; } .logic p { margin: 4px 0; }
+.logic .cau { color: var(--danger); }
 .ptab .fnrow .fnview { width: min(470px, calc(100vw - 72px)); } .rex summary { font: 700 .74rem var(--display); cursor: pointer; } .rex .code { font-size: .74rem; }
 .pa { --c: var(--pre); margin-left: 6px; border: 1.5px solid var(--c); color: var(--c); background: transparent; border-radius: 999px; font: 800 .7rem var(--display); padding: 0 6px; cursor: pointer; }
 .routes button.trel { box-shadow: 0 0 0 2.5px var(--c); }
@@ -553,6 +557,44 @@ const REFIMPL = {
       t: "ブラックジャックの配当（3:2 なら 1.5、6:5 なら 1.2）。今は 1.5 が4か所に直に書いてある",
       ex: "+ BJ_PAYOUT = 1.5    # ブラックジャックの配当\n  …\n- player_balance += int(bet_amount * 1.5)\n+ player_balance += int(bet_amount * BJ_PAYOUT)\n- player.notify_result(\"win\", int(bet_amount*1.5))\n+ player.notify_result(\"win\", int(bet_amount*BJ_PAYOUT))\n  （174・175 行も同じ）" }] };
 REFIMPL.s18 = REFIMPL.s19;
+// 参考実装のロジック: 仕組み（順番）・例（数字）・ねらい・注意
+const REFLOGIC = {
+  retreat_balance: {
+    how: ["毎ラウンドの最初（駅 3）に game() が place_bet(balance) を呼ぶ", "まず今までどおり勝ち逃げを見る: balance > self.stop_balance（1100）なら 0", "次に撤退を見る: balance <= retreat_balance（500）なら 0 を返す", "0 を受け取った game() は駅 4 で bet_amount == 0 → return (残高, turns) でゲームを終える", "どちらでもなければ、今までどおり unit_bet（100）を賭ける"],
+    eg: ["残高 600 → 600 > 500 なので 100 を賭ける", "負けて残高 500 → 次の place_bet で 500 <= 500 → 0 → ゲーム終了。game() は 500 を返す（0 まで負けずに 500 を持ち帰る）", "残高 1200 → 勝ち逃げが先に当たって 0（撤退の行までは行かない）"],
+    why: "負けが続いたら途中でやめて、残高 0 で終わるゲームを減らす。平均（total / MAX）が上がるかは、値を変えて流して比べる（タスク A・B の分析）。",
+    caution: "retreat_balance を initial_balance（1000）以上にすると、最初の place_bet で終わってしまう。" },
+  bet_ratio: {
+    how: ["勝ち逃げ（stop_balance）を見たあとに置く", "balance × bet_ratio を int で切り捨てる", "max(1, …) で最低 1 にする（0 を返すと「やめる」の合図になってしまうため）", "その値を return するので、下の unit_bet の行には行かない"],
+    eg: ["残高 1000 → int(100.0) = 100", "残高 1050 → int(105.0) = 105", "残高 500 → 50（負けると掛け金も減る）", "残高 9 → int(0.9) = 0 → max(1, 0) = 1"],
+    why: "残高に比例して賭けるので、負けると掛け金が小さくなり 0 になりにくい。勝つと掛け金が増える。",
+    caution: "1 未満にならず残高も超えないので、駅 4 の 0 < bet_amount <= player_balance は必ず通る。" },
+  "MIN_BET・MAX_BET": {
+    how: ["autodealer.py の上に定数を置く（どのプレイヤーにも同じ決まり）", "駅 4 の if を「MIN_BET 以上、かつ 残高と MAX_BET の小さい方以下」に変える（min(player_balance, MAX_BET)）", "外れたら今の else へ: 0 ならゲーム終了、それ以外は「掛け金が無効です」で return -1, 0"],
+    eg: ["残高 1000 で 100 → 10 <= 100 <= 500 なので有効", "残高 1000 で 5 → 10 未満なので無効（-1）", "残高 1000 で 800 → 500 を超えるので無効", "残高 50 で 100 → min(50, 500) = 50 を超えるので無効"],
+    why: "カジノのテーブルの最低・最高掛け金。全額を一度に賭けるような賭け方を止められる（悪意の旗）。",
+    caution: "無効な掛け金の -1 がそのまま平均に入る（緊1）ので、先にそちらを直す。" },
+  NUM_DECKS: {
+    how: ["山札のリストを * NUM_DECKS で何組も並べる（同じカードが NUM_DECKS 枚ずつ）", "山札を作るのは2か所: import のとき（7 行）と、check_shuffle で作り直すとき（21 行）。両方を変える", "混ぜ直す判定の 52 も 52*NUM_DECKS にする（全部の枚数に対する割合にする）"],
+    eg: ["6 デッキ = 52 × 6 = 312 枚", "penetration 0.5 なら、156 枚より少なくなったら混ぜ直す（今は 26 枚）", "混ぜてから次に混ぜるまでのラウンドが増える（self.round が大きくなる）"],
+    why: "デッキが多いとカードの偏りが小さく、出たカードを数える戦略（self.round・self.last_dealer_hand を使う）が効きにくくなる。",
+    caution: "check_shuffle の中の作り直しを忘れると、2回目からは 52 枚に戻る。" },
+  weak_threshold: {
+    how: ["input の一番最初に置く", "ディーラーの表のカード self.dealer_card を Card.sum([…]) で点数にする（Card.sum はリストを受け取るので [ ] で包む）", "表が 6 以下（2〜6。A は 11、10・J・Q・K は 10 なので入らない）で、手札の合計が weak_threshold（12）以上なら \"stand\" を返す", "それ以外は今までどおり hit_threshold（16）で決める"],
+    eg: ["手札 13・表 ♠5 → 5 <= 6 で 13 >= 12 なので stand（今は 16 未満なので hit）", "手札 13・表 ♡10 → 表が 10 なので今までどおり hit", "手札 11・表 ♠5 → 12 未満なので今までどおり hit"],
+    why: "ディーラーの表が弱い（2〜6）とディーラーがバーストしやすいので、自分はバーストの危険を取らずに待つ（ベーシックストラテジーの一部）。",
+    caution: "self.dealer_card は look_dealer_hand（駅 7）で入る。駅 8 より前には無い。" },
+  "DEALER_STAND・HIT_SOFT17": {
+    how: ["駅 14 の while True で、ディーラーは「点数 < DEALER_STAND」の間カードを引く", "ちょうど DEALER_STAND で、ソフト（A を 11 と数えている。Card.is_soft）のときは、HIT_SOFT17 が True ならもう1枚引く", "それ以外は break して引くのをやめる"],
+    eg: ["♡A ♢6 = ソフト 17 → True なら引く・False なら止まる", "♠10 ♢7 = ハード 17 → どちらでも止まる", "DEALER_STAND = 18 にすると、ハード 17 でも引く"],
+    why: "カジノごとのハウスルール（ソフト 17 で止まる S17・引く H17）。H17 の方がディーラーに少し有利。",
+    caution: "17 が直に書いてある2か所（118・124 行）を両方とも定数にする。" },
+  BJ_PAYOUT: {
+    how: ["駅 18 で、プレイヤーの手札が2枚で 21（Card.is_blackjack）のとき", "残高に int(bet_amount * BJ_PAYOUT) を足し、notify_result にも同じ額を渡す", "その計算は4か所: 比べて勝ったとき（157・158 行）と、同じ点数でプレイヤーだけブラックジャックのとき（174・175 行）"],
+    eg: ["100 を賭けてブラックジャック: 1.5（3:2）→ +150、1.2（6:5）→ +120", "15 を賭けて 1.5 → int(22.5) = 22（切り捨て）"],
+    why: "3:2 と 6:5 で、長い目で見た平均がどれだけ変わるかを比べられる（分析）。",
+    caution: "4か所を同じ定数にしないと、game() の残高とプレイヤーに知らせる額がずれる。" } };
+
 // ---- 荷物の出どころ（build.py が、値が変わった直後に、直前に実行した行と駅を記録したもの） ----
 const ORIG_FALLBACK = { round: ["autodealer.py", /^round = 1/, "ゲームの前から（import のとき）。turn_end で +1、check_shuffle で 1 に戻る"],
   deck_left: ["autodealer.py", /^deck = \[/, "ゲームの前から（import のときに作った山札）"],
@@ -636,7 +678,10 @@ function paramsHtml(e) {
       <td><small>${esc(info.t)}</small>${defOf(n) ? `<div class="pd">置き場: ${defOf(n)}</div>` : ""}${S.showOrig && originHtml("p", e, n) ? `<div class="pd">入った所: ${originHtml("p", e, n)}</div>` : ""}</td></tr>`; }).map(withView).join("");
   const refs = (S.ring === "r01" && REFIMPL[e.id]) || [];
   const refBox = refs.length && S.showRef ? `<div class="refbox"><h4>参考実装（まだコードに無い。この駅に足すなら）</h4>${refs.map((x) => `<div class="refc"><div class="rh"><code>${esc(x.n)}</code> = <b>${esc(x.v)}</b> <small>${esc(x.ty)}</small>${taskBadges(paramTasks(x.kw, x.task), true)}<small>置き場: ${esc(x.f.replace("players/", ""))}</small></div>
-      <p>${esc(x.t)}</p><div class="pu"><span class="pk j">足したら</span><code>${esc(x.use)}</code></div>${(() => { const L = SRC[x.at[0]] || [], i = L.findIndex((l) => l.includes(x.at[1]));
+      <p>${esc(x.t)}</p>${(() => { const g = REFLOGIC[x.n]; if (!g) return "";
+        return `<div class="logic"><h5>仕組み（足すロジック）</h5><ol>${g.how.map((h) => `<li>${esc(h)}</li>`).join("")}</ol>
+          <h5>例</h5><ul>${g.eg.map((h) => `<li>${esc(h)}</li>`).join("")}</ul>
+          <p><b>ねらい:</b> ${esc(g.why)}</p>${g.caution ? `<p class="cau"><b>注意:</b> ${esc(g.caution)}</p>` : ""}</div>`; })()}<div class="pu"><span class="pk j">足したら</span><code>${esc(x.use)}</code></div>${(() => { const L = SRC[x.at[0]] || [], i = L.findIndex((l) => l.includes(x.at[1]));
         return i < 0 ? "" : `<div class="pu"><span class="pk">今のコードで入れる所</span>${srcLink("r", x.at[0], i + 1)} <code>${esc(L[i].trim())}</code></div>`; })()}${x.note ? `<p class="note">${esc(x.note)}</p>` : ""}
       <details class="rex"><summary>変更の例（${esc(x.f.replace("players/", ""))}）</summary>${diffHtml(x.ex)}</details></div>`).join("")}
     ${originView("r")}<p class="note">例は、このページを作るときに全部を同時に入れて autodealer.py を流し（MAX = 300）、止まらずに動くことを確かめた。player_simple の平均は 918.8 になった（今のままでは 875 前後）。</p></div>` : "";
