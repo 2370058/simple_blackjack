@@ -215,6 +215,10 @@ tfoot td { font-weight: 700; }
 .tpanel, .tpanel > *, .tpanel .step > *, .tpanel details, .tpanel details > *, .tcols > *, .d4 > *, .detail > * { min-width: 0; }
 .tpanel .code, .tpanel details, .tpanel .kstrip { max-width: 100%; }
 .tpanel table, .d4 table { display: block; max-width: 100%; overflow-x: auto; }
+.tpanel table td, .tpanel table th, .d4 table td, .d4 table th { white-space: nowrap; }
+.tpanel .wsum td:last-child { flex-wrap: nowrap; }
+.tpanel .dtabs { flex-wrap: nowrap; overflow-x: auto; max-width: 100%; padding-bottom: 4px; }
+.tpanel .dtabs button { flex: none; }
 .tpanel .where { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; font-size: .85rem; }
 .tpanel .where b { font: 800 .82rem var(--display); margin-right: 4px; }
 .tpanel .wsum td { vertical-align: top; } .tpanel .wsum td:last-child { display: flex; flex-wrap: wrap; gap: 4px; }
