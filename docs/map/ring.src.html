@@ -408,7 +408,7 @@ function issueHtml(it) {
 
 function flowLinks(id) { // 2 の図の流れで、同じ駅の手順
   const out = [];
-  for (const [k, T] of Object.entries(TASKS)) if (T.flow) T.c4.forEach((st, i) => { if (st.st === id) out.push(`<button type="button" class="btn" data-goflow="${k}:${i}" style="border-color:${T.c}">${esc(T.t)} ${i + 1}. ${esc(st.label)}</button>`); });
+  for (const [k, T] of Object.entries(TASKS)) if (T.flow) T.c4.forEach((st, i) => { if (st.st === id) out.push(`<button type="button" class="btn" data-goflow="${k}:${i}" style="border-color:${st.p ? "var(--prep)" : T.c}">${esc(T.t)} ${st.p ? "準備 " : ""}${stepTag(T.c4, i, T)}. ${esc(st.label)}</button>`); });
   return out.length ? `<div class="issue" style="--c:var(--dealer)"><h3>2 の図の流れで、同じ所</h3><p class="flags">${out.join("")}</p></div>` : "";
 }
 function roleCounts(entries) {
@@ -568,7 +568,8 @@ const C4BAND = { id: "f_prep", x: 10, y: 34, w: 1300, title: "準備（実行す
 const C4P = [
   { id: "work", band: true, c: "var(--prep)", title: "作業フォルダ", tag: "~/work/simple_blackjack",
     desc: "git clone で持ってきたフォルダ。autodealer.py は players/ を「今いるフォルダ」から探す（os.listdir('players')）ので、このフォルダで python3 を動かす。別の場所から動かすと FileNotFoundError で止まる。",
-    rows: [["git clone …blackjack", "教材を持ってくる"], ["cd …; code .", "VS Code で開く"], ["python3 autodealer.py", "このフォルダで", { f: "autodealer.py", find: "directory_path = 'players'" }]] },
+    rows: [["git clone …blackjack", "教材を持ってくる"], ["cd …; code .", "VS Code で開く"], ["python3 autodealer.py", "このフォルダで", { f: "autodealer.py", find: "directory_path = 'players'" }],
+      ["python3 dealer.py", "対話で遊ぶ", { f: "dealer.py", find: "from random import shuffle" }]] },
   { id: "git", band: true, c: "var(--prep)", title: "Git ブランチ", tag: "学籍番号develop",
     desc: "自分の修正は「学籍番号develop」のブランチに入れる（スライド p.22〜）。main は教材の元なので触らない。タスクの修正と、タスク外の改修は別のコミットにする。",
     rows: [["git switch -c ○○develop", "自分のブランチ"], ["git add; git commit", "修正を記録"], ["main", "教材の元（触らない）"]] },
@@ -708,7 +709,11 @@ const TASKS = {
       ["p_play", "sys", "掛け金・hit / stand を打つ", "player.BlackjackPlayer が input() で受け取る。"],
       ["sys", "p_play", "手札・点数・残高を表示", "dealer.py が print で出す。"]],
     c4: [
-      { a: ["boot", 0], b: ["dealer", 0], st: "s5", label: "山札を作って混ぜる", desc: "ファイルを読み込んだときに1回だけ。52枚の Card を作り、shuffle する（dealer.py の turn_end でも、残りが半分を切ったら作り直す）。",
+      { p: true, a: ["work", 3], b: ["dealer", -1], label: "作業フォルダで python3 dealer.py", desc: "simple_blackjack のフォルダで動かす（VS Code の実行ボタンでもよい）。dealer.py は関数ではなく、ファイルの上から順に動くプログラム。",
+        cmd: ["cd ~/work/simple_blackjack", "python3 dealer.py"], code: [["dealer.py", "from random import shuffle", 2, ["from random import shuffle", "from card import Card"]]] },
+      { p: true, a: ["boot", 3], b: ["dealer", 2], label: "相手のクラスを読み込む", desc: "from player import BlackjackPlayer で、人が打つ player.py のクラスを読み込む。ここを players.player_xxx に変えると、自分のプレイヤーで遊べる（タスク B の 2）。",
+        code: [["dealer.py", "from player import BlackjackPlayer", 1, ["from player import BlackjackPlayer"], [], 1]], rt: ["dealer.<module>:27 -> player.<module>"] },
+      { p: true, a: ["boot", 0], b: ["dealer", 0], st: "s5", label: "山札を作って混ぜる", desc: "ファイルを読み込んだときに1回だけ。52枚の Card を作り、shuffle する（dealer.py の turn_end でも、残りが半分を切ったら作り直す）。",
         code: [["dealer.py", "deck = [Card(suit, value)", 3, ["deck = [Card(suit, value)", "shuffle(deck)"], [], 2]], rt: ["dealer.<module>:7 -> card.Card.__init__"] },
       { a: ["dealer", 3], b: ["playerpy", -1], st: "s0", label: "プレイヤーを作る", desc: "from player import BlackjackPlayer で決まったクラスから、残高 1000 のインスタンスを1つ作る。ゲームの最後までこの1人。",
         code: [["dealer.py", "from player import BlackjackPlayer", 1, ["from player import BlackjackPlayer"]], ["dealer.py", "player = BlackjackPlayer(initial_balance)", 2, ["player = BlackjackPlayer(initial_balance)"]]], rt: ["-> player.BlackjackPlayer.__init__"] },
@@ -736,6 +741,14 @@ const TASKS = {
     ctx: [["x_vscode", "sys", "python3 autodealer.py", "人は何も打たない。players/ のプレイヤーが答える。"],
       ["p_strat", "sys", "input の中身を書く", "1手の決め方は、プレイヤーのファイルの input に書いてある。"]],
     c4: [
+      { p: true, a: ["work", 2], b: ["main", -1], label: "作業フォルダで python3 autodealer.py", desc: "simple_blackjack のフォルダで動かす。players/ を今いるフォルダから探すので、別のフォルダからだと FileNotFoundError で止まる。人は何も打たない。",
+        cmd: ["cd ~/work/simple_blackjack", "python3 autodealer.py"], code: [[AD, "directory_path = 'players'", 2, ["directory_path = 'players'", "os.listdir(directory_path)"]]] },
+      { p: true, a: ["pfold", 0], b: ["simple", -1], label: "players/ にプレイヤーを置く", desc: "players/ にある .py が全部、1つずつ import されて game() に渡る。この1手を打つのは players.player_simple.BlackjackPlayer。",
+        code: [[AD, "player_module = import_module(", 1, ["import_module("]], [AD, "result, num_turn = game(", 1, ["game(player_module.BlackjackPlayer)"]]] },
+      { p: true, a: ["prm", 0], b: ["simple", 2], label: "1手を決める値（hit_threshold = 16）", desc: "この1手は hit_threshold だけで決まる。動かす前にファイルの上で決まっていて、ゲームの途中では変わらない（タスク A で変える値）。",
+        code: [[SP, "hit_threshold = 16", 1, ["hit_threshold = 16"]], [SP, "self.hit_threshold = hit_threshold", 1, ["self.hit_threshold = hit_threshold"]]] },
+      { p: true, a: ["boot", 0], b: ["deck", 0], st: "s5", label: "山札（起動のとき1回）", desc: "autodealer.py を読み込んだときに52枚を作って混ぜる。1手で引くカードは、この山札の末尾から来る（今回は ♠9）。",
+        code: [[AD, "deck = [Card(suit, value)", 3, ["deck = [Card(suit, value)", "shuffle(deck)"], [], 2]] },
       { a: ["game", 4], b: ["simple", 6], st: "s7", label: "材料を渡す（receive_hand・look_dealer_hand）", desc: "1手を決める前に、手札とディーラーの表のカードをプレイヤーに渡しておく。self.hand は player_hand と同じリスト（コピーではない。悪1）。今回は [♠5, ♣6] と ♡10。",
         code: [[AD, "player.receive_hand(player_hand) # プレイヤーに手札を渡す", 1, ["player.receive_hand"]], [AD, "player.look_dealer_hand(", 1, ["player.look_dealer_hand"]], [SP, "def receive_hand", 0, ["self.hand = hand"]], [SP, "def look_dealer_hand", 0, ["self.dealer_card = card"]]],
         rt: ["autodealer.game:79 -> players.player_simple.BlackjackPlayer.receive_hand", "autodealer.game:83 -> players.player_simple.BlackjackPlayer.look_dealer_hand"] },
@@ -912,8 +925,8 @@ for t in (12, 14, 16, 18, 20):
 };
 const PREP_C = "var(--prep)";
 function c4Steps() { const T = TASKS[S.task]; return T ? T.c4 : []; }
-function stepTag(steps, i) { // 準備は a・b・c…、実行の流れは 1・2・3…、タスク外は 外1・外2…
-  if (TASKS[S.task] && TASKS[S.task].outside) return "外" + (i + 1);
+function stepTag(steps, i, T = TASKS[S.task]) { // 準備は a・b・c…、実行の流れは 1・2・3…、タスク外は 外1・外2…
+  if (T && T.outside) return "外" + (i + 1);
   let a = 0, n = 0;
   for (let j = 0; j <= i; j++) { if (steps[j].p) a++; else n++; }
   return steps[i].p ? String.fromCharCode(96 + a) : String(n);
@@ -959,12 +972,13 @@ function taskPanel(lv) {
       ${st.issue ? `<p><button type="button" class="btn" data-ringissue="${st.issue}">3 環状線で ${st.issue} を見る →</button></p>` : ""}
       ${st.st ? `<p><button type="button" class="btn" data-ringst="${st.st}">3 環状線の同じ駅（${st.st === "end" ? "終了" : idx[st.st] + ". "}${esc(ST[st.st].title)}）へ →</button></p>` : ""}
       ${rts.length || st.rtNote ? `<div class="rt"><b>実行時の呼び出し</b>（${T.rtSrc === "dealer" ? "本物の dealer.py を 100 → hit → stand → 0 で流して記録。dealer.py のモジュール名は実行時 __main__" : "本物を「ヒットして勝つ」で1ラウンド流して記録"}）${rts.map(([key, n]) => `<code>${esc(key.replace(" -> ", " → "))}</code><small>×${n}</small>`).join("")}${st.rtNote ? `<small>${esc(st.rtNote)}</small>` : ""}</div>` : ""}
+      ${st.cmd ? `<h4>ターミナル</h4><div class="code term">${st.cmd.map((c) => `<div class="ln"><i>$</i><s></s><span>${esc(c)}</span><span></span></div>`).join("")}</div>` : ""}
       ${st.code ? `<h4>コード${st.code.some((c) => (c[4] || []).length) ? "（橙の行が変える所）" : ""}</h4><div class="code">${st.code.map((c, i, all) => codeRange(c, i, all)).join(`<div class="gap">  ⋮</div>`)}</div>` : ""}
       ${st.ex ? `<h4>変更の例（最低限）</h4>${diffHtml(st.ex)}${st.exNote ? `<p class="note">${esc(st.exNote)}</p>` : ""}` : ""}</div>`;
   }
   const prep = steps.map((x, i) => [x, i]).filter(([x]) => x.p), flow = steps.map((x, i) => [x, i]).filter(([x]) => !x.p);
   el.innerHTML = `<section class="tpanel" style="--t:${T.c}"><div class="dh"><span class="kind" style="--c:${T.c}">${T.flow ? "流れ" : "タスク"}</span><h2>${esc(T.t)}</h2></div><p class="note">${esc(T.note)}</p>
-    <div class="tcols">${prep.length ? `<div><h3 style="color:${PREP_C}">実行前の準備（並列・どれからでもよい）</h3><ol>${prep.map(([x, i]) => item(x, i)).join("")}</ol></div>` : ""}
+    <div class="tcols">${prep.length ? `<div><h3 style="color:${PREP_C}">${T.flow ? "実行前の準備（起動するまで）" : "実行前の準備（並列・どれからでもよい）"}</h3><ol>${prep.map(([x, i]) => item(x, i)).join("")}</ol></div>` : ""}
       <div><h3 style="color:${T.c}">${T.flow ? "流れ（順番）" : T.outside ? "直したい所" : prep.length ? "実行の流れ（順番）" : "流れ（順番）"}</h3><ol>${flow.map(([x, i]) => item(x, i)).join("")}</ol></div></div>${body}
     ${T.related ? `<p class="note">ほかにタスク外で直したい所は、3 環状線の旗にある: ${T.related.map((id) => `<button type="button" class="btn" data-ringissue="${id}">${id} ${esc(R.issues.find((x) => x.id === id).title)}</button>`).join(" ")}</p>` : ""}
     ${T.transcript ? `<h3>画面（ターミナル）</h3><div class="code term"><div class="file">打った答え</div>${DATA.dealer.answers.map((a) => `<div class="ln"><i></i><s></s><span>${esc(a)}</span><span></span></div>`).join("")}<div class="file">print された文字</div>${DATA.dealer.stdout.trim().split("\n").map((a) => `<div class="ln"><i></i><s></s><span>${esc(a)}</span><span></span></div>`).join("")}</div>` : ""}
