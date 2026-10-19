@@ -316,6 +316,188 @@ def trace_main(ring2) -> dict:
     return {'path': path, 'calls': {}, 'result': [0, 0], 'stdout': out.getvalue()}
 
 
+class _Stop(Exception):
+    pass
+
+
+ENDING_VARS = {
+    '<module>': ('module_name', 'game_round', 'MAX', 'result', 'num_turn', 'total', 'total_turns'),
+    'game': ('initial_balance', 'player_balance', 'bet_amount', 'turns', 'is_burst', 'player_choice', 'player_hand', 'dealer_hand'),
+    'place_bet': ('balance', 'bet_amount'),
+    '__init__': ('balance', 'stop_balance', 'unit_bet', 'hit_threshold'),
+}
+_COND = re.compile(r'^\s*(?:if|elif|while)\s+(.*?):\s*(?:#.*)?$')
+_SUB = re.compile(r'Card\.sum\(\w+\)|self\.\w+|len\(deck\)|\bround\b|\w+/MAX')
+
+
+def _typed(v):
+    return [_show(v), type(v).__name__]
+
+
+def trace_ending(kind: str) -> dict:
+    """autodealer.py の __main__ を本物どおりに（MAX = 4000 のまま）流し、最初のゲームが「勝ち逃げ」か「残高 0」で終わる
+    乱数の種を探して、そのゲームの最後の2ラウンド → __main__ が受け取る所 → 次のゲームの最初の place_bet →
+    MAX 回のあと（結果の1行）までの行と変数の値・型を記録する。if の行は条件を本当に評価して真偽を残す。"""
+    import contextlib
+    import io
+    import os
+    import random
+    pf = str(REPO / 'autodealer.py')
+    pp = str(REPO / 'players' / 'player_simple.py')
+    src = (REPO / 'autodealer.py').read_text(encoding='utf-8')
+    want = {'win': 63, 'lose': 182}[kind]
+    lines = {pf: src.split('\n'), pp: (REPO / 'players' / 'player_simple.py').read_text(encoding='utf-8').split('\n')}
+
+    def run(code, tracer, seed):
+        g = {'__name__': '__main__', '__file__': pf}
+        here = os.getcwd()
+        random.seed(seed)
+        os.chdir(REPO)
+        try:
+            with contextlib.redirect_stdout(io.StringIO()):
+                sys.settrace(tracer)
+                try:
+                    exec(code, g)
+                except _Stop:
+                    pass
+                finally:
+                    sys.settrace(None)
+        finally:
+            os.chdir(here)
+
+    # 種を探す: 最初のゲームがどの return で終わるか（MAX を 1 にして最初のゲームだけ）
+    quick = compile(src.replace('MAX = 4000', 'MAX = 1   ', 1), pf, 'exec')
+    seed = None
+    for s in range(200):
+        last = {}
+
+        def qt(fr, ev, arg):
+            if fr.f_code.co_filename != pf or fr.f_code.co_name != 'game':
+                return None
+            if ev == 'line':
+                last['ln'] = fr.f_lineno
+            if ev == 'return':
+                last['ret'] = arg
+                raise _Stop
+            return qt
+        run(quick, qt, s)
+        if last.get('ln') == want and (kind == 'lose' or last['ret'][0] > 1000):
+            seed = s
+            break
+    assert seed is not None, f'{kind}: 最初のゲームが {want} 行で終わる種が無い'
+
+    code = compile(src, pf, 'exec')
+    ev_all, rnd, prev = [], [], []
+    st = {'games': 0, 'phase': None, 'done': False, 'final': False}
+
+    def snap(fr):
+        keep = ENDING_VARS.get(fr.f_code.co_name, ())
+        return {k: _typed(fr.f_locals[k]) for k in keep if k in fr.f_locals}
+
+    def record(fr, ev, arg):
+        f = 'autodealer.py' if fr.f_code.co_filename == pf else 'players/player_simple.py'
+        ln = fr.f_lineno
+        text = lines[fr.f_code.co_filename][ln - 1]
+        e = {'f': f, 'ln': ln, 'fn': fr.f_code.co_name, 'vars': snap(fr), 'id': id(fr)}
+        if ev == 'return':
+            e['ret'] = _typed(arg) if not isinstance(arg, tuple) else [_show(list(arg)).replace('[', '(').replace(']', ')'), 'tuple(' + ', '.join(type(x).__name__ for x in arg) + ')']
+        else:
+            m = _COND.match(text)
+            env = dict(fr.f_globals)
+            env.update(fr.f_locals)
+            if m:
+                try:
+                    e['cond'] = bool(eval(m.group(1), env))
+                except Exception:
+                    pass
+            subs = {}
+            for x in dict.fromkeys(_SUB.findall(text.split('#')[0])):
+                try:
+                    subs[x] = _typed(eval(x, env))
+                except Exception:
+                    pass
+            if subs:
+                e['subs'] = subs
+        return e
+
+    def tracer(fr, ev, arg):
+        fn = fr.f_code.co_filename
+        if fn != pf and fn != pp:
+            return None
+        name = fr.f_code.co_name
+        if fn == pp and name not in ('place_bet', '__init__') or name in ('printx', 'check_shuffle', '<listcomp>', '<genexpr>'):
+            return None
+        if ev == 'call':
+            if name == 'game':
+                st['games'] += 1
+                if st['games'] == 2:
+                    st['phase'] = 'next'
+            return tracer
+        if st['done'] and not st['final']:
+            if name == '<module>' and ev == 'line' and fr.f_lineno == 213 and fr.f_globals['game_round'] > fr.f_globals['MAX']:
+                st['final'] = True
+            else:
+                return tracer
+        if name == '<module>' and ev == 'line' and fr.f_lineno == 206 and st['final']:
+            raise _Stop
+        if name == '<module>':
+            if st['games'] >= 1 and (st['phase'] in ('main', 'next') or st['final']):
+                if ev == 'line':
+                    e = record(fr, ev, arg)
+                    e['phase'] = 'final' if st['final'] else st['phase']
+                    ev_all.append(e)
+            return tracer
+        if st['games'] == 1 and name == 'game' and ev == 'line' and fr.f_lineno == 51:
+            prev[:] = rnd
+            rnd.clear()
+        if st['games'] == 1:
+            if ev in ('line', 'return'):
+                rnd.append(record(fr, ev, arg))
+                if ev == 'return' and name == 'game':
+                    for e in prev:
+                        e['phase'] = 'prev'
+                    for e in rnd:
+                        e['phase'] = 'last'
+                    ev_all.extend(prev + rnd)
+                    st['phase'] = 'main'
+        elif st['games'] == 2 and not st['done']:
+            if ev in ('line', 'return'):
+                e = record(fr, ev, arg)
+                e['phase'] = 'next'
+                ev_all.append(e)
+                if name == 'game' and ev == 'line' and fr.f_lineno == 58:
+                    st['done'] = True
+        return tracer
+    run(code, tracer, seed)
+    # 代入で入った値（同じ関数の次の行で見た値）と、次に動いた行
+    texts = [lines[pf if e['f'] == 'autodealer.py' else pp][e['ln'] - 1] for e in ev_all]
+    for i, e in enumerate(ev_all):
+        nxt = next((x for x in ev_all[i + 1:] if x['id'] == e['id']), None)
+        if 'ret' in e:
+            after = ev_all[i + 1] if i + 1 < len(ev_all) else None
+            if after is not None:
+                e['nx'] = [after['f'], after['ln'], after['fn']]
+            continue
+        if nxt is None or (e['fn'] == '<module>' and e['ln'] == 214):
+            continue
+        e['nx'] = [nxt['f'], nxt['ln'], nxt['fn']]
+        m = re.match(r'^\s*([\w, ]+?)\s*(?:\+=|-=|=)(?!=)', texts[i])
+        targets = [t.strip() for t in m.group(1).split(',')] if m else []
+        ch = {k: v for k, v in nxt['vars'].items() if e['vars'].get(k) != v or k in targets}
+        if ch:
+            e['set'] = ch
+    for e in ev_all:
+        del e['id']
+    keep = [not t.strip().startswith('printx(') for t in texts]
+    ev_all = [e for e, k in zip(ev_all, keep) if k]
+    # __main__ の 214 行（game() の戻り値を受け取る）は game() を呼ぶ前に通るので、戻ってきた所に1行足す
+    i = next(i for i, e in enumerate(ev_all) if e['phase'] == 'main')
+    v = ev_all[i]['vars']
+    ev_all.insert(i, {'f': 'autodealer.py', 'ln': 214, 'fn': '<module>', 'phase': 'main', 'vars': {}, 'back': True,
+                      'set': {k: v[k] for k in ('result', 'num_turn') if k in v}, 'nx': ['autodealer.py', 215, '<module>']})
+    return {'seed': seed, 'kind': kind, 'events': ev_all}
+
+
 def trace_dealer() -> dict:
     """dealer.py（対話）を、キーボードの代わりに決めた答え（100 → hit → stand → 0）で1ラウンドだけ流す。
     混ぜ方は random.seed で決め、hit しても バーストしない最初の種を使う。実行時の呼び出しと、画面に出た文字を記録する。"""
@@ -435,8 +617,11 @@ def build() -> pathlib.Path:
             assert st['anchor'] in text, f"{st['id']}: autodealer.py:{ln} に「{st['anchor']}」が無い（今は「{text.strip()}」）"
     main2 = trace_main(ring2)
     print('  環状線02: ' + ' → '.join(p['id'] for p in main2['path']))
+    endings = {k: trace_ending(k) for k in ('win', 'lose')}
+    for k, e in endings.items():
+        print(f"  終わり方 {k}: 種 {e['seed']}・{len(e['events'])} 行")
     print(f"  dealer.py 種 {dealer['seed']}: 呼び出し {len(dealer['edges'])} 種類")
-    data = {'ring': ring, 'sources': src, 'traces': traces, 'roles': roles, 'roleNames': ROLE_NAMES, 'dealer': dealer, 'diff': dealer_diff(), 'players': PLAYERS, 'decisions': decisions, 'scenarios': [{k: v for k, v in x.items() if k != 'cards'} for x in scenarios],
+    data = {'ring': ring, 'sources': src, 'traces': traces, 'roles': roles, 'roleNames': ROLE_NAMES, 'dealer': dealer, 'diff': dealer_diff(), 'players': PLAYERS, 'decisions': decisions, 'endings': endings, 'scenarios': [{k: v for k, v in x.items() if k != 'cards'} for x in scenarios],
             'rings': {'r01': {'ring': ring, 'traces': traces}, 'r02': {'ring': ring2, 'traces': {r['id']: main2 for r in ring2['routes']}}}}
     blob = json.dumps(data, ensure_ascii=False).replace('</', '<\\/')
     page = (HERE / 'ring.src.html').read_text(encoding='utf-8')

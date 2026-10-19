@@ -227,6 +227,17 @@ tfoot td { font-weight: 700; }
 .trace .tl .kmark { color: var(--car); margin-right: 2px; font-size: .7rem; }
 .kbar { padding: 6px 12px 8px; }
 .kbar .ktog { border-color: var(--car); }
+.lchain { display: flex; gap: 6px; overflow-x: auto; padding: 4px 2px 12px; align-items: flex-start; scroll-snap-type: x proximity; }
+.lcard { flex: 0 0 250px; scroll-snap-align: start; border: 1.5px solid var(--t); border-radius: 10px; padding: 8px 10px; background: var(--panel); font-size: .82rem; display: flex; flex-direction: column; gap: 5px; }
+.lcard .kh { display: flex; gap: 8px; align-items: baseline; font-size: .78rem; color: var(--muted); } .lcard .kh b { color: var(--fg); font-family: var(--mono); }
+.lcard code.src { font-family: var(--mono); font-size: .76rem; white-space: pre-wrap; overflow-wrap: anywhere; }
+.lcard p { margin: 0; } .lcard .nx, .ltab td:last-child { font-size: .76rem; color: var(--t); font-weight: 700; }
+.larr { align-self: center; color: var(--t); font-weight: 800; }
+.vals { display: flex; flex-wrap: wrap; gap: 3px; }
+code.vv { font-family: var(--mono); font-size: .74rem; border-radius: 4px; padding: 0 5px; background: color-mix(in srgb, var(--t) 10%, transparent); overflow-wrap: anywhere; }
+code.vv small { margin-left: 4px; color: var(--muted); font-size: .68rem; } code.vv.set { background: color-mix(in srgb, var(--t) 26%, transparent); } code.vv.ret { outline: 1.5px solid var(--t); }
+code.vv.yes { background: color-mix(in srgb, var(--player) 25%, transparent); } code.vv.no { background: color-mix(in srgb, var(--danger) 22%, transparent); }
+.ltab td { vertical-align: top; white-space: normal !important; } .ltab td:nth-child(3) code { font-family: var(--mono); font-size: .76rem; white-space: pre; } .ltab tr.cur td { background: color-mix(in srgb, var(--t) 12%, transparent); } .ltab td:nth-child(4) { min-width: 220px; } .ltab td:last-child { min-width: 150px; }
 .kstrip { display: flex; gap: 10px; overflow-x: auto; padding: 4px 12px 12px; scroll-snap-type: x proximity; align-items: stretch; }
 .kcard { flex: 0 0 290px; scroll-snap-align: start; background: var(--panel); color: var(--fg); border: 1px solid var(--line); border-left: 4px solid var(--car); border-radius: 8px; padding: 8px 10px; display: grid; gap: 6px; font: .82rem/1.5 var(--body); white-space: normal; }
 .kcard.hit { border-left-color: var(--perf); }
@@ -789,6 +800,12 @@ const EX_RETREAT = `  stop_balance = 1100
 -         if balance > self.stop_balance:
 +         if balance > self.stop_balance or balance < retreat_balance:
               return 0`;
+// 勝って終わる・負けて終わるのあと（autodealer だけ）: 次のゲームと、MAX 回のあと
+const NEXT_GAME = (got) => [
+  { a: ["main", 3], b: ["game", 1], st: "r02:t3", label: `次のゲーム（2 <= 4000 → もう一度 game()）`, desc: `game_round += 1 で 2 になり、while game_round <= MAX: の 2 <= 4000 が真なので、もう一度 game(player_module.BlackjackPlayer) を呼ぶ。game() の中では initial_balance = 1000 から Player(1000) を作り直すので、残高は ${got} ではなく 1000 から。global の山札 deck と round は game() の外にあるので、前のゲームの続き（作り直さない）。`,
+    code: [[AD, "while game_round <= MAX:", 7, ["while game_round <= MAX:", "result, num_turn = game(", "game_round += 1"]], [AD, "initial_balance = 1000", 5, ["initial_balance = 1000", "player = Player(initial_balance)", "player_balance = initial_balance"]]] },
+  { a: ["main", 6], b: ["term", 2], st: "r02:t7", label: "MAX 回のあと: 結果の1行を出して、次のプレイヤーへ", desc: "4000 回目のあとは game_round が 4001 になり、4001 <= 4000 が偽で while を抜ける。total / MAX（1ゲームあたりの平均の残高）などを1行 print して、for module_name の次のファイル（player_random など）へ。dealer.py にはこの部分が無い（1ゲームで終わる）。",
+    code: [[AD, "while game_round <= MAX:", 0, ["while game_round <= MAX:", "print(f\"{module_name}"]]] }];
 const TASKS = {
   P: { flow: true, t: "dealer.py で1周", c: "var(--dealer)", rtSrc: "dealer", transcript: true,
     note: "python3 dealer.py を、キーボードで 100 → hit → stand → 0 と打って1ラウンド遊んだときの流れ。dealer.py はファイルの上から動くので、山札とプレイヤーを作ってから while True で回る。3 環状線の駅と同じ順番（環状線は autodealer.game() の同じ流れ）。",
@@ -869,7 +886,7 @@ const TASKS = {
         rt: ["autodealer.game:91 -> players.player_simple.BlackjackPlayer.receive_hand", "autodealer.game:93 -> players.player_simple.BlackjackPlayer.receive_hand"] },
       { a: ["dealer", 8], b: ["card", 3], st: "s10", label: "バーストか → 21 以下ならもう一度 input", desc: "20 は 21 以下なので continue で while True の先頭へ戻り、2 の input をもう一度呼ぶ。2回目は \"stand\" なので break して、ディーラーの番へ。",
         code: [[AD, "if Card.sum(player_hand) > 21:", 7, ["if Card.sum(player_hand) > 21:", "continue"]], [AD, "elif player_choice == \"stand\":", 2, ["break"]]], rt: ["autodealer.game:96 -> card.Card.sum"] }] },
-  W: { flow: true, t: "勝って終わる", c: "var(--player)", routes: ["stopwin"],
+  W: { flow: true, t: "勝って終わる", c: "var(--player)", routes: ["stopwin"], ending: "win",
     note: "勝ち逃げでゲームが終わる所だけを取り出した流れ。player_simple のまま、1000 → 1100 → 1200 と勝ち、次のラウンドの place_bet が 0 を返して終わる。autodealer（左）と dealer.py（右の行）で違うのは、最後の return と exit() だけ。値は環状線 01 のルート「勝ち逃げで終わる」を本物で流したもの。",
     ctx: [["sys", "p_anal", "結果の1行に入る", "game() が返した 1200 が total にたされる。"]],
     c4: [
@@ -884,8 +901,8 @@ const TASKS = {
       { a: ["game", 6], b: ["main", 4], st: "s4", label: "掛け金が 0 → return（dealer.py は exit()）", desc: "0 < 0 は偽なので else へ。bet_amount == 0 なので、autodealer は return player_balance, turns で (1200, 2) を返す。dealer.py は同じ所で残高を表示して exit() し、プログラムごと終わる。",
         code: [[AD, "if 0 < bet_amount <= player_balance", 6, ["if 0 < bet_amount <= player_balance", "if bet_amount == 0:", "return player_balance, turns"]], ["dealer.py", "if 0 < bet_amount <= player_balance", 6, ["if 0 < bet_amount <= player_balance", "if bet_amount == 0:", "exit()"]]] },
       { a: ["main", 5], b: ["term", 2], st: "r02:t5", label: "__main__ が受け取る（total += 1200）", desc: "autodealer では、game() が返した 1200 と 2 を集計にたして、次のゲームへ。dealer.py には集計が無い。",
-        code: [[AD, "result, num_turn = game(", 2, ["result, num_turn = game(", "total += result"]]] }] },
-  L: { flow: true, t: "負けて終わる", c: "var(--danger)", routes: ["simplelose", "allin"],
+        code: [[AD, "result, num_turn = game(", 2, ["result, num_turn = game(", "total += result"]]] }, ...NEXT_GAME(1200)] },
+  L: { flow: true, t: "負けて終わる", c: "var(--danger)", routes: ["simplelose", "allin"], ending: "lose",
     note: "残高が 0 になってゲームが終わる所だけを取り出した流れ。player_simple のまま 26 ラウンド遊んだゲーム（種 1）の最後のラウンド。place_bet はもう呼ばれず、駅 20 の「残高が 0 か」で終わる。autodealer は return、dealer.py は break。値は環状線 01 のルート「負けて終わる（player_simple のまま・最後のラウンド）」を本物で流したもの。",
     ctx: [["sys", "p_anal", "結果の1行に入る", "game() が返した 0 が total にたされる。"]],
     c4: [
@@ -900,7 +917,7 @@ const TASKS = {
       { a: ["main", 5], b: ["term", 2], st: "r02:t5", label: "__main__ が受け取る（total += 0）", desc: "0 と 26 を集計にたして、次のゲームへ。",
         code: [[AD, "result, num_turn = game(", 2, ["total += result"]]] },
       { a: ["dealer", 8], b: null, st: "s17", label: "（別の道）バーストで 0 になったとき", desc: "バーストで負けた場合は、駅 20 まで行かずに、駅 17 の「バーストしていたか」の中で同じように残高を見て return（dealer.py は break）する。",
-        code: [[AD, "if is_burst:", 4, ["if player_balance <= 0:", "return player_balance, turns"]], ["dealer.py", "if is_burst:", 4, ["if player_balance <= 0:", "break"]]] }] },
+        code: [[AD, "if is_burst:", 4, ["if player_balance <= 0:", "return player_balance, turns"]], ["dealer.py", "if is_burst:", 4, ["if player_balance <= 0:", "break"]]] }, ...NEXT_GAME(0)] },
   A: { t: "A 分析する", c: "var(--pre)", note: "player_simple.py のパラメータ4つ（stop_balance・撤退条件・unit_bet・hit_threshold）と、autodealer.py の2つ（MAX・initial_balance）を変えて、平均を比べる（スライド p.60）。パラメータはどれからでも変えられる（並列の準備）。変えたら、あとの実行の流れは同じ。",
     ctx: [["p_anal", "x_vscode", "パラメータと撤退条件を書き換える", "player_simple.py をコピーして player_simple_1200_100_16.py のように名前を付け、4つのパラメータを書き換える。autodealer.py の MAX と initial_balance も変えられる。"],
       ["x_vscode", "sys", "python3 autodealer.py", "players/ の .py が全部、1ファイル1行で比べられる。player_random も一緒に流れるので、基準が毎回出る。"],
@@ -1201,6 +1218,111 @@ const KEYLINES = [
   { m: "input", re: /^\s*return\b/, t: "答えを返す → game() の if で hit（駅 9）か stand（駅 11）に分かれる", refs: ["Q:\"hit\" か", "s8", "s9", "s11"] },
 ];
 function keyLine(name, text) { return KEYLINES.find((k) => k.m === name && k.re.test(text)); }
+// ゲームが終わるまでと、その次（build.py の trace_ending が本物の __main__ を MAX = 4000 のまま流して記録した行・値・型）
+const FN_NAME = { "<module>": "__main__", game: "game()", place_bet: "BlackjackPlayer.place_bet", __init__: "BlackjackPlayer.__init__", turn_end: "turn_end()" };
+const PHASES = [
+  ["prev", "その前のラウンド（残高がどう変わったか）", false],
+  ["last", "最後のラウンド（ここでゲームが終わる）", true],
+  ["main", "__main__ に戻る（集計して、次のゲームへ）", true],
+  ["next", "次のゲーム（game_round 2）の始まり", true],
+  ["final", "MAX 回（4000 ゲーム）のあと", true]];
+// 変数の変遷: [場面, ファイル, 行, "ret" なら return の値, 説明]
+const LINEAGE = {
+  win: [
+    { q: "なぜ place_bet が 0 を返すのか（player_balance → balance）", c: [
+      ["next", AD, 41, "", "どのゲームも int のリテラル 1000 から始まる（次のゲームで記録した値。1ゲーム目も同じ）。"],
+      ["next", AD, 45, "", "player_balance = initial_balance。game() の中の変数で、ディーラー側が残高を持つ。"],
+      ["prev", AD, 138, "", "前のラウンドで勝った所。int + int なので int のまま 1200 になる。"],
+      ["last", AD, 57, "", "place_bet(player_balance) で、残高の int をプレイヤーに引数として渡す。"],
+      ["last", SP, 79, "", "受け取った名前は balance。self.stop_balance（ファイルの上の stop_balance = 1100 が __init__ の既定値）と比べて真。"],
+      ["last", SP, 80, "ret", "int のリテラル 0 を返す。0 は「ゲームを終える」という決まりの値（place_bet の説明の文: 0を指定するとゲームを終了する）。"]] },
+    { q: "なぜ 0 を入れると終わるのか（bet_amount）", c: [
+      ["last", AD, 57, "", "返ってきた 0（int）が bet_amount に入る。"],
+      ["last", AD, 58, "", "0 < 0 は偽。有効な掛け金は 1 以上・残高以下だけなので else へ。"],
+      ["last", AD, 61, "", "bet_amount == 0 が真。0 だけは「やめる」の合図（それ以外の無効な値は 64 行で -1 を返す: 緊1）。"],
+      ["last", AD, 63, "ret", "return player_balance, turns。int 2つのタプルを返して game() が終わる。while True の外へ出るのは return だけ。"]] },
+    { q: "返した値はどこへ行くか（result → total）", c: [
+      ["main", AD, 214, "", "タプルを2つに分けて受け取る: result に残高、num_turn にターン数。"],
+      ["main", AD, 215, "", "total に残高をたす。最後は total / MAX で平均にする。"],
+      ["main", AD, 219, "", "ゲームの回数を1増やす。"],
+      ["main", AD, 213, "", "2 <= 4000 は真なので、もう一度 game() を呼ぶ（次のゲーム）。"]] },
+    { q: "次はどうなるか（次のゲーム・MAX 回のあと）", c: [
+      ["next", AD, 44, "", "Player(1000) で新しいプレイヤーを作る（前のゲームの self.balance は持ち越さない）。"],
+      ["next", SP, 50, "", "self.stop_balance に 1100 が入る（引数を渡していないので既定値）。"],
+      ["next", AD, 49, "", "ターン数も 0 から。"],
+      ["next", AD, 55, "", "round は global なので前のゲームの続き（山札 deck も作り直さない）。"],
+      ["next", SP, 86, "ret", "残高 1000 は 1100 以下なので 100 を返し、ふつうにラウンドが始まる。"],
+      ["final", AD, 213, "", "4000 回目のあとは 4001 <= 4000 が偽で while を抜ける。"],
+      ["final", AD, 222, "", "平均を1行 print して、次の players/ のファイルへ。"]] }],
+  lose: [
+    { q: "残高はどうやって 0 になるか（player_balance）", c: [
+      ["next", AD, 41, "", "どのゲームも int のリテラル 1000 から始まる（次のゲームで記録した値）。"],
+      ["prev", AD, 98, "", "前のラウンドはバーストで負けて 200 → 100。"],
+      ["prev", AD, 145, "", "バーストのときの「残高が 0 か」。100 なので偽で、次のラウンドへ。"],
+      ["last", SP, 82, "", "place_bet の中。残高 100 は unit_bet 100 より大きくないので偽。"],
+      ["last", SP, 85, "", "bet_amount = balance。残り全部（int）を賭ける。"],
+      ["last", AD, 163, "", "合計を比べて負け（Card.sum は辞書 vals を引いた int）。"],
+      ["last", AD, 165, "", "player_balance -= bet_amount。int − int で 0。"]] },
+    { q: "なぜ 0 で終わるのか（if player_balance <= 0）", c: [
+      ["last", AD, 180, "", "0 <= 0 は真。残高 0 では次の place_bet で賭けられる額が無い（0 < bet <= 0 になる int は無い）ので、聞く前にここで終わる。"],
+      ["last", AD, 182, "ret", "return player_balance, turns。int 2つのタプル (0, ターン数) を返す。place_bet はもう呼ばれない。"]] },
+    { q: "返した値はどこへ行くか（result → total）", c: [
+      ["main", AD, 214, "", "タプルを2つに分けて受け取る: result に 0、num_turn にターン数。"],
+      ["main", AD, 215, "", "total に 0 をたす（平均を下げる）。"],
+      ["main", AD, 219, "", "ゲームの回数を1増やす。"],
+      ["main", AD, 213, "", "2 <= 4000 は真なので、もう一度 game() を呼ぶ（次のゲーム）。"]] },
+    { q: "次はどうなるか（次のゲーム・MAX 回のあと）", c: [
+      ["next", AD, 44, "", "Player(1000) で新しいプレイヤーを作る。負けた残高 0 は持ち越さない。"],
+      ["next", AD, 45, "", "残高はまた 1000 から。"],
+      ["next", AD, 55, "", "round は global なので前のゲームの続き（山札 deck も作り直さない）。"],
+      ["next", SP, 86, "ret", "100 を返し、ふつうにラウンドが始まる。"],
+      ["final", AD, 213, "", "4000 回目のあとは 4001 <= 4000 が偽で while を抜ける。"],
+      ["final", AD, 222, "", "平均を1行 print して、次の players/ のファイルへ。"]] }]
+};
+function endEvent(E, ph, f, ln, ret) {
+  return E.events.find((e) => e.phase === ph && e.f === f && e.ln === ln && (ret ? e.ret : !e.ret));
+}
+function endVals(e, text) {
+  const code = text.split("#")[0], chip = (k, [v, t], cls = "") => `<code class="vv${cls}">${esc(k)} = <b>${esc(v)}</b><small>${esc(t)}</small></code>`;
+  if (e.ret) return `<code class="vv ret">返す <b>${esc(e.ret[0])}</b><small>${esc(e.ret[1])}</small></code>`;
+  const set = e.set || {}, out = [];
+  for (const [k, v] of Object.entries(e.vars || {})) if (!(k in set) && new RegExp(`\\b${k}\\b`).test(code)) out.push(chip(k, v));
+  for (const [k, v] of Object.entries(e.subs || {})) out.push(chip(k, v));
+  if (e.cond != null) out.push(`<code class="vv ${e.cond ? "yes" : "no"}">${e.cond ? "真" : "偽"}</code>`);
+  for (const [k, v] of Object.entries(set)) out.push(chip((e.back ? "" : "→ ") + k, v, " set"));
+  return out.join("");
+}
+function endNext(e) {
+  const nx = e.nx;
+  if (!nx) return e.fn === "<module>" && e.ln === 214 ? "game() を呼ぶ → 次のゲーム" : e.phase === "next" ? "配る（ふつうのラウンド）" : "";
+  const where = `${nx[0] === e.f ? "" : nx[0].replace("players/", "") + " "}${nx[1]} 行`;
+  if (e.back) return `→ ${where}`;
+  if (e.ret) return `${FN_NAME[e.fn] || e.fn} を出て → ${FN_NAME[nx[2]] || nx[2]} の ${where}`;
+  if (nx[2] !== e.fn) return `→ ${FN_NAME[nx[2]] || nx[2]} の ${where}`;
+  if (e.cond != null) return `${e.cond ? "真" : "偽"} → ${where}${nx[1] < e.ln ? "（ループの先頭）" : ""}`;
+  if (nx[1] < e.ln) return `↩ ${where}（ループの先頭へ）`;
+  if (nx[1] === e.ln) return "";
+  // 間が空行・コメント・printx だけなら、跳んだことにしない
+  const L = SRC[e.f] || [], skipped = L.slice(e.ln, nx[1] - 1).some((t) => t.trim() && !t.trim().startsWith("#") && !/^\s*printx\(/.test(t));
+  return skipped ? `→ ${where}` : "";
+}
+function endingPanel(kind) {
+  const E = DATA.endings[kind], C = LINEAGE[kind];
+  const line = (e) => (SRC[e.f] || [])[e.ln - 1] || "";
+  const bare = (t) => t.replace(/\s+#\s.*$/, "").trim();   // 行の後ろのコメントを外す
+  const inChain = new Set(C.flatMap((x) => x.c.map(([ph, f, ln]) => `${ph}|${f}|${ln}`)));
+  const card = ([ph, f, ln, r, d]) => { const e = endEvent(E, ph, f, ln, r === "ret");
+    if (!e) return `<div class="lcard"><p class="note">（${esc(f)}:${ln} が記録に無い）</p></div>`;
+    const nx = endNext(e);
+    return `<div class="lcard"><div class="kh"><b>${esc(f.replace("players/", ""))}:${ln}</b>${esc(FN_NAME[e.fn] || e.fn)}</div><code class="src">${esc(e.back ? "result, num_turn = game(…)  ← 戻ってきた値" : bare(line(e)))}</code><div class="vals">${endVals(e, line(e))}</div>${nx ? `<div class="nx">${esc(nx)}</div>` : ""}<p>${esc(d)}</p></div>`; };
+  const chains = C.map((x) => `<h4>${esc(x.q)}</h4><div class="lchain">${x.c.map(card).join(`<span class="larr" aria-hidden="true">→</span>`)}</div>`).join("");
+  const rows = (ph) => E.events.filter((e) => e.phase === ph).map((e) => `<tr class="${inChain.has(`${ph}|${e.f}|${e.ln}`) ? "cur" : ""}${e.ret ? " r" : ""}"><td>${e.ln}</td><td>${esc(FN_NAME[e.fn] || e.fn)}</td><td><code>${esc(e.ret ? "↩ return の値" : e.back ? "result, num_turn = game(…)  ← 戻ってきた値" : line(e).trim())}</code></td><td>${endVals(e, line(e))}</td><td>${esc(endNext(e))}</td></tr>`).join("");
+  const table = PHASES.map(([ph, title, open]) => { const n = E.events.filter((e) => e.phase === ph).length; if (!n) return "";
+    return `<details${open ? " open" : ""}><summary>${esc(title)}（${n} 行）</summary><table class="ltab"><thead><tr><th>行</th><th>関数</th><th>コード</th><th>その行の値（型）・真偽・→ 入った値</th><th>次</th></tr></thead><tbody>${rows(ph)}</tbody></table></details>`; }).join("");
+  return `<h3>変数の変遷: ゲームが終わるまでと、その次</h3>
+    <p class="note">build.py が本物の python3 autodealer.py と同じ動き（MAX = 4000 のまま）を乱数の種 ${E.seed} で流し、1ゲーム目が${kind === "win" ? "勝ち逃げ（place_bet が 0）" : "残高 0"}で終わる所から、__main__ が受け取って次のゲームを始める所、4000 回のあとまでを記録した。値の横の小さい字が型（int・bool・tuple…）。if の行は条件を本当に評価した真偽、「→」はその行で入った値、「次」は実際に次に動いた行。printx の行は省いた。</p>
+    ${chains}<h4>通った行を全部（変遷に出てくる行は色つき）</h4>${table}`;
+}
 function taskPanel(lv) {
   const el = document.getElementById(lv + "task"), T = TASKS[S.task];
   if (!T) { el.innerHTML = ""; return; }
@@ -1234,6 +1356,7 @@ function taskPanel(lv) {
     ${T.related ? `<p class="note">ほかにタスク外で直したい所は、3 環状線の旗にある: ${T.related.map((id) => `<button type="button" class="btn" data-ringissue="${id}">${id} ${esc(R.issues.find((x) => x.id === id).title)}</button>`).join(" ")}</p>` : ""}
     ${T.transcript ? `<h3>画面（ターミナル）</h3><div class="code term"><div class="file">打った答え</div>${DATA.dealer.answers.map((a) => `<div class="ln"><i></i><s></s><span>${esc(a)}</span><span></span></div>`).join("")}<div class="file">print された文字</div>${DATA.dealer.stdout.trim().split("\n").map((a) => `<div class="ln"><i></i><s></s><span>${esc(a)}</span><span></span></div>`).join("")}</div>` : ""}
     ${T.decide ? decidePanel() : ""}
+    ${T.ending && lv === "c4" ? endingPanel(T.ending) : ""}
     ${!T.outside && !T.flow ? `<p class="note">タスク外で直したい所（どのタスクの結果にも効く所）は <button type="button" class="btn" data-task="X">タスク外の改修</button> にまとめてある。</p>` : ""}
     ${T.ways && lv === "c4" ? `<h3>分析のしかた（アプローチ）</h3><dl class="ways">${T.ways.map(([w, d]) => `<dt>${esc(w)}</dt><dd>${esc(d)}</dd>`).join("")}</dl>
       ${T.wayEx ? `<h4>まとめて流す例（コピーを作らない・信頼区間つき）</h4>${diffHtml(T.wayEx.split("\n").map((l) => "  " + l).join("\n"))}<p class="note">このページを作るときに 2000 ゲームずつ流した結果: 12 → 836 ± 24、16 → 863 ± 23、20 → 327 ± 23。12 と 16 の差は区間の幅とほぼ同じで、偶然かもしれない。</p>` : ""}` : ""}</section>`;
