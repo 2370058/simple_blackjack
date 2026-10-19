@@ -107,6 +107,9 @@ h5.mg { margin: 8px 0 4px; font: 800 .8rem var(--display); color: var(--muted); 
 @media (max-width: 600px) { .mcards { grid-template-columns: 1fr; } .mcard dl { grid-template-columns: 1fr; } }
 .ivars { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0; } .iv div { display: flex; flex-direction: column; } .iv small b { color: var(--fg); margin-right: 4px; } .iv { display: inline-flex; gap: 8px; align-items: center; border: 1px dashed var(--t); border-radius: 8px; padding: 2px 4px 2px 8px; } .iv code { font: 700 .78rem var(--mono); } .iv small { color: var(--muted); }
 .ivadd { display: flex; flex-wrap: wrap; gap: 6px; } .ivadd input { flex: 1 1 180px; min-width: 0; font: .84rem var(--body); border: 1px solid var(--line); border-radius: 8px; padding: 5px 8px; background: var(--bg); color: var(--fg); }
+.chapters { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 10px; margin: 8px 0; }
+.cg { border: 1px solid var(--line); border-radius: 10px; padding: 6px 10px; background: var(--panel); min-width: 0; } .cg > b { font: 800 .82rem var(--display); margin-right: 8px; }
+.cbtns { float: right; display: inline-flex; gap: 4px; } .chk { display: flex; flex-wrap: wrap; gap: 2px 6px; align-items: baseline; font-size: .82rem; margin: 3px 0; cursor: pointer; clear: both; } .chk input { margin-right: 2px; } .chk small { color: var(--muted); margin-left: auto; }
 .seg.pcode button { font-size: .8rem; padding: 4px 10px; }
 textarea.prompt { width: 100%; box-sizing: border-box; font: .76rem/1.5 var(--mono); border: 1px solid var(--line); border-radius: 8px; padding: 8px; background: var(--bg); color: var(--fg); margin: 6px 0; }
 .exans { margin-top: 8px; border-top: 1px dashed var(--line); padding-top: 6px; } .exans ol { margin: 0 0 6px; padding-left: 1.4em; font-size: .82rem; } .fall summary { cursor: pointer; font: 800 .85rem var(--display); }
@@ -408,7 +411,7 @@ const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&l
 
 const store = { get(k, d) { try { const v = localStorage.getItem("bjmap:" + k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } },
   set(k, v) { try { localStorage.setItem("bjmap:" + k, JSON.stringify(v)); } catch (e) { /* 保存できなくても動く */ } } };
-const S = { kopen: new Set(), fnview: null, ofv: null, showOrig: store.get("showOrig", false), showRef: store.get("showRef", false), showMat: store.get("showMat", false), pcode: store.get("pcode", "paste") === "upload" ? "pick" : store.get("pcode", "paste"), pfiles: store.get("pfiles", {}), route: store.get("route", "main"), pos: 0, mode: store.get("mode", "drive"),
+const S = { kopen: new Set(), fnview: null, ofv: null, showOrig: store.get("showOrig", false), showRef: store.get("showRef", false), showMat: store.get("showMat", false), pcode: store.get("pcode", "paste") === "upload" ? "pick" : store.get("pcode", "paste"), pfiles: store.get("pfiles", {}), psec: store.get("psec", {}), route: store.get("route", "main"), pos: 0, mode: store.get("mode", "drive"),
   rtask: store.get("rtask", null), find: store.get("find", {}), layers: store.get("layers", { "緊急": true, "悪意": true, "速さ": false }), issue: null, role: null, timer: null };
 S.ring = store.get("ring", "r01");
 
@@ -1241,51 +1244,83 @@ function fileWhy(f, files) {
 const fileBlock = (f) => { const L = SRC[f] || []; return [`## ${f}`, "```python", ...L.map((t, i) => `${String(i + 1).padStart(3)}  ${t}`), "```"].join("\n"); };
 const pfileMode = (f) => ((S.pfiles || {})[f]) || "upload";
 // プロンプトのテンプレート（今の状態を正確に書き出す）
-function buildPrompt() {
-  const { F, tm, side, none } = findPick(); if (!F.task) return "";
+// プロンプトを章に分ける: inputs = 渡す内容の章、asks = 相手の AI に答えてほしい章（お願いの 0〜7）。どちらもチェックでオン・オフできる
+function promptParts() {
+  const { F, tm, side, none } = findPick(); if (!F.task) return null;
   let memo = ""; try { memo = store.get("ideaMemo", ""); } catch (e) {}
   const f = FTASK[F.task].f, L = SRC[f] || [], vars = ivars(), mats = MATS[F.task], sel = (F.mats || []);
-  const out = [];
-  out.push("# やりたいこと（アイデア）", memo || "（ここにアイデアを書く）", "");
-  out.push("# 前提（今のコードの状態）",
-    "- simple_blackjack。autodealer.py の game() の while True の1周が1ラウンド（環状線 01）。__main__ が players/ の各プレイヤーで game() を MAX 回呼んで平均を出す（環状線 02）",
-    `- タスク ${F.task}: ${FTASK[F.task].t}。変えてよいファイル: ${f}${F.task === "C" ? "（dealer.py・player.py にも同じ変更）" : ""}`);
-  if (tm) out.push(`- いつ動くか: ${tm.t}`);
-  if (none) out.push(`- 注意: ${none.none}`);
-  if (side) { const i = L.findIndex((l) => l.includes(side.at)), r = i >= 0 ? enclosing(f, i + 1) : null, k = idx[side.st];
-    out.push(`- 置き場所の候補: 環状線 01 の駅 ${k}「${ST[side.st].title}」、${f} の ${side.fn}()、${i + 1} 行 \`${(L[i] || "").trim()}\` の前後`, `- この関数の役割: ${side.how}`);
-    const FS = stationFiles()[side.st] || {}; out.push(`- この駅が使うファイル・関数: ${Object.entries(FS).map(([uf, fns]) => `${uf}（${[...fns].join("・")}）`).join("、")}`);
-    const prev = RING[k - 1], next = RING[k + 1]; out.push(`- 環状線の流れ: ${prev ? `駅 ${k - 1}「${prev.title}」 → ` : ""}駅 ${k}「${ST[side.st].title}」${next ? ` → 駅 ${k + 1}「${next.title}」` : ""}`);
-    if (r) { out.push("", `## ${side.fn}() の今のコード（${f} ${r.from}〜${r.to} 行）`, "```python"); for (let n = r.from; n <= r.to; n++) out.push(`${String(n).padStart(3)}  ${L[n - 1]}`); out.push("```"); } }
-  out.push("", "# 選んだ材料（今のコード）");
-  if (!sel.length) out.push("（まだ選んでいない）");
-  for (const n of sel) { const m = matOf(F.task, n); if (!m || m.now) continue; const ok = matOk(m, side);
-    out.push(`## ${m.n}（駅 ${idx[m.st]} から${ok === false ? "・この駅ではまだ無い" : ""}）`, `- 今どこにあるか: ${m.def}`, `- 今の使われ方: ${m.use}`);
-    for (const u of matUses(F.task, m)) out.push(`  - ${u.kind}: ${u.f}:${u.ln} \`${u.t}\`${u.st ? `（駅 ${idx[u.st]}）` : ""}`);
-    out.push(`- 置き換え: ${m.alt}`, `- 併せて使う: ${m.combo}`, `- 変えると: ${m.change}`); }
-  out.push("", "# ほかに使える材料（名前・手に入る駅）", ...mats.filter((m) => !sel.includes(m.n)).map((m) => `- ${m.n}（駅 ${idx[m.st]} から）: ${m.d}`));
-  out.push("", "# メソッド（駅で呼ばれる入れ物。今していること・改造の余地）");
-  for (const m of METHODS[F.task]) { const sts = methodStations(m), on = sel.includes(m.n);
-    out.push(`- ${m.f} ${m.n}${sts.length ? `（駅 ${sts.map((x) => idx[x]).join("・")} で呼ばれる）` : "（今のルートでは呼ばれない）"}${on ? " ← 選んだ" : ""}: 今は ${m.now}`);
-    if (on) out.push(`  - 使っていない・余地: ${m.room}`, `  - できること: ${m.can}`, `  - 別ファイル・別の駅: ${m.cross}`, `  - 注意: ${m.caution}`); }
-  out.push("", "# メモした変数（まだコードに無い。こういう変数があればいいかも）", ...(vars.length ? vars.map((v) => `- ${v.n}\n  - 初期値: ${v.init || "（未定）"}\n  - ロジック: ${v.logic || "（未定）"}`) : ["（なし）"]));
-  if (side) { const refs = REFIMPL[side.st] || []; if (refs.length) { out.push("", "# この駅の参考実装（似た変更の例）"); for (const x of refs) { out.push(`- ${x.n} = ${x.v}（${x.f}）: ${x.t}`, `  足した行: \`${x.use}\``); const g = REFLOGIC[x.n]; if (g) { out.push(...g.how.map((h, i) => `  ${i + 1}. ${h}`), ...g.eg.map((h) => `  - 例: ${h}`), `  - ねらい: ${g.why}`); if (g.caution) out.push(`  - 注意: ${g.caution}`); } if (x.note) out.push(`  - 注意: ${x.note}`); } } }
   const files = promptFiles(F.task), mode = S.pcode || "paste";
-  const ups = mode === "pick" ? files.filter((f) => pfileMode(f) === "upload") : [], pastes = mode === "paste" ? files : mode === "pick" ? files.filter((f) => pfileMode(f) === "paste") : [];
-  out.push("", "# ファイルとインポート（なぜこのファイルが要るか）");
-  for (const f of files) { out.push(`- ${f}（${(SRC[f] || []).length} 行）: ${fileWhy(f, files)}`); for (const x of fileImports(f)) out.push(`  - ${x.ln} 行: ${x.t}`); }
-  if (ups.length) out.splice(0, 0, "# アップロードするファイル", `このあと、次のファイルを1つずつアップロード（添付）します: ${ups.join("、")}。${pastes.length ? `${pastes.join("、")} は、このプロンプトの最後に貼ってあります。` : ""}下の説明より先に、ファイルの全体を読んでください。説明の行番号は、そのファイルの行番号です。`, "");
-  if (pastes.length) { out.push("", "# コードの全体（今のファイル。行番号はこのとおり）"); for (const f of pastes) out.push("", fileBlock(f)); }
-  out.push("", "# お願い",
-    mode === "none" ? "0. コードの全体が無いときは、推測で書かずに、必要なファイル（" + files.join("、") + "）を見せてほしいと言ってください。" : `0. ${[ups.length ? "アップロードした" : "", pastes.length ? "貼った" : ""].filter(Boolean).join("・")}コードの全体を読んで、上の説明（駅・行番号・材料の今の使われ方・インポート）と合っているか確かめてから考えてください。合っていない所があれば先に教えてください。`,
-    "1. まず、上の材料・メソッド（今は少ししか使っていないもの）・今のステートメント（代入）・判定（if）だけで、やりたいことが叶えられるか検討してください。メモした変数の中に、既にある材料やメソッドで代わりになるものが無いかも確かめてください。",
-    "2. 足りなければ、メモした変数のうち必要なものについて、どこで定義するか（ファイルの上・__init__）、どの駅のどのメソッドで更新するか、どこで判定に使うかを決めてください。",
-    "3. 変更を、加える順番に、ファイル・関数・行番号・変更前と変更後のコードで示してください。",
-    "4. その変更で、環状線の流れ（この駅の判断の結果、次にどの駅へ進むか）がどう変わるかを説明してください。",
-    "5. 今の決まり（place_bet が 0 を返すとゲーム終了・掛け金は 1 以上で残高以下・input は \"hit\" か \"stand\"・Card.sum はリストを受け取る）を壊さないか確かめてください。",
-    "6. players/ にいる全部のプレイヤー（貼った・アップロードした .py ごと）が、変更のあとも動くか確かめてください。特に、place_bet が決める掛け金が新しい決まりの外に出るプレイヤー（ランダムに賭ける・全額を賭ける）は、無効な掛け金で return -1, 0 になり、平均に -1 が混ざります（緊1）。そうなるプレイヤーがいれば、先にそれを指摘してください。",
-    "7. 最後に、変更を試すテスト（有効・無効・境目の値）を、期待する結果つきで挙げてください。");
+  const ups = mode === "pick" ? files.filter((x) => pfileMode(x) === "upload") : [], pastes = mode === "paste" ? files : mode === "pick" ? files.filter((x) => pfileMode(x) === "paste") : [];
+  const inputs = [], add = (id, t, lines) => inputs.push({ id, t, lines });
+  add("idea", "やりたいこと（アイデア）", ["# やりたいこと（アイデア）", memo || "（ここにアイデアを書く）"]);
+  { const o = ["# 前提（今のコードの状態）",
+      "- simple_blackjack。autodealer.py の game() の while True の1周が1ラウンド（環状線 01）。__main__ が players/ の各プレイヤーで game() を MAX 回呼んで平均を出す（環状線 02）",
+      `- タスク ${F.task}: ${FTASK[F.task].t}。変えてよいファイル: ${f}${F.task === "C" ? "（dealer.py・player.py にも同じ変更）" : ""}`];
+    if (tm) o.push(`- いつ動くか: ${tm.t}`);
+    if (none) o.push(`- 注意: ${none.none}`);
+    if (side) { const i = L.findIndex((l) => l.includes(side.at)), k = idx[side.st];
+      o.push(`- 置き場所の候補: 環状線 01 の駅 ${k}「${ST[side.st].title}」、${f} の ${side.fn}()、${i + 1} 行 \`${(L[i] || "").trim()}\` の前後`, `- この関数の役割: ${side.how}`);
+      const FS = stationFiles()[side.st] || {}; o.push(`- この駅が使うファイル・関数: ${Object.entries(FS).map(([uf, fns]) => `${uf}（${[...fns].join("・")}）`).join("、")}`);
+      const prev = RING[k - 1], next = RING[k + 1]; o.push(`- 環状線の流れ: ${prev ? `駅 ${k - 1}「${prev.title}」 → ` : ""}駅 ${k}「${ST[side.st].title}」${next ? ` → 駅 ${k + 1}「${next.title}」` : ""}`); }
+    add("premise", "前提（タスク・いつ動くか・置き場所・環状線の流れ）", o); }
+  if (side) { const i = L.findIndex((l) => l.includes(side.at)), r = i >= 0 ? enclosing(f, i + 1) : null;
+    if (r) { const o = [`# ${side.fn}() の今のコード（${f} ${r.from}〜${r.to} 行）`, "```python"]; for (let n = r.from; n <= r.to; n++) o.push(`${String(n).padStart(3)}  ${L[n - 1]}`); o.push("```"); add("func", `置き場所の関数の今のコード（${side.fn}）`, o); } }
+  { const o = ["# 選んだ材料（今のコード）"]; if (!sel.length) o.push("（まだ選んでいない）");
+    for (const n of sel) { const m = matOf(F.task, n); if (!m || m.now) continue; const ok = matOk(m, side);
+      o.push(`## ${m.n}（駅 ${idx[m.st]} から${ok === false ? "・この駅ではまだ無い" : ""}）`, `- 今どこにあるか: ${m.def}`, `- 今の使われ方: ${m.use}`);
+      for (const u of matUses(F.task, m)) o.push(`  - ${u.kind}: ${u.f}:${u.ln} \`${u.t}\`${u.st ? `（駅 ${idx[u.st]}）` : ""}`);
+      o.push(`- 置き換え: ${m.alt}`, `- 併せて使う: ${m.combo}`, `- 変えると: ${m.change}`); }
+    add("mats", "選んだ材料（今の使われ方）", o);
+    add("others", "ほかに使える材料（名前・手に入る駅）", ["# ほかに使える材料（名前・手に入る駅）", ...mats.filter((m) => !sel.includes(m.n)).map((m) => `- ${m.n}（駅 ${idx[m.st]} から）: ${m.d}`)]); }
+  { const o = ["# メソッド（駅で呼ばれる入れ物。今していること・改造の余地）"];
+    for (const m of METHODS[F.task]) { const sts = methodStations(m), on = sel.includes(m.n);
+      o.push(`- ${m.f} ${m.n}${sts.length ? `（駅 ${sts.map((x) => idx[x]).join("・")} で呼ばれる）` : "（今のルートでは呼ばれない）"}${on ? " ← 選んだ" : ""}: 今は ${m.now}`);
+      if (on) o.push(`  - 使っていない・余地: ${m.room}`, `  - できること: ${m.can}`, `  - 別ファイル・別の駅: ${m.cross}`, `  - 注意: ${m.caution}`); }
+    add("methods", "メソッド（呼ばれる駅・今していること・余地）", o); }
+  add("vars", "メモした変数（初期値・ロジック）", ["# メモした変数（まだコードに無い。こういう変数があればいいかも）", ...(vars.length ? vars.map((v) => `- ${v.n}\n  - 初期値: ${v.init || "（未定）"}\n  - ロジック: ${v.logic || "（未定）"}`) : ["（なし）"])]);
+  if (side) { const refs = REFIMPL[side.st] || []; if (refs.length) { const o = ["# この駅の参考実装（似た変更の例）"];
+    for (const x of refs) { o.push(`- ${x.n} = ${x.v}（${x.f}）: ${x.t}`, `  足した行: \`${x.use}\``); const g = REFLOGIC[x.n];
+      if (g) { o.push(...g.how.map((h, i) => `  ${i + 1}. ${h}`), ...g.eg.map((h) => `  - 例: ${h}`), `  - ねらい: ${g.why}`); if (g.caution) o.push(`  - 注意: ${g.caution}`); } if (x.note) o.push(`  - 注意: ${x.note}`); }
+    add("refs", "この駅の参考実装（仕組み・例・注意）", o); } }
+  { const o = ["# ファイルとインポート（なぜこのファイルが要るか）"];
+    for (const x of files) { o.push(`- ${x}（${(SRC[x] || []).length} 行）: ${fileWhy(x, files)}`); for (const im of fileImports(x)) o.push(`  - ${im.ln} 行: ${im.t}`); }
+    if (ups.length) o.unshift("# アップロードするファイル", `このあと、次のファイルを1つずつアップロード（添付）します: ${ups.join("、")}。${pastes.length ? `${pastes.join("、")} は、このプロンプトの最後に貼ってあります。` : ""}下の説明より先に、ファイルの全体を読んでください。説明の行番号は、そのファイルの行番号です。`, "");
+    add("files", "ファイルとインポート（アップロードの案内を含む）", o); }
+  if (pastes.length) { const o = ["# コードの全体（今のファイル。行番号はこのとおり）"]; for (const x of pastes) o.push("", fileBlock(x)); add("code", "コードの全体（貼るファイル）", o); }
+  const both = [ups.length ? "アップロードした" : "", pastes.length ? "貼った" : ""].filter(Boolean).join("・");
+  const asks = [
+    { id: "q0", t: "コードと説明が合っているか", text: mode === "none" ? "コードの全体が無いときは、推測で書かずに、必要なファイル（" + files.join("、") + "）を見せてほしいと言ってください。" : `${both}コードの全体を読んで、上の説明（駅・行番号・材料の今の使われ方・インポート）と合っているか確かめてから考えてください。合っていない所があれば先に教えてください。` },
+    { id: "q1", t: "既存の材料・メソッドだけで叶えられるか", text: "まず、上の材料・メソッド（今は少ししか使っていないもの）・今のステートメント（代入）・判定（if）だけで、やりたいことが叶えられるか検討してください。メモした変数の中に、既にある材料やメソッドで代わりになるものが無いかも確かめてください。" },
+    { id: "q2", t: "足りない変数をどこで定義・更新・判定するか", text: "足りなければ、メモした変数のうち必要なものについて、どこで定義するか（ファイルの上・__init__）、どの駅のどのメソッドで更新するか、どこで判定に使うかを決めてください。" },
+    { id: "q3", t: "変更を順番に（行番号・前後のコード）", text: "変更を、加える順番に、ファイル・関数・行番号・変更前と変更後のコードで示してください。" },
+    { id: "q4", t: "環状線の流れがどう変わるか", text: "その変更で、環状線の流れ（この駅の判断の結果、次にどの駅へ進むか）がどう変わるかを説明してください。" },
+    { id: "q5", t: "今の決まりを壊さないか", text: "今の決まり（place_bet が 0 を返すとゲーム終了・掛け金は 1 以上で残高以下・input は \"hit\" か \"stand\"・Card.sum はリストを受け取る）を壊さないか確かめてください。" },
+    { id: "q6", t: "全部のプレイヤーが動くか（緊1 の確認）", text: "players/ にいる全部のプレイヤー（貼った・アップロードした .py ごと）が、変更のあとも動くか確かめてください。特に、place_bet が決める掛け金が新しい決まりの外に出るプレイヤー（ランダムに賭ける・全額を賭ける）は、無効な掛け金で return -1, 0 になり、平均に -1 が混ざります（緊1）。そうなるプレイヤーがいれば、先にそれを指摘してください。" },
+    { id: "q7", t: "テスト（有効・無効・境目、期待する結果つき）", text: "最後に、変更を試すテスト（有効・無効・境目の値）を、期待する結果つきで挙げてください。" }];
+  return { inputs, asks };
+}
+const psecOn = (k) => !((S.psec || {})[k] === false);
+function buildPrompt() {
+  const P = promptParts(); if (!P) return "";
+  const out = [], ins = P.inputs.filter((x) => psecOn("in:" + x.id)), upIn = ins.find((x) => x.id === "files");
+  // アップロードの案内（# アップロードするファイル…）は、先頭に置く
+  const head = upIn && upIn.lines[0] === "# アップロードするファイル" ? upIn.lines.splice(0, 3) : null;
+  if (head) out.push(...head, "");
+  for (const x of ins) out.push(...x.lines, "");
+  const asks = P.asks.filter((q) => psecOn("ask:" + q.id));
+  out.push("# お願い（この章だけ答えてください。ほかの章は答えなくてかまいません）");
+  if (!asks.length) out.push("（答えてほしい章が選ばれていません。上の内容を読んで、分かったことを短くまとめてください）");
+  asks.forEach((q, i) => out.push(`${i + 1}. ${q.text}`));
   return out.join("\n");
+}
+function chapterChecks() {
+  const P = promptParts(); if (!P) return "";
+  const chk = (key, label, extra) => `<label class="chk"><input type="checkbox" data-psec="${key}" ${psecOn(key) ? "checked" : ""}> <span>${label}</span>${extra ? `<small>${extra}</small>` : ""}</label>`;
+  let n = 0;
+  return `<div class="chapters"><div class="cg"><b>プロンプトに入れる章</b><span class="cbtns"><button type="button" class="btn sb" data-psecall="in:1">全部オン</button><button type="button" class="btn sb" data-psecall="in:0">全部オフ</button></span>
+    ${P.inputs.map((x) => chk("in:" + x.id, esc(x.t), `${x.lines.join("\n").length.toLocaleString()} 字`)).join("")}</div>
+    <div class="cg"><b>相手の AI に答えてほしい章</b><span class="cbtns"><button type="button" class="btn sb" data-psecall="ask:1">全部オン</button><button type="button" class="btn sb" data-psecall="ask:0">全部オフ</button></span>
+    ${P.asks.map((q) => chk("ask:" + q.id, `${psecOn("ask:" + q.id) ? ++n + ". " : "（オフ）"}${esc(q.t)}`)).join("")}</div></div>`;
 }
 function findPanel(bar) {
   const { F, tm, side, none } = findPick(), FS = stationFiles(), btn = (k, v, on, t) => `<button type="button" data-fset="${k}:${esc(v)}" aria-pressed="${on}">${t}</button>`;
@@ -1336,7 +1371,7 @@ function findPanel(bar) {
       ${(S.pcode || "paste") === "pick" ? `<td><div class="seg pcode">${[["upload", "アップロード"], ["paste", "貼る"]].map(([k, t]) => `<button type="button" data-pfile="${esc(f)}:${k}" aria-pressed="${pfileMode(f) === k}">${t}</button>`).join("")}</div></td>` : ""}
       <td><button type="button" class="btn sb" data-copyfile="${esc(f)}">この1ファイルをコピー</button></td></tr>`).join("")}</tbody></table></div>
     ${(S.pcode || "paste") === "pick" ? `<p class="note"><b>個別にアップロードしてほしいファイル:</b> ${promptFiles(F.task).filter((f) => pfileMode(f) === "upload").map((f) => `<code>${esc(f)}</code>`).join("、") || "（なし）"}。アップロードには数や大きさの上限があるので、入りきらないファイルは「貼る」にすると、プロンプトの最後に全文が付く（「この1ファイルをコピー」で1つずつ貼ってもよい）。</p>` : ""}
-    <p class="note">インポートを見ると、どのファイルがどれを読み込むかが分かる（players/ のファイルは autodealer.py の import_module で名前から読み込まれる）。貼ると、AI がこのページの説明とコードを照らし合わせられる（長くなる）。</p>${originView("i")}<textarea class="prompt" readonly rows="14">${esc(buildPrompt())}</textarea><button type="button" class="btn" data-copyprompt>コピー</button> <small class="copied" hidden>コピーした</small></details>` : "";
+    <p class="note">インポートを見ると、どのファイルがどれを読み込むかが分かる（players/ のファイルは autodealer.py の import_module で名前から読み込まれる）。貼ると、AI がこのページの説明とコードを照らし合わせられる（長くなる）。</p>${originView("i")}${chapterChecks()}<textarea class="prompt" readonly rows="14">${esc(buildPrompt())}</textarea><button type="button" class="btn" data-copyprompt>コピー</button> <small class="copied" hidden>コピーした</small></details>` : "";
   const files = `<details class="fall" data-dkey="stfiles"><summary>駅ごとに使っているファイル・関数（全ルートの本物の記録から）</summary><div class="tw"><table class="ftab"><thead><tr><th>駅</th><th>autodealer.py</th><th>players/</th><th>card.py</th></tr></thead><tbody>${RING.map((s) => { const m = FS[s.id] || {};
     const col = (pred) => Object.entries(m).filter(([f]) => pred(f)).map(([, fns]) => esc([...fns].join("・"))).join(" ") || "—";
     return `<tr${side && side.st === s.id ? ' class="cur"' : ""}><td><button type="button" class="btn" data-tst="${s.id}">${idx[s.id]}. ${esc(s.title)}</button></td><td>${col((f) => f === "autodealer.py")}</td><td>${col((f) => f.startsWith("players/"))}</td><td>${col((f) => f === "card.py")}</td></tr>`; }).join("")}</tbody></table></div></details>`;
@@ -1412,6 +1447,8 @@ document.addEventListener("click", (ev) => {
   if (fx) { const x = FIND_EX[+fx.dataset.fex]; S.find = { task: x.task, when: x.when, mats: [...x.mats], ex: +fx.dataset.fex }; store.set("find", S.find); store.set("ideaMemo", x.memo);
     const vs = ivars().filter((y) => !x.vars.some((v) => v.n === y.n)); vs.push(...x.vars); store.set("ideaVars", vs);
     const { side } = findPick(); if (side) { if (!path().some((e) => e.id === side.st)) { const r = R.routes.find((q) => TR[q.id].path.some((e) => e.id === side.st)); if (r) { S.route = r.id; S.pos = 0; } } goStation(side.st); } else render(); return; }
+  const pa = ev.target.closest("[data-psecall]");
+  if (pa) { const [g, v] = pa.dataset.psecall.split(":"), P = promptParts(), ids = (g === "in" ? P.inputs.map((x) => "in:" + x.id) : P.asks.map((x) => "ask:" + x.id)); const m = { ...(S.psec || {}) }; for (const k of ids) m[k] = v === "1"; S.psec = m; store.set("psec", m); const y = window.scrollY; render(); window.scrollTo({ top: y }); return; }
   const pf = ev.target.closest("[data-pfile]");
   if (pf) { const i = pf.dataset.pfile.lastIndexOf(":"); S.pfiles = { ...(S.pfiles || {}), [pf.dataset.pfile.slice(0, i)]: pf.dataset.pfile.slice(i + 1) }; store.set("pfiles", S.pfiles); const y = window.scrollY; render(); window.scrollTo({ top: y }); return; }
   const cf = ev.target.closest("[data-copyfile]");
@@ -1455,6 +1492,8 @@ document.addEventListener("click", (ev) => {
       goStation(it.station); } else render(); }
   else if (b.dataset.st) goStation(b.dataset.st);
 });
+document.addEventListener("change", (ev) => { const c = ev.target.closest && ev.target.closest("[data-psec]"); if (!c) return;
+  S.psec = { ...(S.psec || {}), [c.dataset.psec]: c.checked }; store.set("psec", S.psec); const y = window.scrollY; render(); window.scrollTo({ top: y }); });
 document.addEventListener("input", (ev) => { if (ev.target.matches && ev.target.matches("[data-memo]")) { store.set("ideaMemo", ev.target.value); const ta = document.querySelector("textarea.prompt"); if (ta) ta.value = buildPrompt(); } });
 document.addEventListener("toggle", (ev) => { if (ev.target.id === "pdet") store.set("paramsOpen", ev.target.open); }, true);
 document.addEventListener("keydown", (ev) => {
