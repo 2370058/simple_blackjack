@@ -114,14 +114,49 @@ def run_route(ad, simple, card_mod, route, stations):
         for k in ('penetration', 'is_print'):
             prm[k] = [_show(getattr(ad, k)), type(getattr(ad, k)).__name__]
         out['params'] = prm
+        out['origins'] = {k: list(v) for k, v in origin.items()}
+        return out
+
+    # 荷物の出どころ: 行を1つ実行するごとに荷物とパラメータを見比べ、変わっていたら直前に実行した行（と、その駅）を出どころにする
+    gframe, last, origin, seen, pobj = None, None, {}, {}, None
+
+    def watch():
+        if gframe is None:
+            return {}
+        out = {k: _show(gframe.f_locals[k]) for k in keep if k in gframe.f_locals}
+        out['deck_left'] = len(ad.deck)
+        out['round'] = ad.round
+        pl = gframe.f_locals.get('player', pobj)
+        if pl is not None:
+            out.update({'self.' + k: _show(v) for k, v in vars(pl).items()})
+        if 'initial_balance' in gframe.f_locals:
+            out['initial_balance'] = _show(gframe.f_locals['initial_balance'])
         return out
 
     def local(fr, ev, arg):
-        nonlocal cur, done
+        nonlocal cur, done, gframe, last, seen, pobj
         if done:
             return None
         f = files.get(fr.f_code.co_filename)
+        if gframe is None and f == 'autodealer.py' and fr.f_code.co_name == 'game':
+            gframe = fr
+        if f and ev in ('line', 'return'):
+            now = watch()
+            if last is not None and seen:
+                for k, v in now.items():
+                    if seen.get(k) != v:
+                        origin[k] = last
+            seen = now
+        if ev == 'return' and f and last is not None:   # 戻り値を受け取る行（呼んだ側の行）を出どころに、返した行を via に
+            up = fr.f_back
+            while up is not None and up.f_code.co_filename not in files:   # build.py のテスト用の枠は飛ばす
+                up = up.f_back
+            if up is not None:
+                last = [files[up.f_code.co_filename], up.f_lineno, up.f_code.co_qualname, last[3], last[:2] if len(last) < 5 else last[4]]
+            return local
         if ev == 'line' and f:
+            if pobj is None and f.startswith('players/') and isinstance(fr.f_locals.get('self'), simple.BlackjackPlayer):
+                pobj = fr.f_locals['self']
             ln = fr.f_lineno
             if f == 'autodealer.py' and fr.f_code.co_name == 'game' and ln in begin:
                 sid = begin[ln]
@@ -137,6 +172,7 @@ def run_route(ad, simple, card_mod, route, stations):
             if cur is not None:
                 key = f'{f}:{ln}'
                 cur['lines'][key] = cur['lines'].get(key, 0) + 1
+            last = [f, ln, fr.f_code.co_qualname, cur['id'] if cur is not None else 's0']
         return local
 
     def glob(fr, ev, arg):
