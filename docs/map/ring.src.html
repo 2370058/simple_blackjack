@@ -58,6 +58,9 @@ button:focus-visible, [tabindex]:focus-visible { outline: 3px solid var(--car); 
 .ptab .pu { margin: 2px 0; } .ptab .pd { margin-top: 3px; font-size: .76rem; }
 .pk { display: inline-block; font: 800 .7rem var(--display); border-radius: 4px; padding: 0 5px; margin-right: 4px; background: color-mix(in srgb, var(--fg) 12%, transparent); }
 .pk.j { background: var(--branch); color: #fff; } .pk.s { background: var(--player); color: #fff; }
+.h3row { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; justify-content: space-between; } .h3row h3 { margin: 0; }
+.btn.otog { font-size: .78rem; padding: 2px 10px; } .btn.otog[aria-pressed="true"] { background: var(--fg); color: var(--bg); border-color: var(--fg); }
+.ptab tr.static td { background: color-mix(in srgb, var(--pre) 6%, transparent); } .pa.step { --c: var(--pre); }
 .ptab tr.ref td { background: repeating-linear-gradient(135deg, transparent 0 8px, color-mix(in srgb, var(--fg) 4%, transparent) 8px 16px); }
 .ptab tr.ref td code { font-style: italic; } .params summary code.rc { background: color-mix(in srgb, var(--fg) 10%, transparent); font-style: italic; }
 .refbox { border: 1.5px dashed var(--line); border-radius: 10px; padding: 8px 10px; margin: 6px 0 10px; }
@@ -374,7 +377,7 @@ const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&l
 
 const store = { get(k, d) { try { const v = localStorage.getItem("bjmap:" + k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } },
   set(k, v) { try { localStorage.setItem("bjmap:" + k, JSON.stringify(v)); } catch (e) { /* 保存できなくても動く */ } } };
-const S = { kopen: new Set(), fnview: null, ofv: null, route: store.get("route", "main"), pos: 0, mode: store.get("mode", "drive"),
+const S = { kopen: new Set(), fnview: null, ofv: null, showOrig: store.get("showOrig", false), route: store.get("route", "main"), pos: 0, mode: store.get("mode", "drive"),
   rtask: store.get("rtask", null), layers: store.get("layers", { "緊急": true, "悪意": true, "速さ": false }), issue: null, role: null, timer: null };
 S.ring = store.get("ring", "r01");
 
@@ -515,7 +518,7 @@ function cargoHtml(entry) {
     const v = c[k], chg = prev && JSON.stringify(p[k]) !== JSON.stringify(v);
     const val = Array.isArray(v) ? (v.length ? v.map((x, i) => cardChip(x, Array.isArray(p[k]) && i >= p[k].length)).join("") : "<span>[]</span>")
       : `<span class="${chg ? "chg" : ""}">${esc(typeof v === "string" ? `"${v}"` : v === true ? "True" : v === false ? "False" : v)}</span>`;
-    return `<div><code>${LBL[k]}</code>${val}</div>${originHtml("c", entry, k)}`;
+    return `<div><code>${LBL[k]}</code>${val}</div>${S.showOrig ? originHtml("c", entry, k) : ""}`;
   }).join("");
 }
 
@@ -574,11 +577,13 @@ function originView(scope) {
 }
 // ---- パラメータ（プレイヤーのインスタンスの self.… と、game()・autodealer の設定）と、この駅でそれを使った行 ----
 const PARAMS = {
-  "self.stop_balance": { g: 0, def: ["players/player_simple.py", /^stop_balance\s*=/], t: "勝ち逃げの残高。place_bet でこれを超えていたら 0 を返して終わる" },
-  "self.unit_bet": { g: 0, def: ["players/player_simple.py", /^unit_bet\s*=/], t: "1回に賭ける額。残高がこれ以下なら残り全部" },
-  "self.hit_threshold": { g: 0, def: ["players/player_simple.py", /^hit_threshold\s*=/], t: "input で、手札の合計がこれ未満なら hit" },
-  initial_balance: { g: 0, def: ["autodealer.py", /^\s*initial_balance\s*=/], t: "ゲームの最初の残高。Player(initial_balance) と player_balance の元" },
-  penetration: { g: 1, def: ["autodealer.py", /^penetration\s*=/], t: "山札が 52 × これより少なくなったら、check_shuffle で混ぜ直す" },
+  "self.stop_balance": { g: 0, a: "stop_balance", def: ["players/player_simple.py", /^stop_balance\s*=/], t: "勝ち逃げの残高。place_bet でこれを超えていたら 0 を返して終わる" },
+  "self.unit_bet": { g: 0, a: "unit_bet", def: ["players/player_simple.py", /^unit_bet\s*=/], t: "1回に賭ける額。残高がこれ以下なら残り全部" },
+  "self.hit_threshold": { g: 0, a: "hit_threshold", def: ["players/player_simple.py", /^hit_threshold\s*=/], t: "input で、手札の合計がこれ未満なら hit" },
+  initial_balance: { g: 0, a: "initial_balance", def: ["autodealer.py", /^\s*initial_balance\s*=/], t: "ゲームの最初の残高。Player(initial_balance) と player_balance の元" },
+  penetration: { g: 1, a: "penetration", def: ["autodealer.py", /^penetration\s*=/], t: "山札が 52 × これより少なくなったら、check_shuffle で混ぜ直す" },
+  MAX: { g: 0, a: "MAX", def: ["autodealer.py", /^\s*MAX\s*=/], static: true, refs: ["r02:t3"], t: "game() の外。__main__ の while game_round <= MAX で、game() を何回呼ぶか（平均を出すゲームの数）" },
+  "撤退条件": { g: 0, a: "撤退条件", static: true, refs: ["s3"], t: "残高がこれ以下になったらやめる条件。player_simple には無いので、place_bet に足す（駅 3 の参考実装 retreat_balance）" },
   is_print: { g: 1, def: ["autodealer.py", /^is_print/], t: "途中を print するか（printx の if。どの駅でも読むので「使った行」には数えない）" },
   "self.balance": { g: 2, t: "place_bet で受け取った残高を覚え、notify_result で増減させるプレイヤー側の写し（game() の player_balance とは別の変数）" },
   "self.hand": { g: 2, t: "receive_hand で渡された手札（input の判断に使う）" },
@@ -597,21 +602,28 @@ function paramUses(e, names) {
   return used;
 }
 function paramsHtml(e) {
-  const a = (e.after || e.cargo).params, b = e.cargo.params;
-  if (!a) return "";
+  const a0 = (e.after || e.cargo).params, b = e.cargo.params;
+  if (!a0) return "";
+  // タスク A のパラメータで、このゲームの中の変数には無いもの（MAX・撤退条件）も、ソースから出す
+  const a = { ...a0 }, mx = (SRC["autodealer.py"] || []).find((l) => /^\s*MAX\s*=/.test(l));
+  if (mx) a.MAX = [mx.split("=")[1].split("#")[0].trim(), "int"];
+  if (!Object.keys(a).some((k) => /retreat/.test(k))) a["撤退条件"] = ["（まだ無い）", "—"];
   const names = new Set(Object.keys(a)), used = paramUses(e, names);
   const defOf = (n) => { const d = PARAMS[n] && PARAMS[n].def; if (!d) return ""; const L = SRC[d[0]] || [], i = L.findIndex((l) => d[1].test(l));
     return i < 0 ? "" : `<code>${esc(d[0].replace("players/", ""))}:${i + 1}</code> <code>${esc(L[i].split("#")[0].trim())}</code>${n.startsWith("self.") ? " → __init__ の既定値 → " + esc(n) : ""}`; };
-  const order = [...names].sort((x, y) => ((PARAMS[x] || { g: 2 }).g - (PARAMS[y] || { g: 2 }).g) || (!!used[y] - !!used[x]));
+  const aIdx = (n) => { const t = PARAMS[n] && PARAMS[n].a; const i = t ? TASKS.A.c4.findIndex((x) => x.label.startsWith(t)) : -1; return i < 0 ? 99 : i; };   // タスク A の手順の順
+  const order = [...names].sort((x, y) => ((PARAMS[x] || { g: 2 }).g - (PARAMS[y] || { g: 2 }).g) || ((PARAMS[x] || {}).g === 0 ? aIdx(x) - aIdx(y) : (!!used[y] - !!used[x])));
   let lastG = -1, placed = false;
   const withView = (html) => { if (placed || !S.ofv || !S.ofv.startsWith("p|") || !html.includes(`data-ofv="${S.ofv}"`)) return html; placed = true;   // 押した行のすぐ下に出す
     const [, f, ln] = S.ofv.split("|"); return html + `<tr class="fnrow"><td colspan="4"><div class="ofvw" style="--t:var(--dealer)">${fnView(f, +ln, 'data-ofv=""')}</div></td></tr>`; };
   const rows = order.map((n) => { const info = PARAMS[n] || { g: 2, t: "" }, [v, ty] = a[n], before = b && b[n], chg = before && before[0] !== v, u = used[n];
     const head = info.g !== lastG ? `<tr class="pg"><th colspan="4">${PGROUP[info.g]}</th></tr>` : ""; lastG = info.g;
-    return `${head}<tr class="${u ? "used" : ""}"><td><code>${esc(n)}</code>${info.g === 0 ? `<button type="button" class="pa" data-rtask="A" title="環状線をタスク A で絞る">A</button>` : ""}</td>
+    const ai = info.a ? TASKS.A.c4.findIndex((x) => x.label.startsWith(info.a)) : -1;
+    const aBtn = ai >= 0 ? `<button type="button" class="pa" data-rtask="A" title="環状線をタスク A で絞る">A</button><button type="button" class="pa step" data-goflow="A:${ai}" title="2 の図のタスク A「${esc(TASKS.A.c4[ai].label)}」へ">手順 ${stepTag(TASKS.A.c4, ai, TASKS.A)} →</button>` : "";
+    return `${head}<tr class="${u ? "used" : ""}${info.static ? " static" : ""}"><td><code>${esc(n)}</code>${aBtn}</td>
       <td><span class="${chg ? "chg" : ""}">${chg ? `${esc(before[0])} → ` : ""}<b>${esc(v)}</b></span> <small>${esc(ty)}</small></td>
-      <td>${u ? u.map((x) => `<div class="pu"><span class="pk ${x.kind === "判定" ? "j" : x.kind === "入れた" ? "s" : ""}">${x.kind}</span>${srcLink("p", x.f, x.ln)} <code>${esc(x.t)}</code>${x.n > 1 ? ` <small>×${x.n}</small>` : ""}</div>`).join("") : `<small>この駅では使っていない</small>`}</td>
-      <td><small>${esc(info.t)}</small>${defOf(n) ? `<div class="pd">置き場: ${defOf(n)}</div>` : ""}${originHtml("p", e, n) ? `<div class="pd">入った所: ${originHtml("p", e, n)}</div>` : ""}</td></tr>`; }).map(withView).join("");
+      <td>${info.static ? `<small>このゲーム（game()）の中には無い</small><div class="pd">${refsHtml(info.refs || [])}</div>` : u ? u.map((x) => `<div class="pu"><span class="pk ${x.kind === "判定" ? "j" : x.kind === "入れた" ? "s" : ""}">${x.kind}</span>${srcLink("p", x.f, x.ln)} <code>${esc(x.t)}</code>${x.n > 1 ? ` <small>×${x.n}</small>` : ""}</div>`).join("") : `<small>この駅では使っていない</small>`}</td>
+      <td><small>${esc(info.t)}</small>${defOf(n) ? `<div class="pd">置き場: ${defOf(n)}</div>` : ""}${S.showOrig && originHtml("p", e, n) ? `<div class="pd">入った所: ${originHtml("p", e, n)}</div>` : ""}</td></tr>`; }).map(withView).join("");
   const refs = (S.ring === "r01" && REFIMPL[e.id]) || [];
   const refBox = refs.length ? `<div class="refbox"><h4>参考実装（まだコードに無い。この駅に足すなら）</h4>${refs.map((x) => `<div class="refc"><div class="rh"><code>${esc(x.n)}</code> = <b>${esc(x.v)}</b> <small>${esc(x.ty)}</small><button type="button" class="pa" data-rtask="${x.task}" style="--c:${TASKS[x.task].c}" title="環状線をタスク ${x.task} で絞る">タスク ${x.task}</button><small>置き場: ${esc(x.f.replace("players/", ""))}</small></div>
       <p>${esc(x.t)}</p><div class="pu"><span class="pk j">足したら</span><code>${esc(x.use)}</code></div>${(() => { const L = SRC[x.at[0]] || [], i = L.findIndex((l) => l.includes(x.at[1]));
@@ -620,7 +632,7 @@ function paramsHtml(e) {
     ${originView("r")}<p class="note">例は、このページを作るときに全部を同時に入れて autodealer.py を流し（MAX = 300）、止まらずに動くことを確かめた。player_simple の平均は 918.8 になった（今のままでは 875 前後）。</p></div>` : "";
   const usedNames = order.filter((n) => used[n]);
   return `<details class="params" id="pdet"${store.get("paramsOpen", false) ? " open" : ""}><summary>パラメータ（self.… と設定）${usedNames.length ? `・この駅で使ったもの: ${usedNames.map((n) => `<code>${esc(n)}</code>`).join(" ")}` : "・この駅では使っていない"}${refs.length ? `・参考実装 ${refs.map((x) => `<code class="rc">${esc(x.n)}</code>`).join(" ")}` : ""}</summary>
-    <p class="note">この駅を出るときの、プレイヤーのインスタンス（player）の self.… と、game()・autodealer の設定。本物の game() を流して記録した値と型。色の付いた行が、この駅で実行した行に出てくるもの（判定 = if の条件に使った・入れた = 代入した・読んだ = それ以外）。行番号を押すと、その行のまわり（入っている関数の全体）が出る。値が変わったものは「前 → 後」。</p>
+    <p class="note">この駅を出るときの、プレイヤーのインスタンス（player）の self.… と、game()・autodealer の設定。本物の game() を流して記録した値と型。「出どころのソース」をオンにすると、値が入った所も出る。色の付いた行が、この駅で実行した行に出てくるもの（判定 = if の条件に使った・入れた = 代入した・読んだ = それ以外）。行番号を押すと、その行のまわり（入っている関数の全体）が出る。値が変わったものは「前 → 後」。</p>
     ${refBox}<div class="tw"><table class="ptab"><thead><tr><th>名前</th><th>値（型）</th><th>この駅で使った行</th><th>何か・置き場</th></tr></thead><tbody>${rows}</tbody></table></div></details>`;
 }
 
@@ -694,8 +706,8 @@ function stationDetail() {
       <div class="nav"><button type="button" data-step="-1" ${S.pos ? "" : "disabled"}>← 前</button><button type="button" data-step="1" ${S.pos < P.length - 1 ? "" : "disabled"}>次 →</button></div></div>
       <p class="note">${S.pos + 1} / ${P.length} 番目の駅（このルートで）${sites ? " ・寄る拠点 " + sites : ""}</p>
       <dl class="shape"><dt>入る形</dt><dd>${esc(st.in)}</dd><dt>出る形</dt><dd>${esc(st.out)}</dd>${st.note ? `<dt>メモ</dt><dd>${esc(st.note)}</dd>` : ""}</dl>
-      <h3>旗の荷物（この駅を出るときの変数）</h3><div class="cargo">${cargoHtml(e)}</div>${originView("c")}
-      <p class="note">黄色 = この駅で変わった値・光るカード = この駅で増えたカード。本物の game() を流して記録した値。「←」の行はその値が入った所（値が変わった直後に、直前に実行していた行）と、その行を通った駅。戻り値なら、受け取った行と、返した行の両方を出す。行番号を押すと、その行が入っている関数の全体が出る。</p>
+      <div class="h3row"><h3>旗の荷物（この駅を出るときの変数）</h3><button type="button" class="btn otog" data-origtog aria-pressed="${!!S.showOrig}">出どころのソース: ${S.showOrig ? "オン" : "オフ"}</button></div><div class="cargo">${cargoHtml(e)}</div>${S.showOrig ? originView("c") : ""}
+      <p class="note">黄色 = この駅で変わった値・光るカード = この駅で増えたカード。本物の game() を流して記録した値。「出どころのソース」をオンにすると、値ごとに「←」の行が出る: その値が入った所（値が変わった直後に、直前に実行していた行）と、その行を通った駅。戻り値なら、受け取った行と、返した行の両方。行番号を押すと、その行が入っている関数の全体が出る。</p>
       ${paramsHtml(e)}
       <p class="stats"><span>この駅で実行した行 <b>${Object.keys(e.lines).length}</b></span><span>${S.ring === "r02" ? "game() を呼んだ回数" : "card.py を呼んだ回数"} <b>${esc(calls)}</b></span></p>
       ${calcBox(e)}
@@ -803,6 +815,8 @@ function stopAuto() { if (S.timer) { clearInterval(S.timer); S.timer = null; } }
 document.addEventListener("click", (ev) => {
   const rg = ev.target.closest("[data-ring]");
   if (rg) { stopAuto(); useRing(rg.dataset.ring); S.issue = null; render(); return; }
+  const otg = ev.target.closest("[data-origtog]");
+  if (otg) { S.showOrig = !S.showOrig; store.set("showOrig", S.showOrig); if (!S.showOrig && S.ofv && S.ofv.startsWith("c|")) S.ofv = null; const y = window.scrollY; render(); window.scrollTo({ top: y }); return; }
   const ov = ev.target.closest("[data-ofv]");
   if (ov) { const id = ov.dataset.ofv; S.ofv = !id || S.ofv === id ? null : id; const y = window.scrollY; render(); window.scrollTo({ top: y }); scrollFnBoxes(); return; }
   const rt = ev.target.closest("[data-rtask]");
@@ -1423,7 +1437,8 @@ function refBtn(ref) {
   const m = ref.match(/^([A-Z]):(.*)$/);
   if (m) { const T = TASKS[m[1]], i = T.c4.findIndex((x) => x.label.startsWith(m[2])); if (i < 0) return "";
     return `<button type="button" class="btn" data-goflow="${m[1]}:${i}" style="border-color:${T.c}">${esc(T.t)} ${stepTag(T.c4, i, T)}. ${esc(T.c4[i].label)}</button>`; }
-  return `<button type="button" class="btn" data-ringst="${ref}">環状線 ${esc(stLabel(ref))}</button>`;
+  const lb = stLabel(ref);
+  return `<button type="button" class="btn" data-ringst="${ref}">${lb.startsWith("環状線") ? "" : "環状線 "}${esc(lb)}</button>`;
 }
 const refsHtml = (refs) => refs.map(refBtn).join("");
 // 判断の部分の大事な行: その行が一手のどこに当たるか
