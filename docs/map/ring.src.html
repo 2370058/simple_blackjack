@@ -110,7 +110,10 @@ h5.mg { margin: 8px 0 4px; font: 800 .8rem var(--display); color: var(--muted); 
 .lsteps { display: grid; gap: 8px; margin: 6px 0; } .ls { display: flex; flex-wrap: wrap; gap: 4px 6px; align-items: center; border: 1px solid var(--line); border-radius: 10px; padding: 6px 8px; background: var(--panel); } .lsn { font: 800 .8rem var(--display); background: var(--t); color: #fff; border-radius: 999px; min-width: 1.6em; text-align: center; }
 .ls select, .ls input { font: .82rem var(--body); border: 1px solid var(--line); border-radius: 8px; padding: 4px 6px; background: var(--bg); color: var(--fg); min-width: 0; max-width: 100%; } .ls input { flex: 1 1 260px; }
 .lsw { flex: 1 1 100%; display: flex; flex-wrap: wrap; gap: 3px 8px; align-items: baseline; } .lsw small { color: var(--muted); } .lc { font-size: .78rem; font-weight: 700; } .lc small { font-weight: 400; margin-left: 4px; } .lc.ok { color: var(--player); } .lc.oth { color: var(--perf); } .lc.ng { color: var(--danger); }
-.pal { position: sticky; bottom: 6px; z-index: 5; margin: 10px 0; border: 2px solid var(--t); border-radius: 12px; padding: 6px 10px; background: var(--panel); box-shadow: 0 -4px 14px rgb(0 0 0 / .12); max-height: 42vh; overflow: auto; } .pal > summary { cursor: pointer; font: 800 .86rem var(--display); } .pal > summary small { margin-left: 8px; color: var(--perf); font-weight: 700; }
+.pal { position: sticky; bottom: 6px; z-index: 5; margin: 10px 0; border: 2px solid var(--t); border-radius: 12px; padding: 6px 10px; background: var(--panel); box-shadow: 0 -4px 14px rgb(0 0 0 / .12); max-height: 42vh; overflow: auto; } .pmarks { font-size: .8rem; font-weight: 700; margin: 2px 0 6px; } .pmarks small { color: var(--muted); font-weight: 400; }
+.pfile { display: flex; flex-wrap: wrap; gap: 4px 8px; align-items: baseline; padding: 4px 0; border-top: 1px solid var(--line); } .pfns { display: flex; flex-wrap: wrap; gap: 4px; }
+.chip.file b { font-weight: 800; } .chip.here { border-color: var(--t); background: color-mix(in srgb, var(--t) 18%, var(--bg)); box-shadow: 0 0 0 1.5px var(--t); } .pfile.here { background: color-mix(in srgb, var(--t) 6%, transparent); }
+.pal > summary { cursor: pointer; font: 800 .86rem var(--display); } .pal > summary small { margin-left: 8px; color: var(--perf); font-weight: 700; }
 .palbody { display: flex; flex-wrap: wrap; gap: 4px; margin: 6px 0; } .chip { border: 1px solid var(--line); background: var(--bg); color: var(--fg); border-radius: 999px; padding: 2px 9px; cursor: pointer; display: inline-flex; gap: 6px; align-items: baseline; max-width: 100%; } .chip b { font: 700 .76rem var(--mono); } .chip small { color: var(--muted); font-size: .68rem; white-space: nowrap; }
 .chip.ok { border-color: var(--player); background: color-mix(in srgb, var(--player) 12%, var(--bg)); } .chip.oth { border-color: var(--perf); background: color-mix(in srgb, var(--perf) 12%, var(--bg)); } .chip.ng { border-color: var(--danger); background: color-mix(in srgb, var(--danger) 10%, var(--bg)); }
 .codelist { display: flex; flex-wrap: wrap; gap: 4px; max-height: 22vh; overflow: auto; width: 100%; } .palq { font: .8rem var(--body); border: 1px solid var(--line); border-radius: 8px; padding: 3px 8px; background: var(--bg); color: var(--fg); min-width: 0; flex: 1 1 160px; } .palhint { color: var(--muted); display: block; }
@@ -1246,7 +1249,7 @@ function codeNames() {
       if (!m) return; const key = `${f}|${kind}|${m[1]}`; if (seen.has(key)) return; seen.add(key); out.push({ n: m[1], kind, f, ln: i + 1 }); }); }
   return (CODE_NAMES = out);
 }
-const PTABS = [["val", "値（変数・引数）"], ["meth", "メソッド"], ["memo", "メモした材料"], ["code", "コードにある名前"]];
+const PTABS = [["val", "値（変数・引数）"], ["meth", "メソッド"], ["memo", "メモした材料"], ["file", "ファイル"], ["code", "コードにある名前"]];
 function palCtxStation() {
   const el = S.lastInput && S.lastInput.isConnected ? S.lastInput : null, { side } = findPick();
   if (el && el.dataset.lst != null) { const s2 = lsteps()[+el.dataset.lst]; if (s2) return s2.st; }
@@ -1256,6 +1259,7 @@ function palCtxStation() {
 function palChips(F) {
   const tab = S.palTab || "val", ctx = palCtxStation(), cls = (m) => { if (!ctx) return ""; const a = availAt(m, ctx); return a === true || a === "call" ? " ok" : a === "other" ? " oth" : " ng"; };
   const chip = (tok, m, extra) => `<button type="button" class="chip${m ? cls(m) : ""}" data-ins="${esc(tok)}" ${m ? `data-pm="${esc(m.n)}"` : ""} title="${esc(m ? m.d || m.now || "" : extra || "")}"><b>${esc(tok)}</b><small>${m ? (m.now ? ((ss) => ss.length ? (ss.length > 3 ? ss.length + " 駅" : "駅 " + ss.map((x) => idx[x]).join("・")) : "呼ばれない")(methodStations(m)) : "駅 " + idx[m.st] + (m.arg ? "（引数）" : "")) : esc(extra || "")}</small></button>`;
+  if (tab === "file") return filesView(F);
   if (tab === "val") return (MATS[F.task] || []).flatMap((m) => tokensOf(m.n).map((tk) => chip(tk, m))).join("");
   if (tab === "meth") return (METHODS[F.task] || []).map((m) => chip(tokensOf(m.n)[0], m)).join("");
   if (tab === "memo") return ivars().flatMap((v) => (memoTokens(v.n).length ? memoTokens(v.n) : [v.n]).map((tk) => chip(tk, null, `${mkLabel(v.kind)}${v.st && ST[v.st] ? "・駅 " + idx[v.st] : ""}`))).join("") || "<small>（まだ無い。「4. メモ」で足すと、ここに出る）</small>";
@@ -1274,6 +1278,7 @@ const INS_SEL = ".tsum.find input:not([type=checkbox]):not([type=radio]):not([da
 function lastSelOf(el) { for (const a of ["data-lst", "data-mmemo", "data-memo", "data-ivn", "data-ivinit", "data-ivlogic"]) if (el.hasAttribute(a)) return `[${a}="${el.getAttribute(a)}"]`; return null; }
 function updatePalette() {
   const F = findPick().F, t = document.getElementById("palTarget"), ctx = palCtxStation();
+  if (S.palTab === "file") { const b = document.querySelector(".palbody"); if (b) b.innerHTML = palChips(F); }
   if (t) t.textContent = S.lastLabel ? "入る欄: " + S.lastLabel : "先に、書く欄をクリックする";
   document.querySelectorAll(".chip[data-pm]").forEach((c) => { const m = matOf(F.task, c.dataset.pm); if (!m || !ctx) return; const a = availAt(m, ctx); c.classList.remove("ok", "oth", "ng"); c.classList.add(a === true || a === "call" ? "ok" : a === "other" ? "oth" : "ng"); });
 }
@@ -1368,7 +1373,7 @@ function logicPanel(F, side) {
       <div class="lsw"><small>置く所: ${esc(stepWhere(task, s))}</small>${ch.map((c) => `<span class="lc ${c.ok ? "ok" : c.other ? "oth" : "ng"}">${c.ok ? "✓" : c.other ? "↪" : "✗"} ${esc(c.n.split(/[（(]/)[0])}<small>${esc(c.msg)}</small></span>`).join("")}</div></div>`; }).join("");
   return `<div class="fstep"><b>5. 自分のロジックを組む</b>（ステップごとに、種類・駅・内容を選ぶ。AI に頼む前に、自分で順番を考える所）
     <div class="lsteps">${rows || "<small>（まだ無い。「ステップを足す」で、1つずつ。例: 初期値を置く → 値を更新する → 判定する → 返す）</small>"}</div>
-    <div class="ivadd"><button type="button" class="btn" data-lsadd>ステップを足す${side ? `（駅 ${idx[side.st]} から）` : ""}</button><button type="button" class="btn" data-lsclear ${steps.length ? "" : "disabled"}>全部消す</button></div>
+    <div class="ivadd"><button type="button" class="btn" data-lsadd>ステップを足す${side ? `（駅 ${idx[side.st]} から）` : ""}</button><button type="button" class="btn" data-lsclear ${steps.length ? "" : "disabled"}>全部消す</button><button type="button" class="btn" data-cucopy="all">全体のロジックを相談（コピー）</button></div>
     <p class="note">✓ はその駅で手に入る・使える。↪ は別の駅のメソッド（そこで覚えておく）。✗ は、その駅ではまだ手に入らない（駅か順番を直す）。新しい変数は、初期値を置くステップが要る。</p></div>`;
 }
 // ---- 自分で足す材料（メモ）: 変数・メソッドなど。もうあるか、新しく作るか、作るならどこか ----
@@ -1412,6 +1417,60 @@ function refreshLive() {
   const pt = document.querySelector(".chapters .ptot"); if (pt) pt.textContent = `プロンプト全体 ${ta.value.length.toLocaleString()} 字（章をオフにすると減る）`;
   const cw = document.querySelector(".consult-wrap"); if (cw) cw.innerHTML = consultInner();   // 相談プロンプトも、同じ単位で並走して更新
 }
+// ---- 全体のロジックの相談（ステップをつなげて、順番・受け渡し・駅の順番を見てもらう） ----
+const CQ_ALL = ["① 全体として、やりたいこと（アイデア）を叶えるロジックになっていますか。", "② ステップの順番（初期値 → 更新 → 判定 → 返す）と、駅の順番（同じラウンドで間に合うか）は合っていますか。", "③ 抜けているステップ・材料はありますか。", "④ 材料の受け渡し（どのステップで入れて、どのステップで使うか）に、無理はありませんか。", "⑤ 副作用（ほかのプレイヤー・ほかの駅・今の決まり: place_bet が 0 でゲーム終了・掛け金は 1 以上で残高以下・input は \"hit\" か \"stand\"）はどうですか。", "⑥ もっと単純にできますか（ステップを減らす・既存の材料で足りる）。"];
+const ROLEWORD = { init: "初期値", update: "更新", judge: "判定", ret: "返す", call: "呼ぶ" };
+function wholeUnit() {
+  const { F, side } = findPick(); if (!F.task) return null;
+  const steps = lsteps(), o = ["## 全体のロジック"];
+  const known = [...(MATS[F.task] || []), ...(METHODS[F.task] || [])];
+  if (!steps.length) {
+    o.push("- まだステップが無い。アイデアと、選んだ材料・メモした材料から:", ...(F.mats || []).map((n) => `  - 選んだ材料: ${n.split(/[（(]/)[0]}${((S.mmemo || {})[n] || "").trim() ? "（使いたいこと: " + S.mmemo[n].trim() + "）" : ""}`), ...ivars().map((v) => `  - メモした材料: ${v.n}（${mkLabel(v.kind)}）${v.logic ? " " + v.logic : ""}`), ...(side ? [`  - 置き場所の候補: 駅 ${idx[side.st]}「${ST[side.st].title}」`] : []));
+    return { id: "all", t: "全体のロジック（まだステップが無い。アイデアと材料から）", lines: o, whole: true };
+  }
+  o.push(`- ステップは ${steps.length} つ。上から順に:`);
+  steps.forEach((s, i) => { o.push(`${i + 1}. ［${lkLabel(s.k)}］駅 ${idx[s.st]}「${ST[s.st].title}」（${stepWhere(F.task, s)}）: ${s.t || "（未記入）"}`);
+    for (const c of stepChecks(F.task, s, steps)) o.push(`   - ${c.ok ? "✓" : c.other ? "↪" : "✗"} ${c.n.split(/[（(]/)[0]}: ${c.msg}`); });
+  // 材料の受け渡し: 名前ごとに、どのステップで何をするか
+  const flow = new Map();
+  const note = (key, label, i, s) => { if (!flow.has(key)) flow.set(key, { label, uses: [] }); flow.get(key).uses.push({ i, s }); };
+  steps.forEach((s, i) => { const t = s.t || "";
+    for (const m of known) if (tokensOf(m.n).some((tk) => t.includes(tk))) note("m:" + m.n, m.n.split(/[（(]/)[0], i, s);
+    ivars().forEach((v, j) => { for (const tk of memoTokens(v.n)) if (t.includes(tk)) note("v:" + tk, tk, i, s); }); });
+  const warn = [];
+  if (flow.size) { o.push("- 材料の受け渡し（名前ごとに、どのステップで何をするか）:");
+    for (const [key, f] of flow) { o.push(`  - ${f.label}: ${f.uses.map((u) => `ステップ ${u.i + 1}（${ROLEWORD[u.s.k]}・駅 ${idx[u.s.st]}）`).join(" → ")}`);
+      if (key.startsWith("v:")) { const v = ivars().find((x) => memoTokens(x.n).includes(f.label)), isNew = v && memoStatus(v, F.task).out.find((x) => x.tk === f.label)?.st === "new";
+        const initAt = f.uses.find((u) => u.s.k === "init"), firstUse = f.uses.find((u) => u.s.k !== "init");
+        if (isNew && v.kind !== "method") { if (!initAt) warn.push(`${f.label}: 新しい変数なのに、初期値を置くステップが無い`); else if (firstUse && firstUse.i < initAt.i) warn.push(`${f.label}: 初期値（ステップ ${initAt.i + 1}）より前のステップ ${firstUse.i + 1} で使っている`); } }
+      const upd = f.uses.filter((u) => u.s.k === "update"), rd = f.uses.filter((u) => ["judge", "ret", "call"].includes(u.s.k));
+      for (const u of upd) for (const r of rd) if (idx[r.s.st] < idx[u.s.st]) warn.push(`${f.label}: ステップ ${r.i + 1}（駅 ${idx[r.s.st]}）で読む値を、後ろの駅 ${idx[u.s.st]}（ステップ ${u.i + 1}）で更新している。同じラウンドでは間に合わず、効くのは次のラウンドから`); } }
+  const fl = [...new Set(steps.map((s) => stepWhere(F.task, s)))];
+  o.push(`- 触るファイル・関数: ${fl.join("・")}`);
+  o.push(warn.length ? "- 気になる所（このページが自動で見つけたもの）:" : "- 気になる所: このページの自動の確認では、見つからなかった", ...warn.map((w) => `  - ${w}`));
+  return { id: "all", t: `全体のロジック（ステップ ${steps.length} つをつなげて）`, lines: o, whole: true };
+}
+// ---- パレットの「ファイル」: ファイルと関数の一覧。今の位置（旗・置き場所・入力欄の駅）に印 ----
+function fileMarks() {
+  const { side } = findPick(), FS = stationFiles(), marks = {}, labels = [];
+  const add = (st, label, sym) => { if (!st || !FS[st] || !ST[st]) return; labels.push(`${sym} ${label}: 駅 ${idx[st]}「${ST[st].title}」`);
+    for (const [f, fns] of Object.entries(FS[st])) { (marks[f] = marks[f] || new Set()).add(sym); for (const fn of fns) (marks[f + "|" + fn] = marks[f + "|" + fn] || new Set()).add(sym); } };
+  const flag = S.ring === "r01" ? cur().id : null;
+  add(flag, "旗（今いる駅）", "●"); add(side && side.st, "置き場所", "◎");
+  const el = S.lastInput && S.lastInput.isConnected ? S.lastInput : null; let ctxSt = null;
+  if (el && el.dataset.lst != null) { const q = lsteps()[+el.dataset.lst]; if (q) ctxSt = q.st; }
+  if (ctxSt) add(ctxSt, `入力欄（自分の設計 ${+el.dataset.lst + 1}）`, "◆");
+  return { marks, labels };
+}
+function filesView(F) {
+  const { marks, labels } = fileMarks(), fl = codeNames().filter((c) => c.kind === "メソッド・関数"), files = Object.keys(SRC).filter((f) => /\.py$/.test(f));
+  const mine = FTASK[F.task].f, order = [mine, ...promptFiles(F.task).filter((f) => f !== mine), ...files.filter((f) => f !== mine && !promptFiles(F.task).includes(f))];
+  const mk = (set) => set ? [...set].sort().join("") : "";
+  return `<div class="pfiles2"><div class="pmarks">${labels.length ? labels.map(esc).join("　") : "（環状線の駅が選ばれていない）"}<small>　● 旗　◎ 置き場所　◆ 書いている欄の駅</small></div>
+    ${order.map((f) => { const fm = mk(marks[f]); const fns = fl.filter((c) => c.f === f);
+      return `<div class="pfile${fm ? " here" : ""}"><button type="button" class="chip file${fm ? " here" : ""}" data-ins="${esc(f)}" title="${f === mine ? "このタスクで変えるファイル" : ""}"><b>${esc(f)}</b><small>${(SRC[f] || []).length} 行${f === mine ? "・変える" : ""}${fm ? " " + fm : ""}</small></button>
+        <span class="pfns">${fns.map((c) => { const m2 = mk(marks[f + "|" + c.n]); return `<button type="button" class="chip fn${m2 ? " here" : ""}" data-ins="${esc(c.n)}" title="${esc(f)}:${c.ln}"><b>${esc(c.n)}()</b><small>${c.ln}${m2 ? " " + m2 : ""}</small></button>`; }).join("") || "<small>（関数なし）</small>"}</span></div>`; }).join("")}</div>`;
+}
 // ---- 相談プロンプト: 設計を頼まず、「この変数・メソッドは、こういう処理に使えるか」を軽く聞く。自分の設計のステップ・メモした材料の単位で並べる ----
 const CQ = ["① この材料（変数・メソッド）は、上の処理に使えますか（はい／条件つき／いいえ）。理由は短く。", "② 足りない・違う所は、どこですか。", "③ 代わりに使える既存の材料・メソッドはありますか。", "④ 新しく作る必要があるなら、どの駅のどのファイルに、どんな形で作ると良いですか（コードは書かず、場所と形だけ）。"];
 function mentionedMats(task, text) {
@@ -1437,6 +1496,7 @@ function memoLines(task, v) {
 function consultUnits(dedupe) {
   const { F, side } = findPick(); if (!F.task) return [];
   const steps = lsteps(), units = [], usedMat = new Set(), usedMemo = new Set(), shown = {};   // shown: 詳しい情報を最初に載せたステップ
+  { const w = wholeUnit(); if (w) units.push(w); }
   steps.forEach((s, i) => { const { mats, memos } = mentionedMats(F.task, s.t || ""), o = [`## ステップ ${i + 1}［${lkLabel(s.k)}］駅 ${idx[s.st]}「${ST[s.st].title}」`, `- やりたい処理: ${s.t || "（未記入）"}`, `- 置く所: ${stepWhere(F.task, s)}`];
     if (!mats.length && !memos.length) o.push("- 材料: （内容に材料の名前が無い。名前を入れると、その材料の情報が付く）");
     for (const m of mats) { usedMat.add(m.n);
@@ -1462,10 +1522,13 @@ function consultHead() {
 function consultText(onlyId) {
   const all = consultUnits(!onlyId), us = onlyId ? all.filter((u) => u.id === onlyId) : all.filter((u) => cuOn(u.id));
   if (!us.length) return onlyId ? "" : "（相談する単位が無い。自分のロジックのステップを足すか、材料を選ぶか、メモを足す）";
-  const out = [...consultHead(), "# 相談する単位（自分のロジックを組んでいる順。ステップごとに、使う材料の詳しい情報つき）"];
+  const hasAll = us.some((u) => u.whole), hasUnits = us.some((u) => !u.whole);
+  const out = [...consultHead(), "# 相談する単位（全体のロジック → 自分のロジックを組んでいる順のステップ → ステップに入れていない材料。ステップごとに、使う材料の詳しい情報つき）"];
   for (const u of us) out.push(...u.lines, "");
   if (S.cuCode) { const F = findPick().F, f = FTASK[F.task].f; out.push(`# コード（${f} の全体。行番号つき）`, "```python", ...(SRC[f] || []).map((t, i) => `${String(i + 1).padStart(3)}  ${t}`), "```", ""); }
-  out.push("# 相談したいこと（単位ごとに、短く答えてください）", ...CQ, `${us.length > 1 ? "⑤ 全体を並べて、順番や材料のつながりで、気づくことがあれば最後に。" : ""}`.trim() || "", "分からない所は、推測で埋めずに、何を見せてほしいか教えてください。");
+  if (hasAll) out.push("# 相談したいこと①: 全体のロジックについて", ...CQ_ALL, "");
+  if (hasUnits) out.push(`# 相談したいこと${hasAll ? "②" : ""}: ステップ・材料の単位ごとに（短く答えてください）`, ...CQ, "");
+  out.push("分からない所は、推測で埋めずに、何を見せてほしいか教えてください。");
   return out.filter((x, i, a) => !(x === "" && a[i - 1] === "")).join("\n");
 }
 function consultInner() {
