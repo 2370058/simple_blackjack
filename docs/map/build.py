@@ -223,16 +223,24 @@ def trace_decisions(ad, card_mod, scenarios) -> dict:
                     log.append({'m': 'input', 'round': P.calls, 'hand': hand, 'sum': total, 'up': str(self.dealer_card), 'ret': r, 'seq': cur['seq']})
                     cur['seq'] = None
                     return r
-            random.seed(sc['seed'])
-            if sc.get('cards'):
-                order = [card_mod.Card(c[0], c[1:]) for c in sc['cards']]
-                ad.deck = [card_mod.Card('♣', '2') for _ in range(30)] + order[::-1]
+            ok = {'win': lambda r: r[0] > 1000, 'loseround': lambda r: r[0] < 1000, 'lose': lambda r: r[0] <= 0}.get(sc.get('find'), lambda r: True)
+            for seed in ([sc['seed']] + list(range(1, 2000))):
+                log.clear()
+                P.calls = 0
+                random.seed(seed)
+                if sc.get('cards'):
+                    order = [card_mod.Card(c[0], c[1:]) for c in sc['cards']]
+                    ad.deck = [card_mod.Card('♣', '2') for _ in range(30)] + order[::-1]
+                else:
+                    ad.deck = [card_mod.Card(su, v) for su in ad.suits for v in ad.values]
+                    random.shuffle(ad.deck)
+                ad.round = 1
+                res = ad.game(P)
+                if ok(res):
+                    break
             else:
-                ad.deck = [card_mod.Card(su, v) for su in ad.suits for v in ad.values]
-                random.shuffle(ad.deck)
-            ad.round = 1
-            res = ad.game(P)
-            out[f][sc['id']] = {'log': log, 'result': list(res)}
+                raise SystemExit(f"{f}: 場面 {sc['id']} になる種が見つからない")
+            out[f][sc['id']] = {'log': log, 'result': list(res), 'seed': seed}
     return out
 
 
@@ -402,13 +410,15 @@ def build() -> pathlib.Path:
                 roles[f'{f}:{i}'] = role(text)
     dealer = trace_dealer()
     cards_of = {r['id']: r['cards'] for r in ring['routes']}
-    scenarios = [{'id': 'win', 'title': '勝つ一手', 'cards': cards_of['main'], 'rounds': 1, 'seed': 3},
-                 {'id': 'lose', 'title': '負ける一手', 'cards': cards_of['lose'], 'rounds': 1, 'seed': 3},
-                 {'id': 'game', 'title': 'ゲームの最後まで', 'cards': None, 'rounds': 0, 'seed': 11}]
+    scenarios = [{'id': 'win', 'title': '勝つ一手', 'cards': cards_of['main'], 'rounds': 1, 'seed': 3, 'find': 'win'},
+                 {'id': 'lose', 'title': '負ける一手', 'cards': cards_of['lose'], 'rounds': 1, 'seed': 3, 'find': 'loseround'},
+                 {'id': 'game', 'title': '勝ち逃げで終わるまで', 'cards': None, 'rounds': 0, 'seed': 11, 'find': 'win'},
+                 {'id': 'gamelose', 'title': '負けて終わるまで', 'cards': None, 'rounds': 0, 'seed': 1, 'find': 'lose'}]
     decisions = trace_decisions(ad, card_mod, scenarios)
     for f, d in decisions.items():
-        g = d['game']
-        print(f"  判断 {f}: 最後まで {sum(1 for x in g['log'] if x['m'] == 'place_bet')} 回の place_bet、結果 {g['result']}")
+        for k in ('win', 'lose', 'game', 'gamelose'):
+            g = d[k]
+            print(f"  判断 {f} {k}: 種 {g['seed']}・{sum(1 for x in g['log'] if x['m'] == 'place_bet')} 回の place_bet、結果 {g['result']}")
     ring2 = json.loads((HERE / 'ring2.json').read_text(encoding='utf-8'))
     for st in ring2['stations']:
         for ln in st['begin']:

@@ -214,7 +214,20 @@ tfoot td { font-weight: 700; }
 .tpanel .where b { font: 800 .82rem var(--display); margin-right: 4px; }
 .tpanel .wsum td { vertical-align: top; } .tpanel .wsum td:last-child { display: flex; flex-wrap: wrap; gap: 4px; }
 .btn { margin: 1px 0; }
-.trace .tl.key { background: color-mix(in srgb, var(--car) 14%, transparent); }
+.trace .tl.key { background: color-mix(in srgb, var(--car) 14%, transparent); box-shadow: inset 3px 0 0 var(--car); }
+.trace .tl .kmark { color: var(--car); margin-right: 2px; font-size: .7rem; }
+.kbar { padding: 6px 12px 8px; }
+.kbar .ktog { border-color: var(--car); }
+.kstrip { display: flex; gap: 10px; overflow-x: auto; padding: 4px 12px 12px; scroll-snap-type: x proximity; align-items: stretch; }
+.kcard { flex: 0 0 290px; scroll-snap-align: start; background: var(--panel); color: var(--fg); border: 1px solid var(--line); border-left: 4px solid var(--car); border-radius: 8px; padding: 8px 10px; display: grid; gap: 6px; font: .82rem/1.5 var(--body); white-space: normal; }
+.kcard.hit { border-left-color: var(--perf); }
+.kcard .kh { display: flex; gap: 8px; align-items: baseline; color: var(--muted); font-size: .75rem; }
+.kcard .kh b { color: var(--fg); font: 800 .82rem var(--display); }
+.kcard code { font: .78rem var(--mono); background: var(--bg); border-radius: 4px; padding: 2px 6px; overflow-x: auto; white-space: pre; display: block; }
+.kcard p { margin: 0; }
+.kcard .kref { display: flex; flex-wrap: wrap; gap: 4px; }
+.kcard .kref .btn { font-size: .72rem; padding: 1px 8px; }
+.kstrip .kclose { align-self: center; flex: none; }
 .trace .tl.key.x { background: color-mix(in srgb, var(--car) 22%, var(--hit)); }
 .trace .tl em .kl { display: inline-flex; flex-wrap: nowrap; gap: 4px; align-items: center; margin-left: 10px; color: var(--stmt-fg); font-weight: 700; }
 .trace .tl em .kl .btn { padding: 0 6px; font-size: .7rem; line-height: 1.5; } .tpanel td, .tpanel th { text-align: left; }
@@ -287,7 +300,7 @@ const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&l
 
 const store = { get(k, d) { try { const v = localStorage.getItem("bjmap:" + k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } },
   set(k, v) { try { localStorage.setItem("bjmap:" + k, JSON.stringify(v)); } catch (e) { /* 保存できなくても動く */ } } };
-const S = { route: store.get("route", "main"), pos: 0, mode: store.get("mode", "drive"),
+const S = { kopen: new Set(), route: store.get("route", "main"), pos: 0, mode: store.get("mode", "drive"),
   layers: store.get("layers", { "緊急": true, "悪意": true, "速さ": false }), issue: null, role: null, timer: null };
 S.ring = store.get("ring", "r01");
 
@@ -1042,7 +1055,7 @@ function diffHtml(ex) {
     return `<div class="ln ${c}"><i>${c === "add" ? "+" : c === "del" ? "−" : ""}</i><s></s><span>${esc(l.slice(2))}</span><span></span></div>`; }).join("")}</div>`;
 }
 // 判断の部分: 今の players/ にいるプレイヤーごとに、place_bet と input のソースを、通った順に矢印でつなぎ、その行の値を出す
-function methodTrace(f, name, seq, ret, color) {
+function methodTrace(f, name, seq, ret, color, id) {
   const L = SRC[f], r = funcLines(f, `def ${name}(`); if (!r) return "";
   const rows = [], at = {}, Q3 = /'''|"""/g; let inDoc = false, skipped = false;
   for (let n = r.from; n <= r.to; n++) {
@@ -1061,6 +1074,7 @@ function methodTrace(f, name, seq, ret, color) {
     svg += `<path d="${d}" fill="none" stroke="${color}" stroke-width="2" marker-end="url(#tah2)"/>`;
   }
   svg += `<defs><marker id="tah2" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0 0 10 5 0 10z" fill="${color}"/></marker></defs></svg>`;
+  const keys = [];
   const body = rows.map((row) => {
     if (row.gap) return `<div class="tl gap"><i></i><s></s><span>（説明の文は省略）</span><em></em></div>`;
     const { n, t } = row, hit = visits[n], role = ROLE[`${f}:${n}`];
@@ -1071,10 +1085,15 @@ function methodTrace(f, name, seq, ret, color) {
       if (/^\s*return\b/.test(t)) parts.push(`→ ${esc(name)} が ${ret} を返す`);
       note = `<b>${hit.join(",")}</b> ${esc(parts.join("・"))}`;
     }
-    const kl = keyLine(name, t), key = kl ? `<span class="kl">◆ ${esc(kl.t)} ${refsHtml(kl.refs)}</span>` : "";
-    return `<div class="tl${hit ? " x" : " dim"}${kl ? " key" : ""}"><i>${n}</i><s style="--r:${role ? RC[role] : "transparent"}"></s><span>${esc(t)}</span><em>${note}${key}</em></div>`;
+    const kl = keyLine(name, t), open = S.kopen.has(id);
+    if (kl) keys.push({ n, t, kl, hit: !!hit });
+    return `<div class="tl${hit ? " x" : " dim"}${kl && open ? " key" : ""}"><i>${kl ? `<span class="kmark">◆</span>` : ""}${n}</i><s style="--r:${role ? RC[role] : "transparent"}"></s><span>${esc(t)}</span><em>${note}</em></div>`;
   }).join("");
-  return `<div class="file">${esc(f)}</div><div class="trace">${svg}${body}</div>`;
+  const open = S.kopen.has(id);
+  const strip = keys.length ? `<div class="kbar"><button type="button" class="btn ktog" data-ktog="${esc(id)}" aria-expanded="${open}">◆ この一手で関わる所 ${keys.length} 件${open ? "（閉じる）" : ""}</button></div>
+    ${open ? `<div class="kstrip">${keys.map((k) => `<div class="kcard${k.hit ? " hit" : ""}"><div class="kh"><b>${k.n} 行</b>${k.hit ? "この一手で通った" : "この一手では通らなかった"}</div><code>${esc(k.t.trim())}</code><p>${esc(k.kl.t)}</p><div class="kref">${refsHtml(k.kl.refs)}</div></div>`).join("")}
+      <button type="button" class="btn kclose" data-ktog="${esc(id)}">閉じる</button></div>` : ""}` : "";
+  return `<div class="file">${esc(f)}</div><div class="trace">${svg}${body}</div>${strip}`;
 }
 function decidePanel() {
   const D = DATA.decisions, ps = DATA.players, SC = DATA.scenarios;
@@ -1084,27 +1103,28 @@ function decidePanel() {
   const col = "var(--perf)";
   const tabsP = ps.map((p) => `<button type="button" data-dplayer="${p}" aria-pressed="${p === cur}">${esc(name(p))}</button>`).join("");
   const tabsS = SC.map((x) => `<button type="button" data-dscen="${x.id}" aria-pressed="${x.id === sc.id}">${esc(x.title)}</button>`).join("");
-  const one = (x) => x.m === "place_bet"
-    ? `<h4>${sc.id === "game" ? `ラウンド ${x.round}: ` : ""}place_bet(balance=${x.balance}) → ${esc(x.ret)}${x.ret === 0 ? "（0 なので、ここでゲームが終わる）" : ""}</h4><div class="code">${methodTrace(cur, "place_bet", x.seq, x.ret, col)}</div>`
-    : `<h4>${sc.id === "game" ? `ラウンド ${x.round}: ` : ""}input → "${esc(x.ret)}"（手札 ${x.hand.map(esc).join("・")} = ${x.sum}、ディーラーの表 ${esc(x.up)}）</h4><div class="code">${methodTrace(cur, "input", x.seq, `"${x.ret}"`, col)}</div>`;
-  const R0 = D[cur][sc.id], log = R0.log;
+  const R0 = D[cur][sc.id], log = R0.log, many = sc.rounds === 0;
+  const one = (x) => { const id = `${cur}|${sc.id}|${log.indexOf(x)}`; return x.m === "place_bet"
+    ? `<h4>${many ? `ラウンド ${x.round}: ` : ""}place_bet(balance=${x.balance}) → ${esc(x.ret)}${x.ret === 0 ? "（0 なので、ここでゲームが終わる）" : ""}</h4><div class="code">${methodTrace(cur, "place_bet", x.seq, x.ret, col, id)}</div>`
+    : `<h4>${many ? `ラウンド ${x.round}: ` : ""}input → "${esc(x.ret)}"（手札 ${x.hand.map(esc).join("・")} = ${x.sum}、ディーラーの表 ${esc(x.up)}）</h4><div class="code">${methodTrace(cur, "input", x.seq, `"${x.ret}"`, col, id)}</div>`; };
   let body;
-  if (sc.id === "game") {
+  if (many) {
     const rounds = [...new Set(log.map((x) => x.round))];
-    const last = log[log.length - 1], why = last.m === "place_bet" && last.ret === 0 ? `place_bet が 0 を返した（残高 ${last.balance} > stop_balance なので勝ち逃げ）` : "残高が 0 以下になった（s17 か s20 で return）";
+    const last = log[log.length - 1], why = last.m === "place_bet" && last.ret === 0 ? `place_bet が 0 を返した（残高 ${last.balance} > stop_balance なので勝ち逃げ）` : `最後のラウンドで負けて残高が ${R0.result[0]} になった（環状線 01 の駅 17 か 20 で return。place_bet はもう呼ばれない）`;
     const table = `<table><thead><tr><th>ラウンド</th><th>残高（前）</th><th>place_bet</th><th>input（合計 → 答え）</th></tr></thead><tbody>${rounds.map((rd) => {
       const pb = log.find((x) => x.round === rd && x.m === "place_bet"), ins = log.filter((x) => x.round === rd && x.m === "input");
-      return `<tr${pb && pb.ret === 0 ? ' class="cur"' : ""}><td>${rd}</td><td>${pb ? pb.balance : ""}</td><td>${pb ? pb.ret : ""}</td><td>${ins.map((x) => `${x.sum} → "${esc(x.ret)}"`).join("、") || (pb && pb.ret === 0 ? "（遊ばない）" : "")}</td></tr>`; }).join("")}</tbody></table>`;
-    body = `<p class="note">山札を種 ${sc.seed} でふつうに混ぜ、ゲームが終わるまで流した。ゲームの終わり方は2つだけ: place_bet が 0 を返す（勝ち逃げ・撤退）か、残高が 0 以下になる。このゲームは <b>${esc(why)}</b> で終わり、game() は (${R0.result.join(", ")}) を返した。</p>${table}
+      const lastRd = rd === rounds[rounds.length - 1];
+      return `<tr${(pb && pb.ret === 0) || (lastRd && !(last.m === "place_bet" && last.ret === 0)) ? ' class="cur"' : ""}><td>${rd}</td><td>${pb ? pb.balance : ""}</td><td>${pb ? pb.ret : ""}</td><td>${ins.map((x) => `${x.sum} → "${esc(x.ret)}"`).join("、") || (pb && pb.ret === 0 ? "（遊ばない）" : "")}</td></tr>`; }).join("")}</tbody></table>`;
+    body = `<p class="note">山札を種 ${R0.seed} でふつうに混ぜ、ゲームが終わるまで流した${sc.find ? "（残高 0 で終わる種を build.py が探した。プレイヤーのコードは変えていない）" : ""}。ゲームの終わり方は2つだけ: place_bet が 0 を返す（勝ち逃げ・撤退）か、残高が 0 以下になる。このゲームは <b>${esc(why)}</b> で終わり、game() は (${R0.result.join(", ")}) を返した。</p>${table}
       ${rounds.map((rd, k) => `<details${k === rounds.length - 1 || k === 0 ? " open" : ""}><summary>ラウンド ${rd} の判断${k === rounds.length - 1 ? "（最後の一手）" : k === 0 ? "（最初）" : ""}</summary>${log.filter((x) => x.round === rd).map(one).join("")}</details>`).join("")}`;
   } else {
-    body = `<p class="note">同じカードの並びを配り、1ラウンドだけ本物の autodealer.game() を流した。このラウンドの残高は ${R0.result[0]}。</p>${log.map(one).join("")}`;
+    body = `<p class="note">同じカードの並びを配り、1ラウンドだけ本物の autodealer.game() を流した（乱数の種 ${R0.seed}。乱数で決めるプレイヤーは、本当に${sc.id === "lose" ? "負ける" : "勝つ"}種を build.py が探した）。このラウンドの残高は ${R0.result[0]}。</p>${log.map(one).join("")}`;
   }
   const sum = `<table><thead><tr><th>プレイヤー</th>${SC.map((x) => `<th>${esc(x.title)}</th>`).join("")}</tr></thead><tbody>${ps.map((p) => `<tr><td>${esc(name(p))}</td>${SC.map((x) => {
     const lg = D[p][x.id].log, pb = lg.filter((y) => y.m === "place_bet");
-    return `<td>${x.id === "game" ? `${pb.length} 回賭けて残高 ${D[p][x.id].result[0]}` : `掛け金 ${pb[0] ? pb[0].ret : "—"} → 残高 ${D[p][x.id].result[0]}`}</td>`; }).join("")}</tr>`).join("")}</tbody></table>`;
+    return `<td>${x.rounds === 0 ? `${new Set(lg.map((y) => y.round)).size} ラウンドで残高 ${D[p][x.id].result[0]}` : `掛け金 ${pb[0] ? pb[0].ret : "—"} → 残高 ${D[p][x.id].result[0]}`}</td>`; }).join("")}</tr>`).join("")}</tbody></table>`;
   return `<h3>判断の部分（今の players/ にいるプレイヤー）</h3>
-    <p class="note">build.py が players/ にあるファイルを探し、本物の autodealer.game() を流して、place_bet と input の中を通った順番に記録した。左の矢印が通った順（行の横の数字が何番目か）、右がその行に出てくる変数の値。if の行には真か偽か、return の行には返した値が出る。乱数は種をそろえてある。</p>
+    <p class="note">build.py が players/ にあるファイルを探し、本物の autodealer.game() を流して、place_bet と input の中を通った順番に記録した。左の矢印が通った順（行の横の数字が何番目か）、右がその行に出てくる変数の値。if の行には真か偽か、return の行には返した値が出る。行番号の ◆ は、一手の流れで大事な行。コードの下の「◆ 関わる所」を押すと、その行が一手・環状線のどこに当たるかが横に並んで出る（もう一度押すと閉じる）。</p>
     ${sum}<div class="routes dtabs">${tabsS}</div><div class="routes dtabs">${tabsP}</div>${body}`;
 }
 // 参照（"Q:ラベルの頭"・"s8"・"r02:t3"・"route:stopwin"）をボタンにする
@@ -1398,6 +1418,8 @@ document.addEventListener("click", (ev) => {
     S.issue = it.id; S.pos = 0; goStation(it.station); window.scrollTo({ top: 0 }); return; }
   const dp = ev.target.closest("[data-dplayer]");
   if (dp) { S.dplayer = dp.dataset.dplayer; redrawC4(); return; }
+  const kt = ev.target.closest("[data-ktog]");
+  if (kt) { const id = kt.dataset.ktog; S.kopen.has(id) ? S.kopen.delete(id) : S.kopen.add(id); const y = window.scrollY; redrawC4(); window.scrollTo({ top: y }); return; }
   const ds = ev.target.closest("[data-dscen]");
   if (ds) { S.dscen = ds.dataset.dscen; redrawC4(); return; }
   const tk = ev.target.closest("[data-task]");
