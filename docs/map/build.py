@@ -190,6 +190,22 @@ def trace_dealer() -> dict:
     raise SystemExit('dealer.py の1ラウンドを流せる種が見つからない')
 
 
+def dealer_diff() -> dict:
+    """dealer.py と autodealer.py の本物の差分。1ラウンドの流れ（while True から）と、その前の準備（ファイルの上から）に分けて出す。
+    autodealer の game() の中は1段深いので、字下げを4つ戻してから比べる。"""
+    import difflib
+    d = (REPO / 'dealer.py').read_text(encoding='utf-8').split('\n')
+    a = (REPO / 'autodealer.py').read_text(encoding='utf-8').split('\n')
+    di = d.index('while True:')
+    ai = a.index('    while True:')
+    ae = next(i for i, ln in enumerate(a) if ln.startswith('if __name__'))
+    gi = next(i for i, ln in enumerate(a) if ln.startswith('def game'))
+    loop_a = [ln[4:] if ln.startswith('    ') else ln for ln in a[ai:ae]]
+    loop = list(difflib.unified_diff(d[di:], loop_a, 'dealer.py', 'autodealer.py の game()', n=0, lineterm=''))
+    top = list(difflib.unified_diff(d[:di], a[:ai], 'dealer.py', 'autodealer.py', n=0, lineterm=''))
+    return {'loop': loop, 'top': top}
+
+
 def build() -> pathlib.Path:
     ring = json.loads((HERE / 'ring.json').read_text(encoding='utf-8'))
     src = {f: (REPO / f).read_text(encoding='utf-8') for f in FILES}
@@ -226,7 +242,7 @@ def build() -> pathlib.Path:
                 roles[f'{f}:{i}'] = role(text)
     dealer = trace_dealer()
     print(f"  dealer.py 種 {dealer['seed']}: 呼び出し {len(dealer['edges'])} 種類")
-    data = {'ring': ring, 'sources': src, 'traces': traces, 'roles': roles, 'roleNames': ROLE_NAMES, 'dealer': dealer}
+    data = {'ring': ring, 'sources': src, 'traces': traces, 'roles': roles, 'roleNames': ROLE_NAMES, 'dealer': dealer, 'diff': dealer_diff()}
     blob = json.dumps(data, ensure_ascii=False).replace('</', '<\\/')
     page = (HERE / 'ring.src.html').read_text(encoding='utf-8')
     assert page.count('/*__DATA__*/{}') == 1, '埋め込む印 /*__DATA__*/{} が1つだけあるはず'

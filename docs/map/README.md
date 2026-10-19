@@ -20,6 +20,10 @@
 - `ex` は変更の例（`+` 足す・`-` 消す）。B・C の例は、このページを作るときに実際に入れて autodealer.py で流し、止まらずに動くことを確かめた
 - `rt` は実行時の呼び出し（`autodealer.game:87 -> players.player_simple.BlackjackPlayer.input` のような、モジュール.クラス.メソッド）。`build.py` が本物を流して記録した中から探して出す
 
+2 の図では、1ラウンドの流れを **dealer.py の箱に1回だけ** 書いてある。autodealer.py の `game()` はその流れを関数に入れたもので、箱には dealer.py と違う所（±: print → printx・exit/break → return・配る前の check_shuffle・turns・Player を引数で）だけを書き、「while True: … dealer.py と同じ」の行から dealer.py の箱へ線でつなぐ。本物の差分は `build.py` が difflib で比べて埋め込み（`dealer_diff`）、game の箱を押すと出る。
+
+点数の計算は card.py の `Card.sum` が辞書 `card.vals` を引いて行う（`vals[card.value]`、21 を超えたら A を 1 に直す）。2 つの流れには「vals の辞書を引いて足す」手順があり、3 環状線の駅にも、その駅の手札で辞書を引いた計算（例: ♠5 → vals["5"] = 5 …）が出る。
+
 2 の図の一番上は **準備（実行する前）** の帯で、作業フォルダ・Git ブランチ・players/ フォルダ・パラメータの置き場・起動時の準備（import のとき1回）の5つのコンポーネントがある（`C4P`）。タスクの準備（紫の a・b・c…）は、この帯から書き換える行へ矢印で出る。
 
 2 の図の箱と行は、実行したときのモジュール名・クラス名・メソッド名で書いてあります（`card.Card.sum`、`players.player_simple.BlackjackPlayer.input` など。autodealer.py を python3 で動かすとモジュール名は `__main__` になります）。
