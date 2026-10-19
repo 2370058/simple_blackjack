@@ -111,7 +111,11 @@ h5.mg { margin: 8px 0 4px; font: 800 .8rem var(--display); color: var(--muted); 
 .ls { min-width: 0; max-width: 100%; box-sizing: border-box; } .ls select { flex: 1 1 150px; width: 0; min-width: 120px; max-width: 100%; text-overflow: ellipsis; } .lsw small { overflow-wrap: anywhere; } .ivform select, .fld select { width: 100%; text-overflow: ellipsis; }
 .ls select, .ls input { font: .82rem var(--body); border: 1px solid var(--line); border-radius: 8px; padding: 4px 6px; background: var(--bg); color: var(--fg); min-width: 0; max-width: 100%; } .ls input { flex: 1 1 260px; }
 .lsw { flex: 1 1 100%; display: flex; flex-wrap: wrap; gap: 3px 8px; align-items: baseline; } .lsw small { color: var(--muted); } .lc { font-size: .78rem; font-weight: 700; } .lc small { font-weight: 400; margin-left: 4px; } .lc.ok { color: var(--player); } .lc.oth { color: var(--perf); } .lc.ng { color: var(--danger); }
-.pal { position: sticky; bottom: 6px; z-index: 5; margin: 10px 0; border: 2px solid var(--t); border-radius: 12px; padding: 6px 10px; background: var(--panel); box-shadow: 0 -4px 14px rgb(0 0 0 / .12); max-height: 42vh; overflow: auto; } .pmarks { font-size: .8rem; font-weight: 700; margin: 2px 0 6px; } .pmarks small { color: var(--muted); font-weight: 400; }
+.pal { position: sticky; bottom: 6px; z-index: 5; margin: 10px 0; border: 2px solid var(--t); border-radius: 12px; padding: 6px 10px; background: var(--panel); box-shadow: 0 -4px 14px rgb(0 0 0 / .12); max-height: 42vh; overflow: auto; } .fbox textarea { width: 100%; box-sizing: border-box; font: .8rem/1.4 var(--mono); border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px; background: var(--bg); color: var(--fg); margin: 4px 0; }
+.fm { border: 1px solid var(--line); border-radius: 10px; padding: 6px 8px; margin: 6px 0; background: var(--bg); } .fmh { display: flex; flex-wrap: wrap; gap: 4px 8px; align-items: baseline; } .fmh b { font: 800 .8rem var(--mono); } .fmh small { color: var(--muted); }
+.fmcode { max-width: 100%; overflow-x: auto; margin: 4px 0; font-size: .74rem; } .fmst, .fmmat { display: flex; flex-wrap: wrap; gap: 4px 6px; align-items: center; font-size: .78rem; margin: 3px 0; } .fmst .est { color: var(--perf); }
+.mchip { border: 1px solid var(--line); border-radius: 999px; padding: 0 8px; font: 700 .74rem var(--mono); } .mchip small { color: var(--muted); font-weight: 400; margin-left: 4px; } .mchip.memo { border-style: dashed; }
+.pmarks { font-size: .8rem; font-weight: 700; margin: 2px 0 6px; } .pmarks small { color: var(--muted); font-weight: 400; }
 .pfile { display: flex; flex-wrap: wrap; gap: 4px 8px; align-items: baseline; padding: 4px 0; border-top: 1px solid var(--line); } .pfns { display: flex; flex-wrap: wrap; gap: 4px; }
 .chip.file b { font-weight: 800; } .chip.here { border-color: var(--t); background: color-mix(in srgb, var(--t) 18%, var(--bg)); box-shadow: 0 0 0 1.5px var(--t); } .pfile.here { background: color-mix(in srgb, var(--t) 6%, transparent); }
 .pal > summary { cursor: pointer; font: 800 .86rem var(--display); } .pal > summary small { margin-left: 8px; color: var(--perf); font-weight: 700; }
@@ -1292,7 +1296,7 @@ function codeNames() {
       if (!m) return; const key = `${f}|${kind}|${m[1]}`; if (seen.has(key)) return; seen.add(key); out.push({ n: m[1], kind, f, ln: i + 1 }); }); }
   return (CODE_NAMES = out);
 }
-const PTABS = [["val", "値（変数・引数）"], ["meth", "メソッド"], ["memo", "メモした材料"], ["file", "ファイル"], ["code", "コードにある名前"]];
+const PTABS = [["val", "値（変数・引数）"], ["meth", "メソッド"], ["memo", "メモした材料"], ["file", "ファイル"], ["code", "コードにある名前"], ["find", "コードから駅を探す"]];
 function palCtxStation() {
   const el = S.lastInput && S.lastInput.isConnected ? S.lastInput : null, { side } = findPick();
   if (el && el.dataset.lst != null) { const s2 = lsteps()[+el.dataset.lst]; if (s2) return s2.st; }
@@ -1302,6 +1306,7 @@ function palCtxStation() {
 function palChips(F) {
   const tab = S.palTab || "val", ctx = palCtxStation(), cls = (m) => { if (!ctx) return ""; const a = availAt(m, ctx); return a === true || a === "call" ? " ok" : a === "other" ? " oth" : " ng"; };
   const chip = (tok, m, extra) => `<button type="button" class="chip${m ? cls(m) : ""}" data-ins="${esc(tok)}" ${m ? `data-pm="${esc(m.n)}"` : ""} title="${esc(m ? m.d || m.now || "" : extra || "")}"><b>${esc(tok)}</b><small>${m ? (m.now ? ((ss) => ss.length ? (ss.length > 3 ? ss.length + " 駅" : "駅 " + ss.map((x) => dn(x)).join("・")) : "呼ばれない")(methodStations(m)) : "駅 " + dn(m.st) + (m.arg ? "（引数）" : "")) : esc(extra || "")}</small></button>`;
+  if (tab === "find") return findBox();
   if (tab === "file") return filesView(F);
   if (tab === "val") return (MATS[F.task] || []).flatMap((m) => tokensOf(m.n).map((tk) => chip(tk, m))).join("");
   if (tab === "meth") return (METHODS[F.task] || []).map((m) => chip(tokensOf(m.n)[0], m)).join("");
@@ -1501,6 +1506,69 @@ function wholeUnit() {
   o.push(warn.length ? "- 気になる所（このページが自動で見つけたもの）:" : "- 気になる所: このページの自動の確認では、見つからなかった", ...warn.map((w) => `  - ${w}`));
   return { id: "all", t: `全体のロジック（ステップ ${steps.length} つをつなげて）`, lines: o, whole: true };
 }
+// ---- コードの一部を貼ると、どのファイルの何行目か・どの関数か・どの駅かを探す ----
+let LINE_ST2 = null;
+function lineStationsAll(f, ln) {   // 環状線 01 の駅と、環状線 02 の駅（r02:…）の両方
+  if (!LINE_ST2) { LINE_ST2 = {}; for (const [pre, rg] of [["", DATA.rings.r01], ["r02:", DATA.rings.r02]]) for (const t of Object.values(rg.traces)) for (const e of t.path) for (const k of Object.keys(e.lines)) (LINE_ST2[k] = LINE_ST2[k] || new Set()).add(pre + e.id); }
+  return [...(LINE_ST2[`${f}:${ln}`] || [])].sort((a, b) => UI[a] - UI[b]);
+}
+const normCode = (t) => t.replace(/#.*$/, "").replace(/\s+/g, "");   // コメントと空白を除く（空白の違いに強くする）
+function snipLines(text) {
+  let ls = text.split("\n"); const ne = ls.filter((x) => x.trim());
+  if (ne.length && ne.every((x) => /^\s*\d+[ \t]/.test(x))) ls = ls.map((x) => x.replace(/^\s*\d+[ \t]?/, ""));   // このページのコードの行番号つきで貼ったとき
+  ls = ls.map((x) => x.replace(/\s*←.*$/, ""));   // 「← この行」などの印
+  return ls.map((x) => ({ raw: x.trim(), n: normCode(x) })).filter((x) => x.n);
+}
+function findSnippet(text) {
+  const S0 = snipLines(text); if (!S0.length) return null;
+  const matches = [], files = Object.keys(SRC).filter((f) => /\.py$/.test(f));
+  for (const f of files) { const nf = []; (SRC[f] || []).forEach((t, i) => { const n = normCode(t); if (n) nf.push({ ln: i + 1, n }); });
+    for (let i = 0; i + S0.length <= nf.length; i++) { let ok = true; for (let j = 0; j < S0.length; j++) if (nf[i + j].n !== S0[j].n) { ok = false; break; }
+      if (ok) matches.push({ f, from: nf[i].ln, to: nf[i + S0.length - 1].ln, exact: true }); } }
+  let partial = [];
+  if (!matches.length) {   // 全体は見つからない: 1行ずつ、含まれる行を探す
+    S0.forEach((q, j) => { if (q.n.length < 5) return; for (const f of files) (SRC[f] || []).forEach((t, i) => { const n = normCode(t); if (n && (n === q.n || n.includes(q.n) || (q.n.length > 14 && q.n.includes(n) && n.length > 14))) partial.push({ f, from: i + 1, to: i + 1, line: j + 1, raw: q.raw }); }); });
+    partial = partial.slice(0, 14); }
+  return { S0, matches: matches.slice(0, 12), more: Math.max(0, matches.length - 12), partial };
+}
+function fnOfLine(f, ln) {
+  const r = enclosing(f, ln), L = SRC[f] || []; if (!r) return null;
+  const hd = L[r.top - 1] || ""; const m = hd.match(/^\s*def\s+(\w+)/); return m ? { name: m[1], from: r.from, to: r.to } : { name: null, from: r.from, to: r.to, head: hd.trim() };
+}
+function stationsFor(f, from, to) {
+  const set = new Set(); for (let ln = from; ln <= to; ln++) for (const x of lineStationsAll(f, ln)) set.add(x);
+  if (set.size) return { sts: [...set].sort((a, b) => UI[a] - UI[b]), est: false };
+  // 今のルートでは通らない行: 近い駅から推す
+  if (f === "autodealer.py") { const pool = ln0 => ln0 >= 189 ? R2L.map((x) => ["r02:" + x.id, x.begin[0]]) : R1L.flatMap((x) => x.begin.map((b) => [x.id, b])); let best = null;
+    for (const [id, b] of pool(from)) if (b <= from && (!best || b > best[1])) best = [id, b]; return { sts: best ? [best[0]] : [], est: true, why: "今のルートでは通らない行。一番近い駅の始まりから推した" }; }
+  const fn = fnOfLine(f, from), player = f.startsWith("players/") || f === "player.py";
+  const m = fn && fn.name && (METHODS.B.find((x) => x.fn === fn.name && (player || x.f === f)) || METHODS.C.find((x) => x.f === f && x.fn === fn.name));
+  if (m) { const ss = methodStations(m); if (ss.length) return { sts: ss, est: true, why: player && f !== m.f ? `${f} は環状線の記録に無い（記録は players/player_simple.py）。同じ名前のメソッド ${fn.name}() が呼ばれる駅` : `今のルートでは通らない行。${fn.name}() が呼ばれる駅` }; }
+  if (f === "dealer.py") return { sts: [], est: true, why: "dealer.py は人が打つ版で、環状線の記録に無い。同じ流れの行が autodealer.py の game() にあれば、そちらの駅が当てはまる" };
+  return { sts: [], est: true, why: "この行は、どのルートでも通らない（駅が決まらない）" };
+}
+function kindOfSnippet(raw) { return /^(if|elif|while)\b/.test(raw) ? "judge" : /^return\b/.test(raw) ? "ret" : /(\+|-)?=(?!=)/.test(raw.replace(/==|<=|>=|!=/g, "")) && !/^\w+\(/.test(raw) ? "update" : "call"; }
+function snippetCard(r, S0) {
+  const f = r.f, L = SRC[f] || [], st = stationsFor(f, r.from, r.to), fn = fnOfLine(f, r.from), F = findPick().F, task = F.task || "B";
+  const from = Math.max(1, r.from - 1), to = Math.min(L.length, r.to + 1);
+  const code = []; for (let n = from; n <= to; n++) code.push(`<div class="ln${n >= r.from && n <= r.to ? " x" : ""}"><i>${n}</i><s></s><span>${esc(L[n - 1])}</span><span></span></div>`);
+  const { mats, memos } = mentionedMats(task, S0.map((x) => x.raw).join(" "));
+  const where = `${f}:${r.from}${r.to > r.from ? "〜" + r.to : ""}`, fname = fn && fn.name ? `${fn.name}()` : fn ? "（関数の外・ファイルの一番外）" : "（関数の外）";
+  const kind = kindOfSnippet(S0[0].raw), text = `${fname} の「${S0[0].raw.slice(0, 36)}」の所で、`;
+  const stBtns = st.sts.map((x) => `<button type="button" class="btn sb" data-tst="${x}">駅 ${esc(dn(x))}. ${esc(stTitle(x))}</button><button type="button" class="btn sb" data-fmstep="${esc(x)}|${kind}|${encodeURIComponent(text)}">ここでステップを足す</button><button type="button" class="chip" data-ins="${esc(`駅 ${dn(x)}「${stTitle(x)}」の ${fname}（${where}）`)}"><b>場所を欄に入れる</b></button>`).join(" ");
+  return `<div class="fm"><div class="fmh"><b>${esc(where)}</b> <small>${esc(fname)}${r.exact === false || r.line ? "・一部一致" : "・一致"}</small>${srcLink("q", f, r.from)}</div>
+    <div class="code fmcode">${code.join("")}</div>
+    <div class="fmst">${st.sts.length ? `<b>駅:</b> ${stBtns}` : `<b>駅:</b> <small>決まらない</small>`}${st.est ? `<small class="est">${esc(st.why || "")}</small>` : ""}</div>
+    ${mats.length || memos.length ? `<div class="fmmat"><b>この行に出てくる材料:</b> ${mats.map((m) => `<span class="mchip">${esc(m.n.split(/[（(]/)[0])}<small>${m.now ? "メソッド" : "値・駅 " + esc(dn(m.st)) + " から"}</small></span>`).join("")}${memos.map(({ v }) => `<span class="mchip memo">${esc(v.n)}<small>メモ</small></span>`).join("")}</div>` : ""}</div>`;
+}
+function findResults(text) {
+  const R = findSnippet(text || "");
+  if (!R) return "<small>コードの一部（1行でも、数行でも）を貼ると、どのファイルの何行目か・どの関数か・どの駅かを出す。このページのコードを行番号つきでコピーしたものでも、空白やコメントが違っても探せる。</small>";
+  if (R.matches.length) return `<p class="note"><b>${R.matches.length}${R.more ? "+" : ""} か所</b>で見つかった（貼った ${R.S0.length} 行）。</p>${R.matches.map((r) => snippetCard(r, R.S0)).join("")}${R.more ? `<small>ほか ${R.more} か所</small>` : ""}`;
+  if (R.partial.length) return `<p class="note">全体と同じ行の並びは無かった。1行ずつ、近い行:</p>${R.partial.map((r) => `<div class="note">貼った ${r.line} 行目「${esc(r.raw.slice(0, 40))}」に近い:</div>${snippetCard(r, [{ raw: r.raw, n: "" }])}`).join("")}`;
+  return `<p class="note">見つからなかった。このページのコード（${Object.keys(SRC).filter((f) => /\.py$/.test(f)).join("・")}）にある行を貼ってください。変更後のコード（まだ無い行）は探せません。</p>`;
+}
+const findBox = () => `<div class="fbox"><textarea data-snip rows="4" placeholder="コードの一部を貼る（例: if Card.sum(self.hand) < self.hit_threshold:）">${esc(S.snip || "")}</textarea><div class="findres">${findResults(S.snip)}</div>${originView("q")}</div>`;
 // ---- パレットの「ファイル」: ファイルと関数の一覧。今の位置（旗・置き場所・入力欄の駅）に印 ----
 function fileMarks() {
   const { side } = findPick(), FS = stationFiles(), marks = {}, labels = [];
@@ -1828,6 +1896,8 @@ document.addEventListener("click", (ev) => {
   if (pc) { S.pcode = pc.dataset.pcode; store.set("pcode", S.pcode); const y = window.scrollY; render(); window.scrollTo({ top: y }); return; }
   const mt = ev.target.closest("[data-mattog]");
   if (mt) { S.showMat = !S.showMat; store.set("showMat", S.showMat); if (!S.showMat && S.ofv && S.ofv.startsWith("m|")) S.ofv = null; const y = window.scrollY; render(); window.scrollTo({ top: y }); return; }
+  const fm = ev.target.closest("[data-fmstep]");
+  if (fm) { const [st, k, t] = fm.dataset.fmstep.split("|"), ls = lsteps(); ls.push({ k, st, t: decodeURIComponent(t) }); tset("logicSteps", ls); const y = window.scrollY; render(); window.scrollTo({ top: y }); return; }
   const cc = ev.target.closest("[data-cucopy]");
   if (cc) { const id = cc.dataset.cucopy, txt = consultText(id || undefined), done = () => { const t0 = cc.textContent; cc.textContent = "コピーした"; setTimeout(() => { cc.textContent = t0; }, 1500); };
     if (txt && navigator.clipboard) navigator.clipboard.writeText(txt).then(done, () => {}); return; }
@@ -1893,7 +1963,8 @@ document.addEventListener("change", (ev) => { if (ev.target.matches && ev.target
 document.addEventListener("mousedown", (ev) => { if (ev.target.closest && ev.target.closest(".chip[data-ins]")) ev.preventDefault(); });   // 押しても、書いている欄のカーソルを外さない
 document.addEventListener("focusin", (ev) => { const el = ev.target; if (!el.matches || !el.matches(INS_SEL) || el.closest(".pal")) return;
   S.lastInput = el; S.lastSel = lastSelOf(el); S.lastLabel = el.dataset.lst != null ? `自分の設計 ${+el.dataset.lst + 1} の内容` : el.dataset.mmemo ? `使いたいこと（${el.dataset.mmemo.split(/[（(]/)[0]}）` : el.hasAttribute("data-memo") ? "アイデア" : (el.getAttribute("aria-label") || "メモ"); updatePalette(); });
-document.addEventListener("input", (ev) => { if (ev.target.matches && ev.target.matches("[data-palq]")) { S.palQ = ev.target.value; const b = document.querySelector(".palbody"); if (b) b.innerHTML = palChips(findPick().F); return; }
+document.addEventListener("input", (ev) => { if (ev.target.matches && ev.target.matches("[data-snip]")) { S.snip = ev.target.value; const r = document.querySelector(".findres"); if (r) r.innerHTML = findResults(S.snip); return; }
+  if (ev.target.matches && ev.target.matches("[data-palq]")) { S.palQ = ev.target.value; const b = document.querySelector(".palbody"); if (b) b.innerHTML = palChips(findPick().F); return; }
   const li = ev.target.closest && ev.target.closest("[data-lst]");
   if (li) { const ls = lsteps(), i = +li.dataset.lst; if (ls[i]) { ls[i].t = li.value; tset("logicSteps", ls); const { F } = findPick();
       document.querySelectorAll(".ls").forEach((box, k) => { const w = box.querySelector(".lsw"), x = ls[k];   // 新しい変数の初期値は、ほかのステップにも関わるので、全部確かめ直す
