@@ -180,7 +180,7 @@ tfoot td { font-weight: 700; }
 .tpanel h4 { margin: 4px 0 0; font: 800 .85rem var(--display); }
 .tpanel li button b { background: var(--t); }
 .tpanel .rt { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: baseline; font-size: .82rem; }
-.tpanel .rt code { font-family: var(--mono); background: color-mix(in srgb, var(--t) 12%, transparent); border-radius: 4px; padding: 1px 6px; }
+.tpanel .rt code { font-family: var(--mono); background: color-mix(in srgb, var(--t) 12%, transparent); border-radius: 4px; padding: 1px 6px; overflow-wrap: anywhere; min-width: 0; }
 .tpanel .rt small { color: var(--muted); }
 .code .ln.ed { background: color-mix(in srgb, var(--branch) 38%, var(--stmt)); }
 .code .ln .edm { color: var(--car); font-weight: 700; }
@@ -692,7 +692,8 @@ const C4B = [
       ["Card.sum(dealer_hand) < 17", "ディーラーが引く", { f: "dealer.py", find: "if Card.sum(dealer_hand) < 17:", st: "s14" }],
       ["Card.sum(player_hand) > …(dealer)", "勝ち負け", { f: "dealer.py", find: "if Card.sum(player_hand) > Card.sum(dealer_hand):", st: "s18" }],
       ["player.notify_result(…)", "結果を知らせる", { f: "dealer.py", find: "player.notify_result(\"win\", bet_amount)", st: "s19" }],
-      ["exit()", "終わる", { f: "dealer.py", find: "exit()", st: "end" }]] },
+      ["if player_balance <= 0:", "残高が 0 か", { f: "dealer.py", find: "if player_balance <= 0:#2", st: "s20" }],
+      ["exit()・break", "終わる", { f: "dealer.py", find: "exit()", st: "end" }]] },
   { id: "playerpy", f: "f_dealer", c: "var(--player)", title: "player.BlackjackPlayer", tag: "player.py・人が打つ", file: "player.py",
     desc: "dealer.py で遊ぶときのプレイヤーのクラス。place_bet と input が、ターミナルの input() で人に聞く。ほかの5つは self に記録するだけ。players/ のプレイヤーも、同じ7つのメソッドを持つ。",
     rows: [["place_bet(self, balance)", "input() で掛け金", { f: "player.py", find: "def place_bet", st: "s3" }],
@@ -868,6 +869,38 @@ const TASKS = {
         rt: ["autodealer.game:91 -> players.player_simple.BlackjackPlayer.receive_hand", "autodealer.game:93 -> players.player_simple.BlackjackPlayer.receive_hand"] },
       { a: ["dealer", 8], b: ["card", 3], st: "s10", label: "バーストか → 21 以下ならもう一度 input", desc: "20 は 21 以下なので continue で while True の先頭へ戻り、2 の input をもう一度呼ぶ。2回目は \"stand\" なので break して、ディーラーの番へ。",
         code: [[AD, "if Card.sum(player_hand) > 21:", 7, ["if Card.sum(player_hand) > 21:", "continue"]], [AD, "elif player_choice == \"stand\":", 2, ["break"]]], rt: ["autodealer.game:96 -> card.Card.sum"] }] },
+  W: { flow: true, t: "勝って終わる", c: "var(--player)", routes: ["stopwin"],
+    note: "勝ち逃げでゲームが終わる所だけを取り出した流れ。player_simple のまま、1000 → 1100 → 1200 と勝ち、次のラウンドの place_bet が 0 を返して終わる。autodealer（左）と dealer.py（右の行）で違うのは、最後の return と exit() だけ。値は環状線 01 のルート「勝ち逃げで終わる」を本物で流したもの。",
+    ctx: [["sys", "p_anal", "結果の1行に入る", "game() が返した 1200 が total にたされる。"]],
+    c4: [
+      { a: ["dealer", 10], b: ["card", 3], st: "s18", label: "勝ち負けを決める（勝ち → 1200）", desc: "2ラウンド目は ♠10・♣8 = 18 対 ♡10・♢7 = 17 で勝ち。残高 1100 + 100 = 1200 にして、notify_result で知らせる。",
+        code: [[AD, "if Card.sum(player_hand) > Card.sum(dealer_hand):", 9, ["player_balance += bet_amount", "player.notify_result(\"win\", bet_amount)"]], ["dealer.py", "if Card.sum(player_hand) > Card.sum(dealer_hand):", 9, ["player_balance += bet_amount", "player.notify_result(\"win\", bet_amount)"]]] },
+      { a: ["dealer", 12], b: null, st: "s20", label: "残高が 0 か → 偽（1200）", desc: "1200 は 0 より大きいので終わらない。残高を表示して（autodealer では出さない）、次のラウンドへ。",
+        code: [[AD, "if player_balance <= 0:#2", 5, ["if player_balance <= 0:"]], ["dealer.py", "if player_balance <= 0:#2", 5, ["if player_balance <= 0:"]]] },
+      { a: ["dealer", 1], b: ["dealer", 4], st: "s21", label: "turn_end() で次のラウンドへ", desc: "round を1増やし、while True の先頭に戻る。手札を空にして start_turn を呼ぶ。",
+        code: [[AD, "def turn_end", 5, ["round += 1"]]] },
+      { a: ["dealer", 5], b: ["simple", 4], st: "s3", label: "place_bet が 0 を返す（1200 > 1100）", desc: "player_simple の place_bet で、残高 1200 が stop_balance 1100 を超えているので return 0。これがゲームを終える一手（判断の部分の「勝ち逃げで終わるまで」の最後と同じ）。",
+        code: [[SP, "def place_bet", 0, ["if balance > self.stop_balance", "return 0"]]], rt: ["autodealer.game:57 -> players.player_simple.BlackjackPlayer.place_bet"] },
+      { a: ["game", 6], b: ["main", 4], st: "s4", label: "掛け金が 0 → return（dealer.py は exit()）", desc: "0 < 0 は偽なので else へ。bet_amount == 0 なので、autodealer は return player_balance, turns で (1200, 2) を返す。dealer.py は同じ所で残高を表示して exit() し、プログラムごと終わる。",
+        code: [[AD, "if 0 < bet_amount <= player_balance", 6, ["if 0 < bet_amount <= player_balance", "if bet_amount == 0:", "return player_balance, turns"]], ["dealer.py", "if 0 < bet_amount <= player_balance", 6, ["if 0 < bet_amount <= player_balance", "if bet_amount == 0:", "exit()"]]] },
+      { a: ["main", 5], b: ["term", 2], st: "r02:t5", label: "__main__ が受け取る（total += 1200）", desc: "autodealer では、game() が返した 1200 と 2 を集計にたして、次のゲームへ。dealer.py には集計が無い。",
+        code: [[AD, "result, num_turn = game(", 2, ["result, num_turn = game(", "total += result"]]] }] },
+  L: { flow: true, t: "負けて終わる", c: "var(--danger)", routes: ["simplelose", "allin"],
+    note: "残高が 0 になってゲームが終わる所だけを取り出した流れ。player_simple のまま 26 ラウンド遊んだゲーム（種 1）の最後のラウンド。place_bet はもう呼ばれず、駅 20 の「残高が 0 か」で終わる。autodealer は return、dealer.py は break。値は環状線 01 のルート「負けて終わる（player_simple のまま・最後のラウンド）」を本物で流したもの。",
+    ctx: [["sys", "p_anal", "結果の1行に入る", "game() が返した 0 が total にたされる。"]],
+    c4: [
+      { a: ["dealer", 5], b: ["simple", 4], st: "s3", label: "残高 100 で全部を賭ける", desc: "最後のラウンドは残高 100。player_simple の place_bet は、残高が unit_bet(100) 以下なので bet_amount = balance で 100（残り全部）を返す。",
+        code: [[SP, "def place_bet", 0, ["if balance > self.unit_bet", "bet_amount = balance", "return bet_amount"]]] },
+      { a: ["dealer", 10], b: ["card", 3], st: "s18", label: "勝ち負けを決める（負け → 0）", desc: "♠J・♣5・♡2 = 17 対 ♢7・♠7・♢6 = 20 で負け。残高 100 − 100 = 0 にして、notify_result(\"lose\", 100) で知らせる。",
+        code: [[AD, "elif Card.sum(player_hand) < Card.sum(dealer_hand):", 4, ["player_balance -= bet_amount", "player.notify_result(\"lose\", bet_amount)"]], ["dealer.py", "elif Card.sum(player_hand) < Card.sum(dealer_hand):", 4, ["player_balance -= bet_amount", "player.notify_result(\"lose\", bet_amount)"]]] },
+      { a: ["dealer", 12], b: null, st: "s20", label: "残高が 0 か → 真（0）", desc: "0 <= 0 なので、ここでゲームが終わる。次のラウンドの place_bet は呼ばれない（だから判断の部分には出てこない）。",
+        code: [[AD, "if player_balance <= 0:#2", 3, ["if player_balance <= 0:", "return player_balance, turns"]], ["dealer.py", "if player_balance <= 0:#2", 3, ["if player_balance <= 0:", "break"]]] },
+      { a: ["game", 6], b: ["main", 4], st: "end", label: "return 0, 26（dealer.py は break）", desc: "autodealer は return player_balance, turns で (0, 26) を返す。dealer.py は break で while True を抜け、その下に何も無いので、プログラムが終わる。",
+        code: [[AD, "if player_balance <= 0:#2", 3, ["return player_balance, turns"]]] },
+      { a: ["main", 5], b: ["term", 2], st: "r02:t5", label: "__main__ が受け取る（total += 0）", desc: "0 と 26 を集計にたして、次のゲームへ。",
+        code: [[AD, "result, num_turn = game(", 2, ["total += result"]]] },
+      { a: ["dealer", 8], b: null, st: "s17", label: "（別の道）バーストで 0 になったとき", desc: "バーストで負けた場合は、駅 20 まで行かずに、駅 17 の「バーストしていたか」の中で同じように残高を見て return（dealer.py は break）する。",
+        code: [[AD, "if is_burst:", 4, ["if player_balance <= 0:", "return player_balance, turns"]], ["dealer.py", "if is_burst:", 4, ["if player_balance <= 0:", "break"]]] }] },
   A: { t: "A 分析する", c: "var(--pre)", note: "player_simple.py のパラメータ4つ（stop_balance・撤退条件・unit_bet・hit_threshold）と、autodealer.py の2つ（MAX・initial_balance）を変えて、平均を比べる（スライド p.60）。パラメータはどれからでも変えられる（並列の準備）。変えたら、あとの実行の流れは同じ。",
     ctx: [["p_anal", "x_vscode", "パラメータと撤退条件を書き換える", "player_simple.py をコピーして player_simple_1200_100_16.py のように名前を付け、4つのパラメータを書き換える。autodealer.py の MAX と initial_balance も変えられる。"],
       ["x_vscode", "sys", "python3 autodealer.py", "players/ の .py が全部、1ファイル1行で比べられる。player_random も一緒に流れるので、基準が毎回出る。"],
@@ -1044,9 +1077,14 @@ function taskBar(lv) {
     Object.entries(TASKS).filter(([, t]) => !t.flow).map(([k, t]) => `${t.outside ? '<span class="levels-label" style="margin-left:10px">｜</span>' : ""}<button type="button" data-task="${k}" style="--c:${t.c}" class="${t.outside ? "outside" : ""}" aria-pressed="${S.task === k}">${t.t}</button>`).join("");
 }
 // コードの抜き出し: 探した行から n 行（0 ならかたまり全部）。hl は光らせる行、ed は変える行
+function nthIndex(L, find) { // "…#2" なら2つ目に見つかった行
+  const m = find.match(/^(.*)#(\d+)$/), key = m ? m[1] : find, nth = m ? +m[2] : 1; let c = 0;
+  for (let i = 0; i < L.length; i++) if (key.includes("\n") ? (L[i] + "\n").includes(key) : L[i].includes(key)) { if (++c === nth) return i; }
+  return -1;
+}
 function codeRange([f, find, n, hl = [], ed = [], pre = 0, edl = "← 変える"], idx = 0, all = []) {
   const L = SRC[f]; if (!L) return "";
-  let i = find.includes("\n") ? L.findIndex((l) => (l + "\n").includes(find)) : L.findIndex((l) => l.includes(find));
+  let i = nthIndex(L, find);
   if (i < 0) return `<p class="note">（${esc(f)} に「${esc(find)}」が見つからない）</p>`;
   let from = i - pre, to = n ? i + n - 1 : funcLines(f, find).to - 1;
   if (to - from > 34) to = from + 34;
@@ -1127,6 +1165,7 @@ function decidePanel() {
     const fin = rounds[rounds.length - 1];
     body = `<p class="note">山札を種 ${R0.seed} でふつうに混ぜ、ゲームが終わるまで流した（${sc.id === "gamelose" ? "残高 0 で終わる" : "勝ち逃げで終わる"}種を build.py が探した。プレイヤーのコードは変えていない）。ゲームの終わり方は2つだけ: place_bet が 0 を返す（勝ち逃げ・撤退）か、残高が 0 以下になる。2つの場面で違うのは<b>最後の処理だけ</b>なので、それ以外は折りたたんである。</p>
       <div class="finale"><h4>最後の処理: ${esc(why)}。game() は (${R0.result.join(", ")}) を返した</h4>
+        <p class="where"><b>game() 側で終わる所の流れ</b><button type="button" class="btn" data-task="${sc.id === "gamelose" ? "L" : "W"}">${sc.id === "gamelose" ? "負けて終わる" : "勝って終わる"}</button></p>
         <details open><summary>ラウンド ${fin} の判断（最後の一手）</summary>${log.filter((x) => x.round === fin).map(one).join("")}</details></div>
       <details><summary>それまでの ${rounds.length - 1} ラウンドの表（残高・掛け金・答え）</summary>${table}</details>
       <details><summary>それまでの ${rounds.length - 1} ラウンドの判断（コード）</summary>${rounds.slice(0, -1).map((rd) => `<details><summary>ラウンド ${rd}</summary>${log.filter((x) => x.round === rd).map(one).join("")}</details>`).join("")}</details>`;
@@ -1187,6 +1226,7 @@ function taskPanel(lv) {
   }
   const prep = steps.map((x, i) => [x, i]).filter(([x]) => x.p === true), prep2 = steps.map((x, i) => [x, i]).filter(([x]) => x.p === 2), flow = steps.map((x, i) => [x, i]).filter(([x]) => !x.p);
   el.innerHTML = `<section class="tpanel" style="--t:${T.c}"><div class="dh"><span class="kind" style="--c:${T.c}">${T.flow ? "流れ" : "タスク"}</span><h2>${esc(T.t)}</h2></div><p class="note">${esc(T.note)}</p>
+    ${T.routes ? `<p class="where"><b>環状線 01 で見る</b>${T.routes.map((r) => refBtn("route:" + r)).join("")}</p>` : ""}
     ${!T.flow && steps.some((x) => x.where && x.p) ? `<details class="wsum"><summary>変更が効く所の一覧（環状線・一手の流れ）</summary><table><tbody>${steps.map((x, i) => x.where && x.p ? `<tr><td><button type="button" class="btn" data-tstep="${i}">${tag(i)}. ${esc(x.label)}</button></td><td>${refsHtml(x.where)}</td></tr>` : "").join("")}</tbody></table></details>` : ""}
     <div class="tcols">${prep.length ? `<div><h3 style="color:${PREP_C}">${T.prepTitles ? T.prepTitles[0] : T.flow ? "実行前の準備（起動するまで）" : "実行前の準備（並列・どれからでもよい）"}</h3><ol>${prep.map(([x, i]) => item(x, i)).join("")}</ol></div>` : ""}
       ${prep2.length ? `<div><h3 style="color:var(--prep2)">${T.prepTitles[1]}</h3><ol>${prep2.map(([x, i]) => item(x, i)).join("")}</ol></div>` : ""}
@@ -1201,7 +1241,8 @@ function taskPanel(lv) {
 let PLACED = [];   // 1枚の図に置いた番号の札（重なったら横にずらす）
 function badge(g, x, y, i, text, prep) {
   if (prep === undefined && g.classList.contains("prep2")) prep = 2;
-  for (let k = 0; k < 12 && PLACED.some(([px, py]) => Math.abs(px - x) < 24 && Math.abs(py - y) < 24); k++) x += 26;
+  const vb = g.ownerSVGElement?.viewBox?.baseVal; if (vb && vb.width) x = Math.min(x, vb.width - 14);
+  for (let k = 0; k < 12 && PLACED.some(([px, py]) => Math.abs(px - x) < 24 && Math.abs(py - y) < 24); k++) x += (vb && vb.width && x + 26 > vb.width - 14) ? -26 : 26;
   PLACED.push([x, y]);
   const b = svgEl("g", { class: "tbadge" + (S.tstep === i ? " cur" : "") + (prep === 2 ? " prep2" : prep ? " prep" : ""), "data-tstep": i, tabindex: 0, role: "button" }, g);
   svgEl("circle", { cx: x, cy: y, r: String(text || "").length > 1 ? 14 : 11 }, b);
@@ -1217,7 +1258,7 @@ function clip(b, tx, ty) { // 箱の中心から (tx, ty) へ向かう線が、�
 // コードの折り畳み: find を含む行から、その字下げのかたまりの終わりまで
 function funcLines(f, find) {
   const L = SRC[f]; if (!L) return null;
-  let i = find.includes("\n") ? L.findIndex((l) => (l + "\n").includes(find)) : L.findIndex((l) => l.includes(find));
+  let i = nthIndex(L, find);
   if (i < 0) return null;
   const ind = (l) => l.match(/^\s*/)[0].length, base = ind(L[i]);
   let j = i;

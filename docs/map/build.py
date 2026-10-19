@@ -55,9 +55,15 @@ def run_route(ad, simple, card_mod, route, stations):
         for ln in st['begin']:
             begin[ln] = st['id']
     # 山札: pop() は末尾から取るので、配る順を逆にして後ろに置く。前に 30 枚置いて、シャッフルされないようにする
-    order = [card_mod.Card(c[0], c[1:]) for c in route['cards']]
-    filler = [card_mod.Card('♣', '2') for _ in range(30)]
-    ad.deck = filler + order[::-1]
+    if 'seed' not in route:
+        order = [card_mod.Card(c[0], c[1:]) for c in route['cards']]
+        filler = [card_mod.Card('♣', '2') for _ in range(30)]
+        ad.deck = filler + order[::-1]
+    else:   # カードを決めずに、種 seed でふつうに混ぜた山札（判断の部分の「負けて終わるまで」と同じゲーム）
+        import random
+        random.seed(route['seed'])
+        ad.deck = [card_mod.Card(su, v) for su in ad.suits for v in ad.values]
+        random.shuffle(ad.deck)
     ad.round = 1
     bets = list(route.get('bets', []))
     full = route.get('full', False)          # True ならゲームが終わるまで流す（何周も）
@@ -68,7 +74,7 @@ def run_route(ad, simple, card_mod, route, stations):
 
         def place_bet(self, balance):
             P.calls += 1
-            if (P.calls > 1 and not full) or P.calls > 20:
+            if (P.calls > 1 and not full) or P.calls > 60:
                 return 0          # 1周だけ見るときは、2ラウンド目は遊ばない
             if bets:
                 return bets[0]    # ルートで決めた掛け金（テスト用）
@@ -148,6 +154,9 @@ def run_route(ad, simple, card_mod, route, stations):
         result = ad.game(P)
     finally:
         sys.settrace(None)
+    if route.get('tail'):   # 最後のラウンドだけ残す（何十周もするゲームの、終わりの所だけを見る）
+        last = max(i for i, p in enumerate(path) if p['id'] == 's1')
+        path = path[last:]
     return {'path': path, 'calls': calls, 'result': list(result), 'edges': edges}
 
 

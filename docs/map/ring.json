@@ -438,6 +438,15 @@
       ],
       "summary": "input を1行だけにして、いつも stand するプレイヤーにした。11 のまま stand、ディーラーは 16 から ♠9 を引いて 25 でバースト。hit の輪（s9・s10）を通らずに勝つ。",
       "variantEx": "      def input(self, message):\n-         if Card.sum(self.hand) < self.hit_threshold:\n-             choice = \"hit\"\n-         …\n+         return \"stand\""
+    },
+    {
+      "id": "simplelose",
+      "title": "負けて終わる（player_simple のまま・最後のラウンド）",
+      "full": true,
+      "tail": true,
+      "seed": 1,
+      "cards": [],
+      "summary": "player_simple のまま、種 1 で混ぜた山札で、残高 0 になるまで 26 ラウンド遊んだゲームの最後のラウンドだけ。残高 100 で全部を賭け、負けて残高 0。駅 20（残高が 0 か）で return してゲームが終わる。"
     }
   ],
   "issues": [
