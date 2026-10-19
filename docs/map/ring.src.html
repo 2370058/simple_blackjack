@@ -107,6 +107,7 @@ h5.mg { margin: 8px 0 4px; font: 800 .8rem var(--display); color: var(--muted); 
 @media (max-width: 600px) { .mcards { grid-template-columns: 1fr; } .mcard dl { grid-template-columns: 1fr; } }
 .ivars { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0; } .iv div { display: flex; flex-direction: column; } .iv small b { color: var(--fg); margin-right: 4px; } .iv { display: inline-flex; gap: 8px; align-items: center; border: 1px dashed var(--t); border-radius: 8px; padding: 2px 4px 2px 8px; } .iv code { font: 700 .78rem var(--mono); } .iv small { color: var(--muted); }
 .ivadd { display: flex; flex-wrap: wrap; gap: 6px; } .ivadd input { flex: 1 1 180px; min-width: 0; font: .84rem var(--body); border: 1px solid var(--line); border-radius: 8px; padding: 5px 8px; background: var(--bg); color: var(--fg); }
+.seg.pcode button { font-size: .8rem; padding: 4px 10px; }
 textarea.prompt { width: 100%; box-sizing: border-box; font: .76rem/1.5 var(--mono); border: 1px solid var(--line); border-radius: 8px; padding: 8px; background: var(--bg); color: var(--fg); margin: 6px 0; }
 .exans { margin-top: 8px; border-top: 1px dashed var(--line); padding-top: 6px; } .exans ol { margin: 0 0 6px; padding-left: 1.4em; font-size: .82rem; } .fall summary { cursor: pointer; font: 800 .85rem var(--display); }
 .btn.rfb { font: 700 .78rem var(--mono); padding: 1px 8px; border-color: var(--prep2); } .tsum td .btn { margin: 2px 4px 2px 0; } .tsum small { color: var(--muted); margin-right: 8px; }
@@ -407,7 +408,7 @@ const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&l
 
 const store = { get(k, d) { try { const v = localStorage.getItem("bjmap:" + k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } },
   set(k, v) { try { localStorage.setItem("bjmap:" + k, JSON.stringify(v)); } catch (e) { /* 保存できなくても動く */ } } };
-const S = { kopen: new Set(), fnview: null, ofv: null, showOrig: store.get("showOrig", false), showRef: store.get("showRef", false), showMat: store.get("showMat", false), route: store.get("route", "main"), pos: 0, mode: store.get("mode", "drive"),
+const S = { kopen: new Set(), fnview: null, ofv: null, showOrig: store.get("showOrig", false), showRef: store.get("showRef", false), showMat: store.get("showMat", false), pcode: store.get("pcode", "paste"), route: store.get("route", "main"), pos: 0, mode: store.get("mode", "drive"),
   rtask: store.get("rtask", null), find: store.get("find", {}), layers: store.get("layers", { "緊急": true, "悪意": true, "速さ": false }), issue: null, role: null, timer: null };
 S.ring = store.get("ring", "r01");
 
@@ -1255,7 +1256,13 @@ function buildPrompt() {
     if (on) out.push(`  - 使っていない・余地: ${m.room}`, `  - できること: ${m.can}`, `  - 別ファイル・別の駅: ${m.cross}`, `  - 注意: ${m.caution}`); }
   out.push("", "# メモした変数（まだコードに無い。こういう変数があればいいかも）", ...(vars.length ? vars.map((v) => `- ${v.n}\n  - 初期値: ${v.init || "（未定）"}\n  - ロジック: ${v.logic || "（未定）"}`) : ["（なし）"]));
   if (side) { const refs = REFIMPL[side.st] || []; if (refs.length) { out.push("", "# この駅の参考実装（似た変更の例）"); for (const x of refs) out.push(`- ${x.n} = ${x.v}（${x.f}）: ${x.t}`, `  足した行: \`${x.use}\``); } }
+  const files = F.task === "C" ? ["autodealer.py", "card.py", "players/player_simple.py", "dealer.py", "player.py"] : ["autodealer.py", "card.py", "players/player_simple.py"];
+  const mode = S.pcode || "paste";
+  if (mode === "upload") out.splice(0, 0, "# 読んでほしいファイル", `このあと、次のファイルをアップロード（添付）します: ${files.join("、")}。下の説明より先に、ファイルの全体を読んでください。説明の行番号は、そのファイルの行番号です。`, "");
+  if (mode === "paste") { out.push("", "# コードの全体（今のファイル。行番号はこのとおり）");
+    for (const f of files) { const L = SRC[f] || []; out.push("", `## ${f}`, "```python", ...L.map((t, i) => `${String(i + 1).padStart(3)}  ${t}`), "```"); } }
   out.push("", "# お願い",
+    mode === "none" ? "0. コードの全体が無いときは、推測で書かずに、必要なファイル（" + files.join("、") + "）を見せてほしいと言ってください。" : `0. ${mode === "upload" ? "アップロードした" : "上に貼った"}コードの全体を読んで、下の説明（駅・行番号・材料の今の使われ方）と合っているか確かめてから考えてください。合っていない所があれば先に教えてください。`,
     "1. まず、上の材料・メソッド（今は少ししか使っていないもの）・今のステートメント（代入）・判定（if）だけで、やりたいことが叶えられるか検討してください。メモした変数の中に、既にある材料やメソッドで代わりになるものが無いかも確かめてください。",
     "2. 足りなければ、メモした変数のうち必要なものについて、どこで定義するか（ファイルの上・__init__）、どの駅のどのメソッドで更新するか、どこで判定に使うかを決めてください。",
     "3. 変更を、加える順番に、ファイル・関数・行番号・変更前と変更後のコードで示してください。",
@@ -1306,7 +1313,7 @@ function findPanel(bar) {
     const [, f, ln] = S.ofv.split("|"); return h.replace(/<\/div>$/, `<div class="ofvw" style="--t:var(--dealer)">${fnView(f, +ln, 'data-ofv=""')}</div></div>`); };
   const cards = F.task && S.showMat ? `${sel.length ? `<h4>選んだ材料の説明</h4><div class="mcards">${sel.map(card).join("")}</div>` : ""}
     <details class="fall" data-dkey="allmats"><summary>材料の説明を全部見る（タスク ${F.task}・値 ${mats.length}・メソッド ${meths.length}）</summary><div class="mcards">${[...mats, ...meths].filter((m) => !sel.includes(m)).map(card).join("")}</div></details>` : "";
-  const prompt = F.task ? `<details class="fall pr" data-dkey="prompt" open><summary>プロンプトのテンプレート（今の状態から作る。コピーして使う）</summary><p class="note">アイデア・タスク・いつ・材料・メモした変数から、今のコードの状態（駅・ファイル・関数の今のコード・材料の今の使われ方・参考実装）を書き出したもの。最後に「まず既存の材料・ステートメント・判定で叶えられるか検討 → 足りなければメモの変数をどこで定義・更新・判定するか → 順番に変更」を頼む。</p><textarea class="prompt" readonly rows="14">${esc(buildPrompt())}</textarea><button type="button" class="btn" data-copyprompt>コピー</button> <small class="copied" hidden>コピーした</small></details>` : "";
+  const prompt = F.task ? `<details class="fall pr" data-dkey="prompt" open><summary>プロンプトのテンプレート（今の状態から作る。コピーして使う）</summary><p class="note">アイデア・タスク・いつ・材料・メモした変数から、今のコードの状態（駅・ファイル・関数の今のコード・材料の今の使われ方・参考実装）を書き出したもの。コードの全体（関係するファイル）を貼るか、アップロードを頼むかも選べる。最後に「まず既存の材料・ステートメント・判定で叶えられるか検討 → 足りなければメモの変数をどこで定義・更新・判定するか → 順番に変更」を頼む。</p><div class="h3row"><span class="note">コードの全体を</span><div class="seg pcode">${[["paste", "プロンプトに貼る"], ["upload", "アップロードを頼む"], ["none", "入れない"]].map(([k, t]) => `<button type="button" data-pcode="${k}" aria-pressed="${(S.pcode || "paste") === k}">${t}</button>`).join("")}</div></div><p class="note">${F.task === "C" ? "autodealer.py・card.py・players/player_simple.py・dealer.py・player.py（タスク C は dealer.py と player.py も変えるので）" : "autodealer.py・card.py・players/player_simple.py"}。貼ると、AI がこのページの説明とコードを照らし合わせられる（長くなる）。アップロードを頼むと、プロンプトの最初に「先にファイルを読んで」と書く。</p><textarea class="prompt" readonly rows="14">${esc(buildPrompt())}</textarea><button type="button" class="btn" data-copyprompt>コピー</button> <small class="copied" hidden>コピーした</small></details>` : "";
   const files = `<details class="fall" data-dkey="stfiles"><summary>駅ごとに使っているファイル・関数（全ルートの本物の記録から）</summary><div class="tw"><table class="ftab"><thead><tr><th>駅</th><th>autodealer.py</th><th>players/</th><th>card.py</th></tr></thead><tbody>${RING.map((s) => { const m = FS[s.id] || {};
     const col = (pred) => Object.entries(m).filter(([f]) => pred(f)).map(([, fns]) => esc([...fns].join("・"))).join(" ") || "—";
     return `<tr${side && side.st === s.id ? ' class="cur"' : ""}><td><button type="button" class="btn" data-tst="${s.id}">${idx[s.id]}. ${esc(s.title)}</button></td><td>${col((f) => f === "autodealer.py")}</td><td>${col((f) => f.startsWith("players/"))}</td><td>${col((f) => f === "card.py")}</td></tr>`; }).join("")}</tbody></table></div></details>`;
@@ -1382,6 +1389,8 @@ document.addEventListener("click", (ev) => {
   if (fx) { const x = FIND_EX[+fx.dataset.fex]; S.find = { task: x.task, when: x.when, mats: [...x.mats], ex: +fx.dataset.fex }; store.set("find", S.find); store.set("ideaMemo", x.memo);
     const vs = ivars().filter((y) => !x.vars.some((v) => v.n === y.n)); vs.push(...x.vars); store.set("ideaVars", vs);
     const { side } = findPick(); if (side) { if (!path().some((e) => e.id === side.st)) { const r = R.routes.find((q) => TR[q.id].path.some((e) => e.id === side.st)); if (r) { S.route = r.id; S.pos = 0; } } goStation(side.st); } else render(); return; }
+  const pc = ev.target.closest("[data-pcode]");
+  if (pc) { S.pcode = pc.dataset.pcode; store.set("pcode", S.pcode); const y = window.scrollY; render(); window.scrollTo({ top: y }); return; }
   const mt = ev.target.closest("[data-mattog]");
   if (mt) { S.showMat = !S.showMat; store.set("showMat", S.showMat); if (!S.showMat && S.ofv && S.ofv.startsWith("m|")) S.ofv = null; const y = window.scrollY; render(); window.scrollTo({ top: y }); return; }
   const ia = ev.target.closest("[data-ivadd]");
