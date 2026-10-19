@@ -83,7 +83,9 @@ button:focus-visible, [tabindex]:focus-visible { outline: 3px solid var(--car); 
 .tsum { flex: 1 1 100%; min-width: 0; border: 2px solid var(--t); border-radius: 12px; padding: 10px 12px; background: var(--panel); font-size: .88rem; }
 .tsum p { margin: 0 0 8px; } .tsum .tw { overflow-x: auto; } .tsum table { border-collapse: collapse; width: 100%; }
 .tsum td, .tsum th { border-top: 1px solid var(--line); padding: 5px 6px; text-align: left; vertical-align: top; }
-.tsum td:first-child { white-space: nowrap; } .tsum td .btn { margin: 2px 4px 2px 0; } .tsum small { color: var(--muted); margin-right: 8px; }
+.tsum td:first-child { white-space: nowrap; }
+.rfrow { display: flex; flex-wrap: wrap; gap: 3px 8px; align-items: center; margin: 3px 0; } .rfrow code { font-family: var(--mono); font-size: .76rem; overflow-wrap: anywhere; } .rfrow small { flex: 1 1 100%; color: var(--muted); }
+.btn.rfb { font: 700 .78rem var(--mono); padding: 1px 8px; border-color: var(--prep2); } .tsum td .btn { margin: 2px 4px 2px 0; } .tsum small { color: var(--muted); margin-right: 8px; }
 .routes button { border: 1px solid var(--line); background: var(--panel); color: var(--fg); border-radius: 999px; padding: 4px 12px; font: 600 .85rem var(--display); cursor: pointer; }
 .routes button[aria-pressed="true"] { background: var(--fg); color: var(--bg); border-color: var(--fg); }
 .box { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 16px; display: grid; gap: 10px; align-content: start; }
@@ -501,7 +503,7 @@ function svgMap() {
     s += `<g transform="translate(${x},${y - 22})" pointer-events="none"><path d="M0 0 V-26" stroke="var(--fg)" stroke-width="2"/><path d="M0 -26 L18 -20 0 -14z" fill="var(--car)" stroke="var(--fg)" stroke-width="1"/></g>`; }
   return s + `</svg><div class="legend"><span><i style="--c:var(--dealer)"></i>本線の駅（ディーラー）</span><span><i style="--c:var(--branch)"></i>◇ 分岐（if）</span>
     <span><i style="--c:var(--player)"></i>プレイヤーへのランプ</span><span><i style="--c:var(--deck)"></i>山札へのランプ</span><span><i style="--c:var(--calc)"></i>card.py へのランプ</span>
-    <span><i style="--c:var(--exit)"></i>点線 = 近道・出口・戻り</span>${TREL ? `<span><i style="--c:${TREL.T.c}"></i>色の輪 = ${esc(TREL.T.t)} が関係する駅（駅名に添えた字は手順の番号）</span>` : ""}<span><i style="--c:var(--car)"></i>旗 = 今データがいる駅（← → で動く）</span></div>`;
+    <span><i style="--c:var(--exit)"></i>点線 = 近道・出口・戻り</span>${TREL ? `<span><i style="--c:${TREL.T.c}"></i>色の輪 = ${esc(TREL.T.t)} が関係する駅（駅名に添えた字は${TREL.k === "REF" ? "参考実装の名前" : "手順の番号"}）</span>` : ""}<span><i style="--c:var(--car)"></i>旗 = 今データがいる駅（← → で動く）</span></div>`;
 }
 
 // ---- 荷物（その駅に着いたときの game() の変数） ----
@@ -713,7 +715,7 @@ function codeHtml(entry, roleFilter) {
       const dim = roleFilter && r !== roleFilter;
       const ed = TRC && TRC.edits.some(([ef, t]) => ef === f && text.includes(t));
       const fl = f === "autodealer.py" && flagAt[n] ? `<span class="fl" style="--c:${IK[flagAt[n].kind].c}">${flagAt[n].id}</span>` : "";
-      h += `<div class="ln${hit ? " x" : ""}${dim ? " dim" : ""}${ed ? " ed" : ""}" ${r ? `title="${r}"` : ""}><i>${n}</i><s style="--r:${hit && r ? RC[r] : "transparent"}"></s><span>${esc(text)}</span><span>${hit > 1 ? `<em>×${hit}</em>` : ""}${fl}${ed ? `<em class="edm">← ${esc(TRC.T.t)} で変える</em>` : ""}</span></div>`;
+      h += `<div class="ln${hit ? " x" : ""}${dim ? " dim" : ""}${ed ? " ed" : ""}" ${r ? `title="${r}"` : ""}><i>${n}</i><s style="--r:${hit && r ? RC[r] : "transparent"}"></s><span>${esc(text)}</span><span>${hit > 1 ? `<em>×${hit}</em>` : ""}${fl}${ed ? `<em class="edm">← ${TRC.k === "REF" ? "参考実装をここに足す" : esc(TRC.T.t) + " で変える"}</em>` : ""}</span></div>`;
     }
   }
   return `<div class="code">${h}</div>`;
@@ -803,6 +805,7 @@ function partsTable() {
 // 環状線をタスクで絞る: そのタスクの手順の st・where（一手の流れの手順を通したものも）・旗から、今の環状線の駅を集める
 const RTASKS = [["A", "A 分析"], ["B", "B 戦略"], ["C", "C 改造"], ["X", "タスク外"]];
 function taskRel(k) {
+  if (k === "REF") return refRel();
   const T = TASKS[k], st = {}, routes = new Set(), edits = [];
   const add = (ref, i, via) => { if (!ref) return;
     if (ref.startsWith("route:")) { routes.add(ref.slice(6)); return; }
@@ -818,10 +821,39 @@ function taskRel(k) {
     (s.code || []).forEach((c) => (c[4] || []).forEach((t) => edits.push([c[0], t]))); });
   return { st, routes, edits, T, k };
 }
-const relTags = (rel, list) => list.map((x) => `${rel.k === "X" ? "" : rel.k}${stepTag(rel.T.c4, x.i, rel.T)}`).join("・");
+const relTags = (rel, list) => rel.k === "REF" ? (list.length > 2 ? `参考実装 ${list.length} 件（${list[0].kind}）` : list.map((x) => x.n + (x.kind !== "発火" ? `（${x.kind}）` : "")).join("・")) : list.map((x) => `${rel.k === "X" ? "" : rel.k}${stepTag(rel.T.c4, x.i, rel.T)}`).join("・");
+// 参考実装が動く所: fire = その駅を通るたびに判定・計算する駅、judge = その前に条件を見る駅、def = 値を決める行が動く所（環状線 02 の駅）
+const REFFIRE = {
+  retreat_balance: { fire: ["s3"], def: "t1", defT: "player_simple.py の上の行。import_module（環状線 02 の駅 1）のときに1回" },
+  bet_ratio: { fire: ["s3"], def: "t1", defT: "player_simple.py の上の行。import_module のときに1回" },
+  "MIN_BET・MAX_BET": { fire: ["s4"], def: "tb", defT: "autodealer.py の上の行。起動のとき（環状線 02 の起動の準備）に1回" },
+  NUM_DECKS: { fire: ["s5", "s21"], note: { s21: ["turn_end() の check_shuffle()", "ラウンドの終わりの turn_end() の中でも check_shuffle() が同じ判定をする（混ぜ直すと round が 1 に戻る）"] }, def: "tb", defT: "autodealer.py の上の行。起動のときに1回（その場で NUM_DECKS 組の山札も作る）" },
+  weak_threshold: { fire: ["s8"], def: "t1", defT: "player_simple.py の上の行。import_module のときに1回" },
+  "DEALER_STAND・HIT_SOFT17": { fire: ["s14"], def: "tb", defT: "autodealer.py の上の行。起動のときに1回" },
+  BJ_PAYOUT: { fire: ["s19"], judge: ["s18"], note: { s18: ["if Card.is_blackjack(player_hand):", "2枚で 21 かをここで見る。真なら駅 19 で BJ_PAYOUT 倍を足す（偽ならふつうに bet_amount を足す）"] }, def: "tb", defT: "autodealer.py の上の行。起動のときに1回" } };
+const REF_C = "var(--prep2)";
+function refRel() {
+  const st = {}, add = (id, x) => (st[id] = st[id] || []).push(x);
+  for (const [n, f] of Object.entries(REFFIRE)) {
+    if (S.ring === "r01") { f.fire.forEach((id) => add(id, { n, kind: "発火" })); (f.judge || []).forEach((id) => add(id, { n, kind: "判定" })); }
+    else add(f.def, { n, kind: "定義" });
+  }
+  const edits = Object.values(REFIMPL).flat().map((x) => [x.at[0], x.at[1]]);
+  return { st, routes: new Set(), edits, T: { t: "参考実装", c: REF_C, c4: [] }, k: "REF" };
+}
+const refOf = (n) => Object.values(REFIMPL).flat().find((x) => x.n === n);
+function refPanel(bar) {
+  const rel = refRel(), ids = Object.keys(rel.st).sort((a, b) => idx[a] - idx[b]);
+  const rows = ids.map((id) => `<tr><td><button type="button" class="btn" data-tst="${id}">${esc(`${idx[id]}. ${ST[id].title}`)}</button></td><td>${rel.st[id].map((x) => { const r = refOf(x.n), f = REFFIRE[x.n];
+    return `<div class="rfrow"><span class="pk ${x.kind === "発火" ? "j" : x.kind === "定義" ? "s" : ""}">${x.kind}</span><button type="button" class="btn rfb" data-refgo="${esc(x.n)}" data-tst="${f.fire[0]}">${esc(x.n)}</button>
+      <code>${esc(f.note && f.note[id] ? f.note[id][0] : x.kind === "定義" ? r.ex.split("\n").filter((l) => /^\+\s*[A-Za-z_][\w, ]*=/.test(l)).map((l) => l.slice(2).split("#")[0].trim()).join("、") : r.use)}</code><small>${esc(f.note && f.note[id] ? f.note[id][1] : x.kind === "発火" ? r.t : x.kind === "判定" ? "ここで条件を見て、発火する駅へ進むか決まる" : f.defT)}</small></div>`; }).join("")}</td></tr>`).join("");
+  return `${bar}<div class="tsum" style="--t:${REF_C}"><p><b>参考実装</b>（まだコードに無いパラメータ）が動く所。図では、その駅を色の輪で囲み、駅名に参考実装の名前を添えた。<b>発火</b> = その駅を通るたびに、足した行が判定・計算する所（ラウンドごとに毎回）。<b>判定</b> = その手前で条件を見る所。値そのものを決める行（<b>定義</b>）はファイルの上にあり、起動のとき（import のとき）に1回だけ動く。定義の駅は環状線 02 に切り替えると出る。名前を押すと、その駅のパラメータの「参考実装」を開く。駅のコードでは、参考実装を入れる行に印が付く。</p>
+    ${ids.length ? `<div class="tw"><table><thead><tr><th>駅</th><th>この駅で動く参考実装</th></tr></thead><tbody>${rows}</tbody></table></div>` : ""}</div>`;
+}
 function rtaskPanel() {
-  const bar = `<span class="tfl">タスクで絞る</span><div class="seg tseg">${[["", "なし"], ...RTASKS].map(([k, t]) => `<button type="button" data-rtask="${k}" aria-pressed="${(S.rtask || "") === k}" style="--c:${k ? TASKS[k].c : "var(--fg)"}">${t}</button>`).join("")}</div>`;
+  const bar = `<span class="tfl">タスクで絞る</span><div class="seg tseg">${[["", "なし"], ...RTASKS, ["REF", "参考実装"]].map(([k, t]) => `<button type="button" data-rtask="${k}" aria-pressed="${(S.rtask || "") === k}" style="--c:${k === "REF" ? REF_C : k ? TASKS[k].c : "var(--fg)"}">${t}</button>`).join("")}</div>`;
   if (!S.rtask) return bar;
+  if (S.rtask === "REF") return refPanel(bar);
   const rel = taskRel(S.rtask), T = rel.T, ids = Object.keys(rel.st).sort((a, b) => (a === "end") - (b === "end") || idx[a] - idx[b]);
   const rows = ids.map((id) => { const list = rel.st[id];
     return `<tr><td><button type="button" class="btn" data-tst="${id}">${esc(id === "end" ? (ST.end ? ST.end.title : "ゲーム終了") : `${idx[id]}. ${ST[id].title}`)}</button></td><td>${list.map((x) => { const s = T.c4[x.i];
@@ -879,6 +911,7 @@ document.addEventListener("click", (ev) => {
   const rt = ev.target.closest("[data-rtask]");
   if (rt) { S.rtask = rt.dataset.rtask || null; store.set("rtask", S.rtask); render(); return; }
   const ts = ev.target.closest("[data-tst]");
+  if (ts && ts.dataset.refgo) { S.showRef = true; store.set("showRef", true); store.set("paramsOpen", true); if (S.ring !== "r01") useRing("r01"); }
   if (ts) { const id = ts.dataset.tst; if (!path().some((e) => e.id === id)) { const r = R.routes.find((x) => TR[x.id].path.some((e) => e.id === id)); if (r) { S.route = r.id; S.pos = 0; } }
     goStation(id); document.getElementById("map").scrollIntoView({ block: "start" }); return; }
   const b = ev.target.closest("[data-mode],[data-layer],[data-route],[data-step],[data-st],[data-issue],[data-goto],#auto");
