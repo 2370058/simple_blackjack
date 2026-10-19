@@ -60,17 +60,27 @@ def run_route(ad, simple, card_mod, route, stations):
     ad.deck = filler + order[::-1]
     ad.round = 1
     bets = list(route.get('bets', []))
+    full = route.get('full', False)          # True ならゲームが終わるまで流す（何周も）
+    variant = route.get('variant', {})       # place_bet・input を1行だけ変えたプレイヤー
 
     class P(simple.BlackjackPlayer):
         calls = 0
 
         def place_bet(self, balance):
             P.calls += 1
-            if P.calls > 1:
-                return 0          # 2ラウンド目は遊ばない（1周だけ見る）
+            if (P.calls > 1 and not full) or P.calls > 20:
+                return 0          # 1周だけ見るときは、2ラウンド目は遊ばない
             if bets:
                 return bets[0]    # ルートで決めた掛け金（テスト用）
+            if variant.get('place_bet') == 'allin':
+                self.balance = balance
+                return balance    # 全額を賭ける（place_bet の1行を変えたもの）
             return super().place_bet(balance)
+
+        def input(self, message):
+            if variant.get('input') == 'stand':
+                return "stand"    # いつも stand（input の中身を1行にしたもの）
+            return super().input(message)
 
     files = {str(REPO / f): f for f in FILES}
     edges = {}
@@ -97,7 +107,7 @@ def run_route(ad, simple, card_mod, route, stations):
             ln = fr.f_lineno
             if f == 'autodealer.py' and fr.f_code.co_name == 'game' and ln in begin:
                 sid = begin[ln]
-                if sid == 's1' and any(p['id'] == 's1' for p in path):
+                if sid == 's1' and not full and any(p['id'] == 's1' for p in path):
                     cur['after'] = snap(fr)
                     done = True   # 2周目の始まりで止める
                     return None
@@ -141,60 +151,152 @@ def run_route(ad, simple, card_mod, route, stations):
     return {'path': path, 'calls': calls, 'result': list(result), 'edges': edges}
 
 
-def trace_decisions(ad, card_mod, cards) -> dict:
-    """players/ の今いるプレイヤーごとに、同じカードの並び（cards）で1ラウンドだけ autodealer.game() を流し、
-    判断の部分（place_bet と input）が、何を見て何を返したか・プレイヤーのファイルのどの行を通ったかを記録する。"""
+def _show(v):
+    """値を短い文字にする（Card は ♠5 のように）"""
+    if isinstance(v, list):
+        return '[' + ', '.join(_show(x) for x in v) + ']'
+    if type(v).__name__ == 'Card':
+        return str(v)
+    r = repr(v)
+    return r if len(r) <= 30 else r[:27] + '…'
+
+
+def trace_decisions(ad, card_mod, scenarios) -> dict:
+    """players/ の今いるプレイヤーごとに、場面（勝つ・負ける・ゲームの最後まで）を本物の autodealer.game() で流し、
+    判断の部分（place_bet と input）が通った行を順番に、その行に出てくる変数の値と一緒に記録する。"""
     import random
+    import re
+    word = re.compile(r'[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)?')
     out = {}
     for f in PLAYERS:
         mod = importlib.import_module(modname(f))
         path = str(REPO / f)
-        log = []
-        cur = {'lines': None}
+        lines = (REPO / f).read_text(encoding='utf-8').split('\n')
+        out[f] = {}
+        for sc in scenarios:
+            log, cur = [], {'seq': None, 'ret': None}
 
-        def tracer(fr, ev, arg):
-            if fr.f_code.co_filename != path:
-                return None
-            if ev == 'line' and cur['lines'] is not None:
-                cur['lines'].add(fr.f_lineno)
-            return tracer
+            def tracer(fr, ev, arg):
+                if fr.f_code.co_filename != path:
+                    return None
+                if ev == 'line' and cur['seq'] is not None:
+                    ln = fr.f_lineno
+                    vals = {}
+                    for w in word.findall(lines[ln - 1].split('#')[0]):
+                        if w.startswith('self.'):
+                            a = w[5:]
+                            if a in fr.f_locals['self'].__dict__:
+                                vals[w] = _show(getattr(fr.f_locals['self'], a))
+                        elif w in fr.f_locals and w != 'self':
+                            vals[w] = _show(fr.f_locals[w])
+                    cur['seq'].append([ln, vals])
+                if ev == 'return' and cur['seq'] is not None and fr.f_code.co_name in ('place_bet', 'input'):
+                    cur['ret'] = _show(arg)
+                return tracer
 
-        class P(mod.BlackjackPlayer):
-            calls = 0
+            class P(mod.BlackjackPlayer):
+                calls = 0
 
-            def place_bet(self, balance):
-                P.calls += 1
-                if P.calls > 1:
-                    return 0          # 2ラウンド目は遊ばない（1ラウンドだけ見る）
-                cur['lines'] = set()
-                sys.settrace(tracer)
-                try:
-                    r = super().place_bet(balance)
-                finally:
-                    sys.settrace(None)
-                log.append({'m': 'place_bet', 'balance': balance, 'ret': r, 'lines': sorted(cur['lines'])})
-                cur['lines'] = None
-                return r
+                def place_bet(self, balance):
+                    P.calls += 1
+                    if P.calls > (1 if sc['rounds'] == 1 else 40):
+                        return 0
+                    cur['seq'] = []
+                    sys.settrace(tracer)
+                    try:
+                        r = super().place_bet(balance)
+                    finally:
+                        sys.settrace(None)
+                    log.append({'m': 'place_bet', 'round': P.calls, 'balance': balance, 'ret': r, 'seq': cur['seq']})
+                    cur['seq'] = None
+                    return r
 
-            def input(self, message):
-                hand = [str(c) for c in self.hand]
-                total = card_mod.Card.sum(self.hand)
-                cur['lines'] = set()
-                sys.settrace(tracer)
-                try:
-                    r = super().input(message)
-                finally:
-                    sys.settrace(None)
-                log.append({'m': 'input', 'hand': hand, 'sum': total, 'up': str(self.dealer_card), 'ret': r, 'lines': sorted(cur['lines'])})
-                cur['lines'] = None
-                return r
-        random.seed(3)
-        order = [card_mod.Card(c[0], c[1:]) for c in cards]
-        ad.deck = [card_mod.Card('♣', '2') for _ in range(30)] + order[::-1]
-        ad.round = 1
-        res = ad.game(P)
-        out[f] = {'log': log, 'result': list(res)}
+                def input(self, message):
+                    hand = [str(c) for c in self.hand]
+                    total = card_mod.Card.sum(self.hand)
+                    cur['seq'] = []
+                    sys.settrace(tracer)
+                    try:
+                        r = super().input(message)
+                    finally:
+                        sys.settrace(None)
+                    log.append({'m': 'input', 'round': P.calls, 'hand': hand, 'sum': total, 'up': str(self.dealer_card), 'ret': r, 'seq': cur['seq']})
+                    cur['seq'] = None
+                    return r
+            random.seed(sc['seed'])
+            if sc.get('cards'):
+                order = [card_mod.Card(c[0], c[1:]) for c in sc['cards']]
+                ad.deck = [card_mod.Card('♣', '2') for _ in range(30)] + order[::-1]
+            else:
+                ad.deck = [card_mod.Card(su, v) for su in ad.suits for v in ad.values]
+                random.shuffle(ad.deck)
+            ad.round = 1
+            res = ad.game(P)
+            out[f][sc['id']] = {'log': log, 'result': list(res)}
     return out
+
+
+def trace_main(ring2) -> dict:
+    """autodealer.py の __main__（テストの集計）を、MAX だけ 2 にして本物どおりに流す（行の数は変えない）。
+    players/ の全部のプレイヤーが、1人ずつ MAX 回ずつ game() を呼ぶ。駅は ring2.json の begin の行で切り替える。"""
+    import contextlib
+    import io
+    import os
+    import random
+    pf = str(REPO / 'autodealer.py')
+    src = (REPO / 'autodealer.py').read_text(encoding='utf-8')
+    assert 'MAX = 4000' in src, 'autodealer.py に MAX = 4000 が無い'
+    code = compile(src.replace('MAX = 4000', 'MAX = 2   ', 1), pf, 'exec')
+    begin = {ln: st['id'] for st in ring2['stations'] for ln in st['begin']}
+    keep = ('file_names_without_extension', 'module_name', 'game_round', 'MAX', 'result', 'num_turn', 'total', 'total_turns')
+    path, cur = [], None
+
+    def snap(g):
+        out = {}
+        for k in keep:
+            if k in g:
+                v = g[k]
+                out[k] = list(v) if isinstance(v, list) else v
+        return out
+
+    def tracer(fr, ev, arg):
+        nonlocal cur
+        if fr.f_code.co_filename != pf:
+            return None
+        if ev == 'call' and fr.f_code.co_name == 'game' and cur is not None:
+            cur.setdefault('calls', {})
+            cur['calls']['game()'] = cur['calls'].get('game()', 0) + 1
+            return None
+        if fr.f_code.co_name != '<module>':
+            return None
+        if ev == 'line':
+            ln = fr.f_lineno
+            if ln in begin and (cur is None or cur['id'] != begin[ln]):
+                if cur is not None:
+                    cur['after'] = snap(fr.f_globals)
+                cur = {'id': begin[ln], 'lines': {}, 'cargo': snap(fr.f_globals)}
+                path.append(cur)
+            if cur is not None:
+                key = f'autodealer.py:{ln}'
+                cur['lines'][key] = cur['lines'].get(key, 0) + 1
+        return tracer
+    g = {'__name__': '__main__', '__file__': pf}
+    out, here = io.StringIO(), os.getcwd()
+    random.seed(7)
+    os.chdir(REPO)
+    try:
+        with contextlib.redirect_stdout(out):
+            sys.settrace(tracer)
+            try:
+                exec(code, g)
+            finally:
+                sys.settrace(None)
+    finally:
+        os.chdir(here)
+    if cur is not None:
+        cur['after'] = snap(g)
+    path.append({'id': 'end', 'lines': {}, 'cargo': snap(g)})
+    return {'path': path, 'calls': {}, 'result': [0, 0], 'stdout': out.getvalue()}
 
 
 def trace_dealer() -> dict:
@@ -299,11 +401,24 @@ def build() -> pathlib.Path:
             if text.strip() and not text.strip().startswith('#'):
                 roles[f'{f}:{i}'] = role(text)
     dealer = trace_dealer()
-    decisions = trace_decisions(ad, card_mod, next(r for r in ring['routes'] if r['id'] == 'main')['cards'])
+    cards_of = {r['id']: r['cards'] for r in ring['routes']}
+    scenarios = [{'id': 'win', 'title': '勝つ一手', 'cards': cards_of['main'], 'rounds': 1, 'seed': 3},
+                 {'id': 'lose', 'title': '負ける一手', 'cards': cards_of['lose'], 'rounds': 1, 'seed': 3},
+                 {'id': 'game', 'title': 'ゲームの最後まで', 'cards': None, 'rounds': 0, 'seed': 11}]
+    decisions = trace_decisions(ad, card_mod, scenarios)
     for f, d in decisions.items():
-        print(f"  判断 {f}: " + ' → '.join(f"{x['m']}={x['ret']}" for x in d['log']))
+        g = d['game']
+        print(f"  判断 {f}: 最後まで {sum(1 for x in g['log'] if x['m'] == 'place_bet')} 回の place_bet、結果 {g['result']}")
+    ring2 = json.loads((HERE / 'ring2.json').read_text(encoding='utf-8'))
+    for st in ring2['stations']:
+        for ln in st['begin']:
+            text = src['autodealer.py'].split('\n')[ln - 1]
+            assert st['anchor'] in text, f"{st['id']}: autodealer.py:{ln} に「{st['anchor']}」が無い（今は「{text.strip()}」）"
+    main2 = trace_main(ring2)
+    print('  環状線02: ' + ' → '.join(p['id'] for p in main2['path']))
     print(f"  dealer.py 種 {dealer['seed']}: 呼び出し {len(dealer['edges'])} 種類")
-    data = {'ring': ring, 'sources': src, 'traces': traces, 'roles': roles, 'roleNames': ROLE_NAMES, 'dealer': dealer, 'diff': dealer_diff(), 'players': PLAYERS, 'decisions': decisions}
+    data = {'ring': ring, 'sources': src, 'traces': traces, 'roles': roles, 'roleNames': ROLE_NAMES, 'dealer': dealer, 'diff': dealer_diff(), 'players': PLAYERS, 'decisions': decisions, 'scenarios': [{k: v for k, v in x.items() if k != 'cards'} for x in scenarios],
+            'rings': {'r01': {'ring': ring, 'traces': traces}, 'r02': {'ring': ring2, 'traces': {r['id']: main2 for r in ring2['routes']}}}}
     blob = json.dumps(data, ensure_ascii=False).replace('</', '<\\/')
     page = (HERE / 'ring.src.html').read_text(encoding='utf-8')
     assert page.count('/*__DATA__*/{}') == 1, '埋め込む印 /*__DATA__*/{} が1つだけあるはず'

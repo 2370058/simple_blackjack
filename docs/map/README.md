@@ -23,7 +23,11 @@
 
 2 の図では、1ラウンドの流れを **dealer.py の箱に1回だけ** 書いてある。autodealer.py の `game()` はその流れを関数に入れたもので、箱には dealer.py と違う所（±: print → printx・exit/break → return・配る前の check_shuffle・turns・Player を引数で）だけを書き、「while True: … dealer.py と同じ」の行から dealer.py の箱へ線でつなぐ。本物の差分は `build.py` が difflib で比べて埋め込み（`dealer_diff`）、game の箱を押すと出る。
 
-「autodealer の1手」の下には **判断の部分** がある。`build.py` が今の players/ にある .py を全部探し（`PLAYERS`）、どのプレイヤーも同じカードの並びで1ラウンドだけ本物の autodealer.game() を流して、place_bet と input が何を見て何を返したか・プレイヤーのファイルのどの行を通ったかを記録する（`trace_decisions`。乱数は種をそろえる）。プレイヤーのファイルを足したら build.py を流し直すと、ここにも出る。
+3 環状線は2本ある。**01 1ラウンド**（game() の while True ＝ dealer.py と同じ流れ）と、**02 autodealer のテスト**（autodealer.py だけにある __main__。`ring2.json`。build.py が MAX だけ 2 にして本物どおりに流す `trace_main`）。02 の「1ゲーム」の駅の中が 01。2 の図の autodealer の集計の行からは 02 の駅へ行ける。
+
+01 のルートには、ゲームが終わるまで流すもの（`full: true`。勝ち逃げで終わる・全額を賭けて残高 0 で終わる）と、プレイヤーの place_bet（players/player_simple.py 65 行）か input（131 行）を1行だけ変えたもの（`variant`。全額を賭ける・いつも stand）がある。変えた所は `variantEx` に書き、ルートの結末の下に出る。
+
+「autodealer の1手」の下には **判断の部分** がある。`build.py` が今の players/ にある .py を全部探し（`PLAYERS`）、どのプレイヤーも同じカードの並びで1ラウンドだけ本物の autodealer.game() を流して、place_bet と input の中を通った行を順番に、その行に出てくる変数の値と一緒に記録する（`trace_decisions`。乱数は種をそろえる）。場面は「勝つ一手」「負ける一手」「ゲームの最後まで」の3つで、最後までの場面では、ゲームが終わる一手（place_bet が 0 を返す、または残高 0）まで出る。ページでは、通った順を矢印でつなぎ、if の行に真・偽、return の行に返した値を出す。プレイヤーのファイルを足したら build.py を流し直すと、ここにも出る。
 
 点数の計算は card.py の `Card.sum` が辞書 `card.vals` を引いて行う（`vals[card.value]`、21 を超えたら A を 1 に直す）。2 つの流れには「vals の辞書を引いて足す」手順があり、3 環状線の駅にも、その駅の手札で辞書を引いた計算（例: ♠5 → vals["5"] = 5 …）が出る。
 

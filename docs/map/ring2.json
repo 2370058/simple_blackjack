@@ -1,0 +1,153 @@
+{
+  "title": "環状線 02 autodealer のテスト",
+  "note": "autodealer.py だけにある __main__（テストの集計）を1周として追う。players/ のプレイヤーを1人ずつ読み込み、game() を MAX 回呼んで残高をたし、結果の1行を出す。game() の中（1ラウンドずつ）は環状線 01。ここは build.py が MAX だけ 2 にして本物どおりに流した記録（行の数は変えていない）。",
+  "loops": {
+    "t6>t3": "次のゲーム（MAX 回まで）",
+    "t7>t1": "次のプレイヤー",
+    "t3>t7": "MAX 回終わった"
+  },
+  "stations": [
+    {
+      "id": "tb",
+      "begin": [
+        1
+      ],
+      "anchor": "from random import shuffle",
+      "title": "起動の準備",
+      "kind": "入口",
+      "in": "python3 autodealer.py",
+      "out": "deck・round・関数（game・check_shuffle…）",
+      "note": "ファイルの上から1回だけ動く。山札を作って混ぜ、関数を用意する。山札はテストの最後まで同じものを使う（緊5）。"
+    },
+    {
+      "id": "t0",
+      "begin": [
+        194
+      ],
+      "anchor": "directory_path = 'players'",
+      "title": "players/ を探す",
+      "in": "今いるフォルダの players/",
+      "out": "file_names_without_extension（プレイヤーの名前の list）",
+      "note": "os.listdir の順番で、プレイヤーを1人ずつ処理する。別のフォルダから動かすと FileNotFoundError。"
+    },
+    {
+      "id": "t1",
+      "begin": [
+        207
+      ],
+      "anchor": "player_module = import_module(\"players.\"+module_name)",
+      "title": "プレイヤーを1人読み込む",
+      "in": "module_name（例 \"player_random\"）",
+      "out": "player_module（その中の BlackjackPlayer クラスを使う）",
+      "note": "2人目以降も、ここから同じ道を通る。前のプレイヤーの集計は、次の駅で 0 に戻る。"
+    },
+    {
+      "id": "t2",
+      "begin": [
+        209
+      ],
+      "anchor": "game_round = 1",
+      "title": "集計を 0 から",
+      "in": "前のプレイヤーの total・total_turns",
+      "out": "game_round = 1・total = 0・total_turns = 0・start_time",
+      "note": "プレイヤーごとに数え直す。山札（deck）は戻さないので、2人目は1人目の続きの山札から始まる（緊5）。"
+    },
+    {
+      "id": "t3",
+      "begin": [
+        213
+      ],
+      "anchor": "while game_round <= MAX:",
+      "title": "MAX 回まで？",
+      "kind": "分岐",
+      "in": "game_round・MAX",
+      "out": "MAX 以下なら1ゲームへ／超えたら結果の1行へ",
+      "note": "本物は MAX = 4000。ここでは 2。"
+    },
+    {
+      "id": "t4",
+      "begin": [
+        214
+      ],
+      "anchor": "result, num_turn = game(player_module.BlackjackPlayer)",
+      "title": "1ゲーム（環状線 01 を何周か）",
+      "in": "player_module.BlackjackPlayer（クラス）",
+      "out": "result（残高）・num_turn（ラウンド数）",
+      "note": "game() の中で、プレイヤーがやめる（place_bet が 0）か、残高が 0 になるまで、環状線 01 を何周もする。"
+    },
+    {
+      "id": "t5",
+      "begin": [
+        215
+      ],
+      "anchor": "total += result",
+      "title": "残高をたす",
+      "in": "result・num_turn",
+      "out": "total・total_turns",
+      "note": "無効な掛け金なら result は -1 で、そのまま平均に入る（緊1）。"
+    },
+    {
+      "id": "t6",
+      "begin": [
+        219
+      ],
+      "anchor": "game_round += 1",
+      "title": "次のゲームへ",
+      "in": "game_round",
+      "out": "game_round + 1",
+      "note": ""
+    },
+    {
+      "id": "t7",
+      "begin": [
+        220
+      ],
+      "anchor": "end_time = time.perf_counter()",
+      "title": "結果の1行",
+      "in": "total・total_turns・かかった時間",
+      "out": "「名前, ms, ラウンド数, 残高の平均」を print",
+      "note": "これがタスク A・B で表に写す1行。次のプレイヤーがいれば、t1 に戻る。"
+    },
+    {
+      "id": "end",
+      "begin": [],
+      "anchor": "",
+      "title": "全員終わり",
+      "kind": "出口",
+      "in": "",
+      "out": "プログラムの終わり",
+      "note": ""
+    }
+  ],
+  "routes": [
+    {
+      "id": "test2",
+      "title": "players/ の全員 × MAX 2 回",
+      "cards": [],
+      "summary": "players/ のプレイヤーを1人ずつ読み込み、それぞれ game() を 2 回呼んで、結果の1行を出す（本物は MAX = 4000 回）。2人目は1人目と同じ道をもう1周する。"
+    }
+  ],
+  "issues": [
+    {
+      "id": "緊1",
+      "kind": "緊急",
+      "station": "t5",
+      "g": "bad",
+      "line": 215,
+      "title": "無効な掛け金が「残高 -1」として平均に混ざる",
+      "what": "game() が無効な掛け金で (-1, 0) を返すと、total += result で -1 がたされる。",
+      "fix": "result < 0 を別に数える（タスク外の改修 外1）。"
+    },
+    {
+      "id": "緊5",
+      "kind": "緊急",
+      "station": "t2",
+      "g": "bad",
+      "line": 209,
+      "title": "2人目は1人目の続きの山札で始まる",
+      "what": "集計は 0 に戻すが、deck は戻さない。プレイヤーごとに違うカードの列で比べている。",
+      "fix": "プレイヤーごとに random.seed をそろえ、山札を作り直す。"
+    }
+  ],
+  "mainLabel": "本線 = autodealer の __main__（テストの集計）→ 時計回り"
+}
