@@ -16,7 +16,9 @@ import sys
 
 HERE = pathlib.Path(__file__).resolve().parent
 REPO = HERE.parent.parent
-FILES = ['autodealer.py', 'card.py', 'players/player_simple.py', 'players/player_random.py', 'player.py', 'dealer.py']
+# players/ にあるプレイヤーは、今のフォルダの中身を毎回探して全部入れる（ファイルを足したら build.py を流し直す）
+PLAYERS = sorted(f'players/{p}' for p in __import__('os').listdir(REPO / 'players') if p.endswith('.py'))
+FILES = ['autodealer.py', 'card.py', 'player.py', 'dealer.py'] + PLAYERS
 sys.path.insert(0, str(REPO))
 
 # 部品図の列（役割）。上から順に当てはめ、最初に当たったものにする
@@ -139,6 +141,62 @@ def run_route(ad, simple, card_mod, route, stations):
     return {'path': path, 'calls': calls, 'result': list(result), 'edges': edges}
 
 
+def trace_decisions(ad, card_mod, cards) -> dict:
+    """players/ の今いるプレイヤーごとに、同じカードの並び（cards）で1ラウンドだけ autodealer.game() を流し、
+    判断の部分（place_bet と input）が、何を見て何を返したか・プレイヤーのファイルのどの行を通ったかを記録する。"""
+    import random
+    out = {}
+    for f in PLAYERS:
+        mod = importlib.import_module(modname(f))
+        path = str(REPO / f)
+        log = []
+        cur = {'lines': None}
+
+        def tracer(fr, ev, arg):
+            if fr.f_code.co_filename != path:
+                return None
+            if ev == 'line' and cur['lines'] is not None:
+                cur['lines'].add(fr.f_lineno)
+            return tracer
+
+        class P(mod.BlackjackPlayer):
+            calls = 0
+
+            def place_bet(self, balance):
+                P.calls += 1
+                if P.calls > 1:
+                    return 0          # 2ラウンド目は遊ばない（1ラウンドだけ見る）
+                cur['lines'] = set()
+                sys.settrace(tracer)
+                try:
+                    r = super().place_bet(balance)
+                finally:
+                    sys.settrace(None)
+                log.append({'m': 'place_bet', 'balance': balance, 'ret': r, 'lines': sorted(cur['lines'])})
+                cur['lines'] = None
+                return r
+
+            def input(self, message):
+                hand = [str(c) for c in self.hand]
+                total = card_mod.Card.sum(self.hand)
+                cur['lines'] = set()
+                sys.settrace(tracer)
+                try:
+                    r = super().input(message)
+                finally:
+                    sys.settrace(None)
+                log.append({'m': 'input', 'hand': hand, 'sum': total, 'up': str(self.dealer_card), 'ret': r, 'lines': sorted(cur['lines'])})
+                cur['lines'] = None
+                return r
+        random.seed(3)
+        order = [card_mod.Card(c[0], c[1:]) for c in cards]
+        ad.deck = [card_mod.Card('♣', '2') for _ in range(30)] + order[::-1]
+        ad.round = 1
+        res = ad.game(P)
+        out[f] = {'log': log, 'result': list(res)}
+    return out
+
+
 def trace_dealer() -> dict:
     """dealer.py（対話）を、キーボードの代わりに決めた答え（100 → hit → stand → 0）で1ラウンドだけ流す。
     混ぜ方は random.seed で決め、hit しても バーストしない最初の種を使う。実行時の呼び出しと、画面に出た文字を記録する。"""
@@ -241,8 +299,11 @@ def build() -> pathlib.Path:
             if text.strip() and not text.strip().startswith('#'):
                 roles[f'{f}:{i}'] = role(text)
     dealer = trace_dealer()
+    decisions = trace_decisions(ad, card_mod, next(r for r in ring['routes'] if r['id'] == 'main')['cards'])
+    for f, d in decisions.items():
+        print(f"  判断 {f}: " + ' → '.join(f"{x['m']}={x['ret']}" for x in d['log']))
     print(f"  dealer.py 種 {dealer['seed']}: 呼び出し {len(dealer['edges'])} 種類")
-    data = {'ring': ring, 'sources': src, 'traces': traces, 'roles': roles, 'roleNames': ROLE_NAMES, 'dealer': dealer, 'diff': dealer_diff()}
+    data = {'ring': ring, 'sources': src, 'traces': traces, 'roles': roles, 'roleNames': ROLE_NAMES, 'dealer': dealer, 'diff': dealer_diff(), 'players': PLAYERS, 'decisions': decisions}
     blob = json.dumps(data, ensure_ascii=False).replace('</', '<\\/')
     page = (HERE / 'ring.src.html').read_text(encoding='utf-8')
     assert page.count('/*__DATA__*/{}') == 1, '埋め込む印 /*__DATA__*/{} が1つだけあるはず'

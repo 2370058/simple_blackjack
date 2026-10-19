@@ -194,6 +194,7 @@ tfoot td { font-weight: 700; }
 .c4 .dmark { font: 800 11px var(--display); fill: var(--branch); }
 .c4 .edge.same path { stroke: var(--dealer); stroke-width: 2.4; stroke-dasharray: 8 5; }
 .c4 .edge.same text { fill: var(--dealer); font-weight: 700; }
+.tpanel table { margin: 4px 0; } .tpanel td, .tpanel th { text-align: left; }
 .tpanel .step { border-left: 4px solid var(--t); padding: 4px 0 4px 12px; display: grid; gap: 8px; }
 .hidden-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
@@ -761,7 +762,7 @@ const TASKS = {
         rt: ["dealer.<module>:154 -> player.BlackjackPlayer.notify_result"] },
       { a: ["dealer", 1], b: ["dealer", 4], st: "s21", label: "turn_end() で次の周へ", desc: "round を1増やし、山札が半分を切っていたら作り直す。while True の先頭に戻り、次の掛け金で 0 を打ったので exit() で終わった。",
         code: [["dealer.py", "def turn_end():", 0, ["round += 1"]], ["dealer.py", "if bet_amount == 0:", 3, ["exit()"]]], rt: ["-> dealer.turn_end"] }] },
-  Q: { flow: true, t: "autodealer の1手", c: "var(--perf)",
+  Q: { flow: true, t: "autodealer の1手", c: "var(--perf)", decide: true,
     note: "autodealer.game() の中で、プレイヤーのプログラムが hit か stand かを決める1手。キーボードの代わりに、players.player_simple.BlackjackPlayer.input が、前もって渡された手札（self.hand）を見て文字列を返す。値は本物を「ヒットして勝つ」で流したもの（♠5・♣6 → hit → ♠9 で 20 → stand）。",
     ctx: [["x_vscode", "sys", "python3 autodealer.py", "人は何も打たない。players/ のプレイヤーが答える。"],
       ["p_strat", "sys", "input の中身を書く", "1手の決め方は、プレイヤーのファイルの input に書いてある。"]],
@@ -779,7 +780,7 @@ const TASKS = {
         rt: ["autodealer.game:79 -> players.player_simple.BlackjackPlayer.receive_hand", "autodealer.game:83 -> players.player_simple.BlackjackPlayer.look_dealer_hand"] },
       { a: ["dealer", 7], b: ["simple", 5], st: "s8", label: "input を呼ぶ", desc: "game() は質問の文字を渡すだけ。プレイヤーは画面を見ないので、message は使わずに self.hand を見る。",
         code: [[AD, "player_choice = player.input(", 2, ["player_choice = player.input("], [], 1]], rt: ["autodealer.game:87 -> players.player_simple.BlackjackPlayer.input"] },
-      { a: ["simple", 5], b: ["card", 3], st: "s8", label: "Card.sum(self.hand) と hit_threshold を比べる", desc: "1回目は ♠5 + ♣6 = 11。11 < 16 なので \"hit\"。2回目は ♠9 を足して 20。20 < 16 ではないので \"stand\"。",
+      { a: ["simple", 5], b: ["card", 3], st: "s8", label: "Card.sum(self.hand) と hit_threshold を比べる", desc: "（player_simple の場合。ほかのプレイヤーの判断は、下の「判断の部分」でプレイヤーを選ぶ）1回目は ♠5 + ♣6 = 11。11 < 16 なので \"hit\"。2回目は ♠9 を足して 20。20 < 16 ではないので \"stand\"。",
         code: [[SP, "hit_threshold = 16", 1, ["hit_threshold = 16"]], [SP, "def input", 0, ["if Card.sum(self.hand) < self.hit_threshold:"]]], rt: ["players.player_simple.BlackjackPlayer.input:"] },
       { a: ["card", 3], b: ["card", 0], st: "s8", label: "vals の辞書を引いて足す", desc: "Card.sum(self.hand) の中で、card.value を鍵にして辞書 vals を引く。1回目は ♠5 → vals[\"5\"] = 5、♣6 → vals[\"6\"] = 6 で 11。2回目は ♠9 → 9 を足して 20。A が無いので「21 を超えたら A を 1 に」は通らない。プレイヤーも dealer も同じ辞書で数える。",
         code: [["card.py", "vals = {", 1, ["vals = {"]], ["card.py", "def sum(cards):", 0, ["total = sum([vals[card.value] for card in cards])", "num_aces = sum(", "while total > 21 and num_aces:", "total -= 10"]]] },
@@ -982,6 +983,37 @@ function diffHtml(ex) {
   return `<div class="code diff">${ex.split("\n").map((l) => { const c = l[0] === "+" ? "add" : l[0] === "-" ? "del" : "";
     return `<div class="ln ${c}"><i>${c === "add" ? "+" : c === "del" ? "−" : ""}</i><s></s><span>${esc(l.slice(2))}</span><span></span></div>`; }).join("")}</div>`;
 }
+// 判断の部分: 今の players/ にいるプレイヤーごとに、place_bet と input のソースと、この1ラウンドで通った行
+function methodBlock(f, name, hit) {
+  const L = SRC[f], i = L.findIndex((l) => l.includes(`def ${name}(`));
+  if (i < 0) return "";
+  const r = funcLines(f, `def ${name}(`), Q3 = /'''|"""/g; let h = "", inDoc = false, skipped = false;
+  for (let n = r.from; n <= r.to; n++) {
+    const t = L[n - 1], q = (t.match(Q3) || []).length;
+    if (inDoc || q > 0) {   // 説明の文（docstring）は1行にまとめる
+      if (q === 1) inDoc = !inDoc;
+      if (!skipped) { h += `<div class="gap">  （説明の文は省略）</div>`; skipped = true; }
+      continue;
+    }
+    const role = ROLE[`${f}:${n}`];
+    h += `<div class="ln${hit.includes(n) ? " x" : ""}"><i>${n}</i><s style="--r:${role ? RC[role] : "transparent"}"></s><span>${esc(t)}</span><span>${hit.includes(n) ? "<em>← 通った</em>" : ""}</span></div>`;
+  }
+  return h;
+}
+function decidePanel() {
+  const D = DATA.decisions, ps = DATA.players, cur = ps.includes(S.dplayer) ? S.dplayer : ps.find((p) => p.includes("simple")) || ps[0];
+  const name = (p) => p.replace("players/", "").replace(".py", "");
+  const tabs = ps.map((p) => `<button type="button" data-dplayer="${p}" aria-pressed="${p === cur}">${esc(name(p))}</button>`).join("");
+  const sum = `<table><thead><tr><th>プレイヤー（players/ の今のファイル）</th><th>place_bet</th><th>input（1回目）</th><th>input（2回目）</th><th>このラウンドの残高</th></tr></thead><tbody>${ps.map((p) => {
+    const lg = D[p].log, ins = lg.filter((x) => x.m === "input"), pb = lg.find((x) => x.m === "place_bet");
+    return `<tr><td>${esc(name(p))}</td><td>${pb ? pb.ret : "—"}</td>${[0, 1].map((k) => `<td>${ins[k] ? `${ins[k].sum} → "${esc(ins[k].ret)}"` : "—"}</td>`).join("")}<td>${D[p].result[0]}</td></tr>`; }).join("")}</tbody></table>`;
+  const steps = D[cur].log.map((x) => x.m === "place_bet"
+      ? `<h4>place_bet(balance=${x.balance}) → ${esc(x.ret)}</h4><div class="code"><div class="file">${esc(cur)}</div>${methodBlock(cur, "place_bet", x.lines)}</div>`
+      : `<h4>input → "${esc(x.ret)}"（手札 ${x.hand.map(esc).join("・")} = ${x.sum}、ディーラーの表 ${esc(x.up)}）</h4><div class="code"><div class="file">${esc(cur)}</div>${methodBlock(cur, "input", x.lines)}</div>`).join("");
+  return `<h3>判断の部分（今の players/ にいるプレイヤー）</h3>
+    <p class="note">build.py が players/ にあるファイルを探し、どのプレイヤーも同じカードの並び（♠5・♡10・♣6・♢6・♠9…）で1ラウンドだけ本物の autodealer.game() を流した。濃い行が、この判断で実際に通った行（乱数は種をそろえてある）。ファイルを足して build.py を流し直すと、ここにも増える。</p>
+    ${sum}<div class="routes dtabs">${tabs}</div>${steps}`;
+}
 function taskPanel(lv) {
   const el = document.getElementById(lv + "task"), T = TASKS[S.task];
   if (!T) { el.innerHTML = ""; return; }
@@ -1009,6 +1041,7 @@ function taskPanel(lv) {
       <div><h3 style="color:${T.c}">${T.flow ? "流れ（順番）" : T.outside ? "直したい所" : prep.length ? "実行の流れ（順番）" : "流れ（順番）"}</h3><ol>${flow.map(([x, i]) => item(x, i)).join("")}</ol></div></div>${body}
     ${T.related ? `<p class="note">ほかにタスク外で直したい所は、3 環状線の旗にある: ${T.related.map((id) => `<button type="button" class="btn" data-ringissue="${id}">${id} ${esc(R.issues.find((x) => x.id === id).title)}</button>`).join(" ")}</p>` : ""}
     ${T.transcript ? `<h3>画面（ターミナル）</h3><div class="code term"><div class="file">打った答え</div>${DATA.dealer.answers.map((a) => `<div class="ln"><i></i><s></s><span>${esc(a)}</span><span></span></div>`).join("")}<div class="file">print された文字</div>${DATA.dealer.stdout.trim().split("\n").map((a) => `<div class="ln"><i></i><s></s><span>${esc(a)}</span><span></span></div>`).join("")}</div>` : ""}
+    ${T.decide ? decidePanel() : ""}
     ${!T.outside && !T.flow ? `<p class="note">タスク外で直したい所（どのタスクの結果にも効く所）は <button type="button" class="btn" data-task="X">タスク外の改修</button> にまとめてある。</p>` : ""}
     ${T.ways && lv === "c4" ? `<h3>分析のしかた（アプローチ）</h3><dl class="ways">${T.ways.map(([w, d]) => `<dt>${esc(w)}</dt><dd>${esc(d)}</dd>`).join("")}</dl>
       ${T.wayEx ? `<h4>まとめて流す例（コピーを作らない・信頼区間つき）</h4>${diffHtml(T.wayEx.split("\n").map((l) => "  " + l).join("\n"))}<p class="note">このページを作るときに 2000 ゲームずつ流した結果: 12 → 836 ± 24、16 → 863 ± 23、20 → 327 ± 23。12 と 16 の差は区間の幅とほぼ同じで、偶然かもしれない。</p>` : ""}` : ""}</section>`;
@@ -1241,6 +1274,8 @@ document.addEventListener("click", (ev) => {
   if (ri) { const it = R.issues.find((x) => x.id === ri.dataset.ringissue); setLevel("ring"); S.layers[it.kind] = true;
     if (!path().some((e) => e.id === it.station)) { const r = R.routes.find((x) => TR[x.id].path.some((e) => e.id === it.station)); if (r) S.route = r.id; }
     S.issue = it.id; S.pos = 0; goStation(it.station); window.scrollTo({ top: 0 }); return; }
+  const dp = ev.target.closest("[data-dplayer]");
+  if (dp) { S.dplayer = dp.dataset.dplayer; redrawC4(); return; }
   const tk = ev.target.closest("[data-task]");
   if (tk) { S.task = tk.dataset.task || null; S.tstep = S.task ? 0 : null; store.set("task", S.task); redrawC4(); return; }
   const ts = ev.target.closest("[data-tstep]");
