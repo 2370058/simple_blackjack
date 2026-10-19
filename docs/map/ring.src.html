@@ -94,16 +94,18 @@ button:focus-visible, [tabindex]:focus-visible { outline: 3px solid var(--car); 
 .fres { border: 2px solid var(--t); border-radius: 10px; padding: 8px 10px; margin: 8px 0; } .fres.ng { border-color: var(--danger); } .fres h4 { margin: 0 0 6px; }
 .ftab { border-collapse: collapse; width: 100%; font-size: .84rem; } .ftab th, .ftab td { border-top: 1px solid var(--line); padding: 5px 6px; text-align: left; vertical-align: top; } .ftab th { white-space: nowrap; font: 800 .8rem var(--display); }
 .ftab code { font-family: var(--mono); font-size: .78rem; overflow-wrap: anywhere; } .ftab small { color: var(--muted); } .ftab tr.cur td { background: color-mix(in srgb, var(--t) 14%, transparent); }
-.ftab .ok { color: var(--player); font-weight: 700; } .ftab .ng { color: var(--danger); font-weight: 700; }
+.ftab .ok { color: var(--player); font-weight: 700; } .ftab .oth { color: var(--perf); font-weight: 700; } .ftab .ng { color: var(--danger); font-weight: 700; }
 .fall { margin-top: 8px; }
 .mcard .fnview { width: auto; } .mcard .fnbox { max-height: 300px; }
 .mcards { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 8px; margin: 6px 0; } .mcard { border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; background: var(--panel); font-size: .82rem; min-width: 0; }
+h5.mg { margin: 8px 0 4px; font: 800 .8rem var(--display); color: var(--muted); } .mat.meth { border-style: dashed; } .mat em.oth, .mcard em.oth { color: var(--perf); font-style: normal; font-weight: 700; font-size: .72rem; }
+.mcard.meth { border-style: dashed; }
 .mcard.ng { border-color: color-mix(in srgb, var(--danger) 50%, var(--line)); } .mcard .mh { display: flex; flex-wrap: wrap; gap: 4px 8px; align-items: center; } .mcard .mh code { font: 800 .84rem var(--mono); }
 .mcard .mh em { font-style: normal; font-weight: 700; font-size: .74rem; color: var(--danger); } .mcard .mh em.ok { color: var(--player); }
 .mcard dl { margin: 6px 0 0; display: grid; grid-template-columns: 7.5em 1fr; gap: 3px 8px; } .mcard dt { font: 800 .74rem var(--display); color: var(--muted); } .mcard dd { margin: 0; min-width: 0; }
 .mcard ol, .mcard ul { margin: 0; padding-left: 1.3em; } .mcard .uses { list-style: none; padding: 0; margin-top: 3px; } .mcard .uses li { margin: 2px 0; } .mcard code { font-family: var(--mono); font-size: .74rem; overflow-wrap: anywhere; }
 @media (max-width: 600px) { .mcards { grid-template-columns: 1fr; } .mcard dl { grid-template-columns: 1fr; } }
-.ivars { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0; } .iv { display: inline-flex; gap: 6px; align-items: center; border: 1px dashed var(--t); border-radius: 8px; padding: 2px 4px 2px 8px; } .iv code { font: 700 .78rem var(--mono); } .iv small { color: var(--muted); }
+.ivars { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0; } .iv div { display: flex; flex-direction: column; } .iv small b { color: var(--fg); margin-right: 4px; } .iv { display: inline-flex; gap: 8px; align-items: center; border: 1px dashed var(--t); border-radius: 8px; padding: 2px 4px 2px 8px; } .iv code { font: 700 .78rem var(--mono); } .iv small { color: var(--muted); }
 .ivadd { display: flex; flex-wrap: wrap; gap: 6px; } .ivadd input { flex: 1 1 180px; min-width: 0; font: .84rem var(--body); border: 1px solid var(--line); border-radius: 8px; padding: 5px 8px; background: var(--bg); color: var(--fg); }
 textarea.prompt { width: 100%; box-sizing: border-box; font: .76rem/1.5 var(--mono); border: 1px solid var(--line); border-radius: 8px; padding: 8px; background: var(--bg); color: var(--fg); margin: 6px 0; }
 .exans { margin-top: 8px; border-top: 1px dashed var(--line); padding-top: 6px; } .exans ol { margin: 0 0 6px; padding-left: 1.4em; font-size: .82rem; } .fall summary { cursor: pointer; font: 800 .85rem var(--display); }
@@ -405,7 +407,7 @@ const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&l
 
 const store = { get(k, d) { try { const v = localStorage.getItem("bjmap:" + k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } },
   set(k, v) { try { localStorage.setItem("bjmap:" + k, JSON.stringify(v)); } catch (e) { /* 保存できなくても動く */ } } };
-const S = { kopen: new Set(), fnview: null, ofv: null, showOrig: store.get("showOrig", false), showRef: store.get("showRef", false), route: store.get("route", "main"), pos: 0, mode: store.get("mode", "drive"),
+const S = { kopen: new Set(), fnview: null, ofv: null, showOrig: store.get("showOrig", false), showRef: store.get("showRef", false), showMat: store.get("showMat", false), route: store.get("route", "main"), pos: 0, mode: store.get("mode", "drive"),
   rtask: store.get("rtask", null), find: store.get("find", {}), layers: store.get("layers", { "緊急": true, "悪意": true, "速さ": false }), issue: null, role: null, timer: null };
 S.ring = store.get("ring", "r01");
 
@@ -1045,10 +1047,11 @@ const MATS = {
       order: ["33 行の値", "20 行の判定"] }] };
 // 行 → その行を実行した駅（全ルートの本物の記録から）
 let LINE_ST = null;
-function lineStation(f, ln) {
-  if (!LINE_ST) { LINE_ST = {}; for (const t of Object.values(DATA.rings.r01.traces)) for (const e of t.path) for (const k of Object.keys(e.lines)) if (!(k in LINE_ST)) LINE_ST[k] = e.id; }
-  return LINE_ST[`${f}:${ln}`];
+function lineStations(f, ln) {
+  if (!LINE_ST) { LINE_ST = {}; for (const t of Object.values(DATA.rings.r01.traces)) for (const e of t.path) for (const k of Object.keys(e.lines)) (LINE_ST[k] = LINE_ST[k] || new Set()).add(e.id); }
+  return [...(LINE_ST[`${f}:${ln}`] || [])].sort((a, b) => idx[a] - idx[b]);
 }
+const lineStation = (f, ln) => lineStations(f, ln)[0];
 // 材料が今のコードのどこで使われているか（定義・代入・判定・引数・return・読む）
 function matUses(task, m) {
   if (!m.sym) return [];
@@ -1075,23 +1078,146 @@ function stationFiles() {
 }
 function findPick() { const F = S.find || {}; const tm = TIMINGS.find((x) => x.id === F.when); const side = tm && F.task ? tm[F.task] : null;
   return { F, tm, side: side && side.none ? null : side, none: side && side.none ? side : null }; }
+// メソッド（材料の入れ物）: 駅で呼ばれるが、今は少ししか使っていない・別の使い方ができるもの。呼ばれる駅は本物の記録から出す
+// now = 今していること、room = 使っていないもの・改造の余地、can = このメソッドでできること、cross = 別ファイル・別の駅、caution = 注意
+const METHODS = {
+  B: [
+    { n: "__init__(balance, …)", f: "players/player_simple.py", fn: "__init__", d: "ゲームの最初に1回",
+      now: "balance と、ファイルの上の stop_balance・unit_bet・hit_threshold（引数の既定値）を self.… に覚え、self.hand を [] にする",
+      room: "game() は Player(initial_balance) と残高しか渡さないので、ほかの引数はいつも既定値。自分の self.… を足して初期値を置ける唯一の場所",
+      can: "連敗の数・出たカードの数・掛け金の履歴などの初期値（self.lose_streak = 0 など）",
+      cross: "autodealer.py 44 行 Player(initial_balance)（駅 0）から呼ばれる。dealer.py では player.py の BlackjackPlayer(1000) が人の版",
+      caution: "Player はゲームごとに作り直すので、ここで置いた値はそのゲームの間だけ" },
+    { n: "place_bet(balance)", f: "players/player_simple.py", fn: "place_bet", d: "毎ラウンドの掛け金",
+      now: "勝ち逃げ（balance > stop_balance で 0）と、unit_bet か残り全部を返す",
+      room: "掛け金の戦略は全部ここ。self.round・self.last_dealer_hand・自分の self.… は、まだ使っていない",
+      can: "撤退・残高に比例・連敗で倍（マーチンゲール）・山札の後半で増やす（カウンティング）",
+      cross: "autodealer.py 57 行（駅 3）。返した値は駅 4 で確かめられる。dealer.py では人がキーボードで打つ（player.py の place_bet が input() を使う）",
+      caution: "0 を返すとゲーム終了。1 以上・残高以下でないと無効（-1）" },
+    { n: "start_turn(round)", f: "players/player_simple.py", fn: "start_turn", d: "毎ラウンドの最初",
+      now: "self.round = round と self.hand = [] だけ。判断には何も使っていない",
+      room: "毎ラウンド必ず最初に呼ばれる（place_bet より前）。round が 1 に戻ったら、山札を混ぜ直した合図",
+      can: "ラウンドごとのリセット、round == 1 で出たカードの数を 0 に戻す（カウンティング）",
+      cross: "autodealer.py 55 行 player.start_turn(round)（駅 2）。round は autodealer の global",
+      caution: "ここで return しても game() は使わない（答えを返す所ではない）" },
+    { n: "receive_hand(hand)", f: "players/player_simple.py", fn: "receive_hand", d: "手札が届く（何回も）",
+      now: "self.hand = hand だけ",
+      room: "配ったあと（79 行・駅 7）と hit のたび（91・93 行・駅 9）に呼ばれる。カードが増えるたびに呼ばれるので、引いたカードを数えられる",
+      can: "引いたカードを数える、手札の形（ソフトか・ペアか）を先に計算しておく",
+      cross: "autodealer.py 79・91・93 行",
+      caution: "hand は game() の player_hand と同じリスト。中身を変えると game() の手札も変わる（変えない）" },
+    { n: "look_dealer_hand(card)", f: "players/player_simple.py", fn: "look_dealer_hand", d: "表のカード1枚",
+      now: "self.dealer_card = card で覚えるだけ",
+      room: "input より前（駅 7）に必ず呼ばれる。表のカードはまだ判断に使っていない",
+      can: "表のカードで戦略を変える準備（ベーシックストラテジー）。表が A のときの判断（C でインシュランスを足すなら）",
+      cross: "autodealer.py 83 行 player.look_dealer_hand(dealer_hand[0])（駅 7）",
+      caution: "Card が1枚。点数にするなら Card.sum([card])" },
+    { n: "input(message)", f: "players/player_simple.py", fn: "input", d: "hit か stand か",
+      now: "Card.sum(self.hand) < hit_threshold なら \"hit\"",
+      room: "message は使っていない（dealer.py では人に見せる文字）。表のカード・残高・カウントは、まだ判断に入れていない",
+      can: "ベーシックストラテジー、残高で無理をしない、C と組んで \"double\" を返す",
+      cross: "autodealer.py 87 行（駅 8）。hit のたびにもう一度呼ばれる（駅 10 → 8）",
+      caution: "\"hit\"・\"stand\" 以外は無効でもう一度呼ばれる（緊2）" },
+    { n: "finish_dealer_hand(hand)", f: "players/player_simple.py", fn: "finish_dealer_hand", d: "ディーラーの開いた手",
+      now: "self.last_dealer_hand = hand.copy() で覚えるだけ",
+      room: "ディーラーの全部のカードが見られる唯一の所（駅 15）。自分の self.hand もまだ残っている",
+      can: "出たカードを数える（カウンティング）、ディーラーのバーストの傾向を数える",
+      cross: "autodealer.py 132 行（駅 15）。プレイヤーがバーストしても呼ばれる",
+      caution: "hand は game() の dealer_hand。copy して覚える" },
+    { n: "notify_result(result, bet_amount)", f: "players/player_simple.py", fn: "notify_result", d: "勝ち負けの知らせ",
+      now: "\"win\" なら self.balance を増やし、\"lose\" なら減らす。\"push\" は何もしない",
+      room: "勝ち負けが分かる唯一の所。連勝・連敗・履歴は、まだ数えていない",
+      can: "連敗を数えて次の place_bet で使う（マーチンゲール）、勝率を数える",
+      cross: "autodealer.py 99 行（バースト・駅 10）、139 行（ディーラーのバースト・駅 16）、158・162・166・171・175・178 行（駅 19）",
+      caution: "ブラックジャックは \"win\" で 1.5 倍の額が届く。push のときも呼ばれる" },
+    { n: "__str__()", f: "players/player_simple.py", fn: "__str__", d: "文字にする",
+      now: "手札と合計の文字列を返す",
+      room: "今のルートでは呼ばれない（print(player) としたときだけ）",
+      can: "途中の様子を print して確かめる（デバッグ）",
+      cross: "—",
+      caution: "—" }],
+  C: [
+    { n: "game(Player)", f: "autodealer.py", fn: "game", d: "1ゲーム（全部の駅）",
+      now: "while True で1ラウンドずつ、ゲームが終わるまで回し、(残高, ターン数) を返す",
+      room: "ルールの全部。initial_balance = 1000 は中に直に書いてある（引数にできる）",
+      can: "double・surrender・インシュランスなどのルールを足す",
+      cross: "__main__ の 214 行（環状線 02 の駅 4）。dealer.py の while True と同じ流れ（タスク C は dealer.py にも同じ変更）",
+      caution: "return で終わる所（駅 4・17・20）をそろえる" },
+    { n: "check_shuffle()", f: "autodealer.py", fn: "check_shuffle", d: "山札を混ぜ直すか",
+      now: "len(deck) < 52*penetration なら作り直して混ぜ、round = 1",
+      room: "配る前（68 行・駅 5）とラウンドの終わり（turn_end・駅 21）の2か所で呼ばれる",
+      can: "デッキの数、混ぜ直す割合、混ぜ直したことをプレイヤーに知らせる（今は round が 1 になるだけ）",
+      cross: "autodealer.py 68 行（駅 5）、29 行（turn_end の中・駅 21）",
+      caution: "global deck, round を書く" },
+    { n: "turn_end()", f: "autodealer.py", fn: "turn_end", d: "ラウンドの終わり",
+      now: "round += 1 と check_shuffle()",
+      room: "ラウンドの終わりに毎回呼ばれる（187 行・駅 21、141・150 行）。統計やログはまだ無い",
+      can: "ラウンドごとの記録（勝ち負けの数など）、プレイヤーにラウンドの終わりを知らせる新しいメソッドを呼ぶ",
+      cross: "autodealer.py 141 行（ディーラーのバースト）、150 行（プレイヤーのバースト）、187 行（ふつう）",
+      caution: "ゲームが終わる return の前には呼ばれない" },
+    { n: "printx(*args)", f: "autodealer.py", fn: "printx", d: "途中の表示",
+      now: "is_print が True のときだけ print",
+      room: "全部の駅で呼ばれる（31 行）。今は捨てている",
+      can: "is_print = True で確かめる（タスク C）、ファイルにログを書く",
+      cross: "dealer.py では print（人に見せる）",
+      caution: "4000 ゲームで print すると遅い" },
+    { n: "Card.sum(cards)", f: "card.py", fn: "sum", d: "点数の計算（辞書 vals）",
+      now: "vals[card.value] を足し、21 を超えたら A を 1 に直す",
+      room: "プレイヤー（input）もディーラー（game）も同じ計算を使う",
+      can: "点数のルールを変える（ハウスルール）。変えると両方に効く",
+      cross: "autodealer.py 80・94・96・114・118・124・128・135・154・163 行、player_simple.py 144 行",
+      caution: "リストを受け取る（1枚なら [card]）" },
+    { n: "Card.is_soft(cards)", f: "card.py", fn: "is_soft", d: "A を 11 と数えているか",
+      now: "A を 11 と数えていれば True",
+      room: "ディーラーのソフト 17（118 行・駅 14）でだけ使う。プレイヤーは使っていない",
+      can: "プレイヤーの戦略（ソフトハンドの判断）、H17 / S17 のルール",
+      cross: "autodealer.py 118 行",
+      caution: "—" },
+    { n: "Card.is_blackjack(cards)", f: "card.py", fn: "is_blackjack", d: "2枚で 21 か",
+      now: "2枚で 21 なら True",
+      room: "勝ち負け（155・168・169 行・駅 18・19）でだけ使う",
+      can: "配当（BJ_PAYOUT）、ディーラーがブラックジャックなら早く終わるルール（ピーク）",
+      cross: "autodealer.py 155・168・169 行",
+      caution: "—" }] };
+// メソッドが呼ばれた駅（その関数の中の行を実行した駅。全ルートの本物の記録から）
+function defRange(f, fn) {   // def の行から、その関数の最後の行まで（行数の上限なし）
+  const L = SRC[f] || [], i = L.findIndex((l) => new RegExp(`^\\s*def ${fn}\\(`).test(l)); if (i < 0) return null;
+  const ind = (t) => t.match(/^\s*/)[0].length, base = ind(L[i]); let j = i;
+  while (j + 1 < L.length && (!L[j + 1].trim() || ind(L[j + 1]) > base)) j++;
+  while (j > i && !L[j].trim()) j--;
+  return { from: i + 1, to: j + 1 };
+}
+function methodStations(m) {
+  const r = defRange(m.f, m.fn); if (!r) return [];
+  const out = new Set(); for (let ln = r.from; ln <= r.to; ln++) { for (const s2 of lineStations(m.f, ln)) out.add(s2); }
+  return [...out].sort((a, b) => idx[a] - idx[b]);
+}
 // 例（参考実装を、このアイデアの流れで読み込む）
 const FIND_EX = [
   { t: "例: weak_threshold（B）", ref: "weak_threshold", memo: "ディーラーの表が 2〜6（弱い）ときは、手札が 12 以上なら stand する（ベーシックストラテジーの一部）", task: "B", when: "hit", mats: ["self.hand", "self.dealer_card"],
-    vars: [{ n: "weak_threshold", note: "12。表が 2〜6 のとき、手札がこの点数以上なら stand" }] },
+    vars: [{ n: "weak_threshold", init: "12（players/player_simple.py の上の行。import のときに1回）", logic: "input の最初で、表（Card.sum([self.dealer_card])）が 6 以下で、Card.sum(self.hand) がこれ以上なら return \"stand\"" }] },
   { t: "例: MIN_BET・MAX_BET（C）", ref: "MIN_BET・MAX_BET", memo: "テーブルの最低・最高掛け金を決めて、外れた掛け金は無効にする", task: "C", when: "bet", mats: ["bet_amount", "player_balance"],
-    vars: [{ n: "MIN_BET・MAX_BET", note: "10, 500。autodealer.py の上に置く（どのプレイヤーにも同じ決まり）" }] }];
-const ivars = () => { try { return store.get("ideaVars", []); } catch (e) { return []; } };
-const matOf = (task, n) => (MATS[task] || []).find((x) => x.n === n);
-function matOk(m, side) { if (!side) return null; if (m.arg) return m.st === side.st; return idx[m.st] <= idx[side.st] || !!m.prev; }
+    vars: [{ n: "MIN_BET・MAX_BET", init: "10, 500（autodealer.py の上の行。どのプレイヤーにも同じ決まり）", logic: "駅 4 の if を MIN_BET <= bet_amount <= min(player_balance, MAX_BET) にする。外れたら今の else（0 なら終了、それ以外は無効）" }] }];
+const ivars = () => { try { return store.get("ideaVars", []).map((v) => v.init != null || v.logic != null ? v : { n: v.n, init: "", logic: v.note || "" }); } catch (e) { return []; } };
+const matOf = (task, n) => (MATS[task] || []).find((x) => x.n === n) || (METHODS[task] || []).find((x) => x.n === n);
+function matOk(m, side) { if (!side) return null; if (m.fn && m.now) return methodStations(m).includes(side.st) ? true : "other"; if (m.arg) return m.st === side.st; return idx[m.st] <= idx[side.st] || !!m.prev; }
 function findRel() {
   const { F, side } = findPick(), st = {}, add = (id, x) => (st[id] = st[id] || []).push(x);
   if (side && S.ring === "r01") { add(side.st, { n: "ここに入れる", kind: "発火" });
-    for (const n of (F.mats || [])) { const m = matOf(F.task, n); if (m && m.st !== side.st) add(m.st, { n: "材料: " + n.split("（")[0], kind: "材料" }); } }
+    for (const n of (F.mats || [])) { const m = matOf(F.task, n); if (!m) continue; const at = m.now ? methodStations(m).filter((x) => x !== side.st)[0] : m.st; if (at && at !== side.st) add(at, { n: "材料: " + n.split(/[（(]/)[0], kind: "材料" }); } }
   const edits = side ? [[FTASK[F.task].f, side.at]] : [];
   return { st, routes: new Set(), edits, T: { t: "置き場所", c: FIND_C, c4: [] }, k: "FIND" };
 }
+function methodCard(task, m, side) {
+  const sts = methodStations(m), r = defRange(m.f, m.fn), here = side && sts.includes(side.st);
+  return `<div class="mcard meth"><div class="mh"><code>${esc(m.n)}</code><small>${esc(m.f)}</small>${side ? (here ? `<em class="ok">この駅で呼ばれる</em>` : `<em class="oth">別の駅で呼ばれる（そこで覚えて、この駅で使う）</em>`) : ""}</div>
+    <dl><dt>定義</dt><dd>${r ? `${srcLink("m", m.f, r.from)} <code>${esc((SRC[m.f] || [])[r.from - 1].trim())}</code>` : "—"}</dd>
+      <dt>呼ばれる駅</dt><dd>${sts.length ? sts.map((x) => `<button type="button" class="btn sb" data-tst="${x}">駅 ${idx[x]}. ${esc(ST[x].title)}</button>`).join(" ") : "<small>今のルートでは呼ばれない</small>"}</dd>
+      <dt>今していること</dt><dd>${esc(m.now)}</dd><dt>使っていない・改造の余地</dt><dd>${esc(m.room)}</dd><dt>このメソッドでできること</dt><dd>${esc(m.can)}</dd>
+      <dt>別ファイル・別の駅</dt><dd>${esc(m.cross)}</dd><dt>注意</dt><dd>${esc(m.caution)}</dd></dl></div>`;
+}
 function matCard(task, m, side) {
+  if (m.now) return methodCard(task, m, side);
   const ok = matOk(m, side), uses = matUses(task, m);
   return `<div class="mcard${ok === false ? " ng" : ""}"><div class="mh"><code>${esc(m.n)}</code><button type="button" class="btn sb" data-tst="${m.st}">駅 ${idx[m.st]}. ${esc(ST[m.st].title)} から</button>${ok === false ? `<em>この駅ではまだ無い${m.arg ? `（引数なので駅 ${idx[m.st]} の中だけ）` : ""}</em>` : ok ? "<em class=\"ok\">この駅で使える</em>" : ""}</div>
     <dl><dt>今どこにあるか</dt><dd>${esc(m.def)}</dd>
@@ -1118,15 +1244,19 @@ function buildPrompt() {
     if (r) { out.push("", `## ${side.fn}() の今のコード（${f} ${r.from}〜${r.to} 行）`, "```python"); for (let n = r.from; n <= r.to; n++) out.push(`${String(n).padStart(3)}  ${L[n - 1]}`); out.push("```"); } }
   out.push("", "# 選んだ材料（今のコード）");
   if (!sel.length) out.push("（まだ選んでいない）");
-  for (const n of sel) { const m = matOf(F.task, n); if (!m) continue; const ok = matOk(m, side);
+  for (const n of sel) { const m = matOf(F.task, n); if (!m || m.now) continue; const ok = matOk(m, side);
     out.push(`## ${m.n}（駅 ${idx[m.st]} から${ok === false ? "・この駅ではまだ無い" : ""}）`, `- 今どこにあるか: ${m.def}`, `- 今の使われ方: ${m.use}`);
     for (const u of matUses(F.task, m)) out.push(`  - ${u.kind}: ${u.f}:${u.ln} \`${u.t}\`${u.st ? `（駅 ${idx[u.st]}）` : ""}`);
     out.push(`- 置き換え: ${m.alt}`, `- 併せて使う: ${m.combo}`, `- 変えると: ${m.change}`); }
   out.push("", "# ほかに使える材料（名前・手に入る駅）", ...mats.filter((m) => !sel.includes(m.n)).map((m) => `- ${m.n}（駅 ${idx[m.st]} から）: ${m.d}`));
-  out.push("", "# メモした変数（まだコードに無い。こういう変数があればいいかも）", ...(vars.length ? vars.map((v) => `- ${v.n}: ${v.note}`) : ["（なし）"]));
+  out.push("", "# メソッド（駅で呼ばれる入れ物。今していること・改造の余地）");
+  for (const m of METHODS[F.task]) { const sts = methodStations(m), on = sel.includes(m.n);
+    out.push(`- ${m.f} ${m.n}${sts.length ? `（駅 ${sts.map((x) => idx[x]).join("・")} で呼ばれる）` : "（今のルートでは呼ばれない）"}${on ? " ← 選んだ" : ""}: 今は ${m.now}`);
+    if (on) out.push(`  - 使っていない・余地: ${m.room}`, `  - できること: ${m.can}`, `  - 別ファイル・別の駅: ${m.cross}`, `  - 注意: ${m.caution}`); }
+  out.push("", "# メモした変数（まだコードに無い。こういう変数があればいいかも）", ...(vars.length ? vars.map((v) => `- ${v.n}\n  - 初期値: ${v.init || "（未定）"}\n  - ロジック: ${v.logic || "（未定）"}`) : ["（なし）"]));
   if (side) { const refs = REFIMPL[side.st] || []; if (refs.length) { out.push("", "# この駅の参考実装（似た変更の例）"); for (const x of refs) out.push(`- ${x.n} = ${x.v}（${x.f}）: ${x.t}`, `  足した行: \`${x.use}\``); } }
   out.push("", "# お願い",
-    "1. まず、上の材料・今のステートメント（代入）・判定（if）だけで、やりたいことが叶えられるか検討してください。メモした変数の中に、既にある材料で代わりになるものが無いかも確かめてください。",
+    "1. まず、上の材料・メソッド（今は少ししか使っていないもの）・今のステートメント（代入）・判定（if）だけで、やりたいことが叶えられるか検討してください。メモした変数の中に、既にある材料やメソッドで代わりになるものが無いかも確かめてください。",
     "2. 足りなければ、メモした変数のうち必要なものについて、どこで定義するか（ファイルの上・__init__）、どの駅のどのメソッドで更新するか、どこで判定に使うかを決めてください。",
     "3. 変更を、加える順番に、ファイル・関数・行番号・変更前と変更後のコードで示してください。",
     "4. その変更で、環状線の流れ（この駅の判断の結果、次にどの駅へ進むか）がどう変わるかを説明してください。",
@@ -1142,11 +1272,15 @@ function findPanel(bar) {
   const step2 = F.task ? `<div class="fstep"><b>2. アイデアは、いつ動けばいい？</b><div class="routes">${TIMINGS.map((x) => { const s2 = x[F.task];
     return btn("when", x.id, F.when === x.id, `${esc(x.t)}${s2.none ? "（B では無理）" : `<small> 駅 ${idx[s2.st]}</small>`}`); }).join("")}</div></div>` : "";
   const mats = F.task ? MATS[F.task] : [];
-  const step3 = F.task ? `<div class="fstep"><b>3. 何を材料に判断する？</b>（いくつでも。下に詳しい説明が出る）<div class="mats">${mats.map((m) => { const on = (F.mats || []).includes(m.n), ok = matOk(m, side);
-    return `<button type="button" class="mat${ok === false ? " ng" : ok ? " ok" : ""}" data-fset="mat:${esc(m.n)}" aria-pressed="${on}"><code>${esc(m.n)}</code><small>駅 ${idx[m.st]} から・${esc(m.d)}</small>${ok === false ? `<em>この駅ではまだ無い${m.arg ? "（引数なので駅 " + idx[m.st] + " の中だけ）" : ""}</em>` : ""}</button>`; }).join("")}</div></div>` : "";
+  const meths = F.task ? METHODS[F.task] : [];
+  const methBtns = F.task ? `<h5 class="mg">メソッド（材料の入れ物。駅で呼ばれるが、今は少ししか使っていない・別の使い方ができるもの）</h5><div class="mats">${meths.map((m) => { const on = (F.mats || []).includes(m.n), ok = matOk(m, side), sts = methodStations(m);
+    return `<button type="button" class="mat meth${ok === true ? " ok" : ""}" data-fset="mat:${esc(m.n)}" aria-pressed="${on}"><code>${esc(m.n)}</code><small>${!sts.length ? "呼ばれない" : sts.length > 6 ? `${sts.length} 駅（駅 ${idx[sts[0]]}〜${idx[sts[sts.length - 1]]}）` : "駅 " + sts.map((x) => idx[x]).join("・")}・${esc(m.d)}</small>${ok === "other" ? "<em class=\"oth\">別の駅</em>" : ""}</button>`; }).join("")}</div>` : "";
+  const infoTog = F.task ? `<button type="button" class="btn otog" data-mattog aria-pressed="${!!S.showMat}">材料の説明: ${S.showMat ? "オン" : "オフ"}</button>` : "";
+  const step3 = F.task ? `<div class="fstep"><div class="h3row"><b>3. 何を材料に判断する？</b>${infoTog}</div><small>（いくつでも。説明をオンにすると、下に詳しいカードが出る）</small><h5 class="mg">値（変数・引数）</h5><div class="mats">${mats.map((m) => { const on = (F.mats || []).includes(m.n), ok = matOk(m, side);
+    return `<button type="button" class="mat${ok === false ? " ng" : ok ? " ok" : ""}" data-fset="mat:${esc(m.n)}" aria-pressed="${on}"><code>${esc(m.n)}</code><small>駅 ${idx[m.st]} から・${esc(m.d)}</small>${ok === false ? `<em>この駅ではまだ無い${m.arg ? "（引数なので駅 " + idx[m.st] + " の中だけ）" : ""}</em>` : ""}</button>`; }).join("")}</div>${methBtns}</div>` : "";
   const step4 = F.task ? `<div class="fstep"><b>4. メモ: こういう変数があればいいかも</b>（まだコードに無いもの。プロンプトでは、まず既存の材料で代わりにならないかを検討させる）
-    <div class="ivars">${vars.map((v, i) => `<span class="iv"><code>${esc(v.n)}</code><small>${esc(v.note)}</small><button type="button" class="btn sb" data-ivdel="${i}" aria-label="${esc(v.n)} を消す">×</button></span>`).join("") || "<small>（まだ無い）</small>"}</div>
-    <div class="ivadd"><input data-ivn placeholder="変数の名前（例: lose_streak）"><input data-ivnote placeholder="メモ（例: 連敗の数。notify_result で数えて place_bet で使う）"><button type="button" class="btn" data-ivadd>足す</button></div></div>` : "";
+    <div class="ivars">${vars.map((v, i) => `<div class="iv"><code>${esc(v.n)}</code><div><small><b>初期値</b> ${esc(v.init || "—")}</small><small><b>ロジック</b> ${esc(v.logic || "—")}</small></div><button type="button" class="btn sb" data-ivdel="${i}" aria-label="${esc(v.n)} を消す">×</button></div>`).join("") || "<small>（まだ無い）</small>"}</div>
+    <div class="ivadd"><input data-ivn placeholder="変数の名前（例: lose_streak）"><input data-ivinit placeholder="初期値（例: 0。__init__ で）"><input data-ivlogic placeholder="ロジック（例: notify_result で lose なら +1・win なら 0、place_bet で 3 以上なら掛け金を半分）"><button type="button" class="btn" data-ivadd>足す</button></div></div>` : "";
   let result = "";
   if (none) { const alt = TIMINGS.find((x) => x.id === none.alt);
     result = `<div class="fres ng"><b>B（プレイヤー）では、このタイミングにメソッドが呼ばれない。</b><p>${esc(none.none)}</p>${alt ? `<p>近いのは <button type="button" class="btn" data-fset="when:${alt.id}">${esc(alt.t)}（駅 ${idx[alt.B.st]}）</button>。それとも、ルールとして C（autodealer.py）で入れるか。</p>` : ""}</div>`; }
@@ -1159,7 +1293,8 @@ function findPanel(bar) {
       <tr><th>ファイル</th><td><code>${esc(f)}</code></td></tr>
       <tr><th>関数</th><td><code>${esc(side.fn)}</code> <small>${esc(side.how)}</small></td></tr>
       <tr><th>入れる行</th><td>${i < 0 ? "（見つからない）" : `${srcLink("f", f, i + 1)} <code>${esc(L[i].trim())}</code> <small>の前後（行番号を押すと関数の全体）</small>`}</td></tr>
-      <tr><th>材料</th><td>${(F.mats || []).length ? (F.mats || []).map((m) => `<span class="${bad.includes(m) ? "ng" : "ok"}">${bad.includes(m) ? "✗" : "✓"} ${esc(m)}</span>`).join(" ") : "<small>（3 で選ぶと、この駅で使えるかを確かめる）</small>"}${bad.length ? `<p class="note">✗ はこの駅ではまだ手に入らない。前の駅で self.… に覚えておくか（B）、いつ動くかを後ろにずらす。</p>` : ""}</td></tr>
+      <tr><th>材料</th><td>${(F.mats || []).length ? (F.mats || []).map((m) => { const o = matOf(F.task, m), other = o && o.now && matOk(o, side) === "other";
+        return `<span class="${bad.includes(m) ? "ng" : other ? "oth" : "ok"}">${bad.includes(m) ? "✗" : other ? "↪" : "✓"} ${esc(m)}${other ? "（別の駅で呼ばれる）" : ""}</span>`; }).join(" ") : "<small>（3 で選ぶと、この駅で使えるかを確かめる）</small>"}${bad.length ? `<p class="note">✗ はこの駅ではまだ手に入らない。前の駅で self.… に覚えておくか（B）、いつ動くかを後ろにずらす。</p>` : ""}</td></tr>
       <tr><th>この駅が使うファイル</th><td>${Object.entries(used).map(([uf, fns]) => `<code>${esc(uf)}</code> <small>${esc([...fns].join("・"))}</small>`).join("<br>") || "<small>—</small>"}</td></tr>
       ${refs.length ? `<tr><th>この駅の参考実装</th><td>${refs.map((x) => `<button type="button" class="btn rfb" data-refgo="${esc(x.n)}" data-tst="${side.st}">${esc(x.n)}</button>`).join(" ")}</td></tr>` : ""}
       ${rel.length ? `<tr><th>タスク ${F.task} の手順</th><td>${rel.map((x) => `<button type="button" class="btn" data-goflow="${F.task}:${x.i}">${stepTag(TASKS[F.task].c4, x.i, TASKS[F.task])}. ${esc(TASKS[F.task].c4[x.i].label)}</button>`).join(" ")}</td></tr>` : ""}
@@ -1169,8 +1304,8 @@ function findPanel(bar) {
   let placed = false;   // 押したコードの関数の全体は、そのカードの中に出す
   const card = (m) => { const h = matCard(F.task, m, side); if (placed || !S.ofv || !S.ofv.startsWith("m|") || !h.includes(`data-ofv="${S.ofv}"`)) return h; placed = true;
     const [, f, ln] = S.ofv.split("|"); return h.replace(/<\/div>$/, `<div class="ofvw" style="--t:var(--dealer)">${fnView(f, +ln, 'data-ofv=""')}</div></div>`); };
-  const cards = F.task ? `${sel.length ? `<h4>選んだ材料の説明</h4><div class="mcards">${sel.map(card).join("")}</div>` : ""}
-    <details class="fall" data-dkey="allmats"><summary>材料の説明を全部見る（タスク ${F.task}）</summary><div class="mcards">${mats.filter((m) => !sel.includes(m)).map(card).join("")}</div></details>` : "";
+  const cards = F.task && S.showMat ? `${sel.length ? `<h4>選んだ材料の説明</h4><div class="mcards">${sel.map(card).join("")}</div>` : ""}
+    <details class="fall" data-dkey="allmats"><summary>材料の説明を全部見る（タスク ${F.task}・値 ${mats.length}・メソッド ${meths.length}）</summary><div class="mcards">${[...mats, ...meths].filter((m) => !sel.includes(m)).map(card).join("")}</div></details>` : "";
   const prompt = F.task ? `<details class="fall pr" data-dkey="prompt" open><summary>プロンプトのテンプレート（今の状態から作る。コピーして使う）</summary><p class="note">アイデア・タスク・いつ・材料・メモした変数から、今のコードの状態（駅・ファイル・関数の今のコード・材料の今の使われ方・参考実装）を書き出したもの。最後に「まず既存の材料・ステートメント・判定で叶えられるか検討 → 足りなければメモの変数をどこで定義・更新・判定するか → 順番に変更」を頼む。</p><textarea class="prompt" readonly rows="14">${esc(buildPrompt())}</textarea><button type="button" class="btn" data-copyprompt>コピー</button> <small class="copied" hidden>コピーした</small></details>` : "";
   const files = `<details class="fall" data-dkey="stfiles"><summary>駅ごとに使っているファイル・関数（全ルートの本物の記録から）</summary><div class="tw"><table class="ftab"><thead><tr><th>駅</th><th>autodealer.py</th><th>players/</th><th>card.py</th></tr></thead><tbody>${RING.map((s) => { const m = FS[s.id] || {};
     const col = (pred) => Object.entries(m).filter(([f]) => pred(f)).map(([, fns]) => esc([...fns].join("・"))).join(" ") || "—";
@@ -1245,10 +1380,12 @@ document.addEventListener("click", (ev) => {
   if (ov) { const id = ov.dataset.ofv; S.ofv = !id || S.ofv === id ? null : id; const y = window.scrollY; render(); window.scrollTo({ top: y }); scrollFnBoxes(); return; }
   const fx = ev.target.closest("[data-fex]");
   if (fx) { const x = FIND_EX[+fx.dataset.fex]; S.find = { task: x.task, when: x.when, mats: [...x.mats], ex: +fx.dataset.fex }; store.set("find", S.find); store.set("ideaMemo", x.memo);
-    const vs = ivars(); for (const v of x.vars) if (!vs.some((y) => y.n === v.n)) vs.push(v); store.set("ideaVars", vs);
+    const vs = ivars().filter((y) => !x.vars.some((v) => v.n === y.n)); vs.push(...x.vars); store.set("ideaVars", vs);
     const { side } = findPick(); if (side) { if (!path().some((e) => e.id === side.st)) { const r = R.routes.find((q) => TR[q.id].path.some((e) => e.id === side.st)); if (r) { S.route = r.id; S.pos = 0; } } goStation(side.st); } else render(); return; }
+  const mt = ev.target.closest("[data-mattog]");
+  if (mt) { S.showMat = !S.showMat; store.set("showMat", S.showMat); if (!S.showMat && S.ofv && S.ofv.startsWith("m|")) S.ofv = null; const y = window.scrollY; render(); window.scrollTo({ top: y }); return; }
   const ia = ev.target.closest("[data-ivadd]");
-  if (ia) { const n = document.querySelector("[data-ivn]").value.trim(), note = document.querySelector("[data-ivnote]").value.trim(); if (n) { const vs = ivars(); vs.push({ n, note }); store.set("ideaVars", vs); const y = window.scrollY; render(); window.scrollTo({ top: y }); } return; }
+  if (ia) { const n = document.querySelector("[data-ivn]").value.trim(), init = document.querySelector("[data-ivinit]").value.trim(), logic = document.querySelector("[data-ivlogic]").value.trim(); if (n) { const vs = ivars(); vs.push({ n, init, logic }); store.set("ideaVars", vs); const y = window.scrollY; render(); window.scrollTo({ top: y }); } return; }
   const idl = ev.target.closest("[data-ivdel]");
   if (idl) { const vs = ivars(); vs.splice(+idl.dataset.ivdel, 1); store.set("ideaVars", vs); const y = window.scrollY; render(); window.scrollTo({ top: y }); return; }
   const cp = ev.target.closest("[data-copyprompt]");
