@@ -227,6 +227,17 @@ tfoot td { font-weight: 700; }
 .trace .tl .kmark { color: var(--car); margin-right: 2px; font-size: .7rem; }
 .kbar { padding: 6px 12px 8px; }
 .kbar .ktog { border-color: var(--car); }
+.srcbtn { all: unset; cursor: pointer; display: block; border-radius: 4px; text-decoration: underline dotted color-mix(in srgb, var(--t) 60%, transparent); text-underline-offset: 3px; }
+.srcbtn:hover, .srcbtn[aria-expanded="true"] { background: color-mix(in srgb, var(--t) 14%, transparent); }
+.srcbtn:focus-visible { outline: 2px solid var(--t); outline-offset: 2px; }
+.fnview { margin: 4px 0 14px; border: 1.5px solid var(--t); border-radius: 10px; overflow: hidden; max-width: 100%; }
+.fnview .fnh { display: flex; flex-wrap: wrap; gap: 4px 6px; align-items: center; padding: 8px 10px; font-size: .8rem; }
+.fnview .fnh code { font-family: var(--mono); font-size: .76rem; background: color-mix(in srgb, var(--t) 10%, transparent); border-radius: 4px; padding: 0 5px; overflow-wrap: anywhere; }
+.fnview .fnh .btn { margin-left: auto; } .fnview .note { padding: 8px 10px; margin: 0; }
+.fnbox { max-height: 380px; overflow: auto; position: relative; margin: 0 !important; border-radius: 0 !important; }
+.code .ln.hd { background: color-mix(in srgb, var(--t) 22%, transparent); } .edm.hdm { opacity: .85; }
+.fnrow td { padding: 0 !important; background: transparent !important; }
+.fnrow .fnview { position: sticky; left: 0; width: min(900px, calc(100vw - 72px)); }
 .lchain { display: flex; gap: 6px; overflow-x: auto; padding: 4px 2px 12px; align-items: flex-start; scroll-snap-type: x proximity; }
 .lcard { flex: 0 0 250px; scroll-snap-align: start; border: 1.5px solid var(--t); border-radius: 10px; padding: 8px 10px; background: var(--panel); font-size: .82rem; display: flex; flex-direction: column; gap: 5px; }
 .lcard .kh { display: flex; gap: 8px; align-items: baseline; font-size: .78rem; color: var(--muted); } .lcard .kh b { color: var(--fg); font-family: var(--mono); }
@@ -320,7 +331,7 @@ const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&l
 
 const store = { get(k, d) { try { const v = localStorage.getItem("bjmap:" + k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } },
   set(k, v) { try { localStorage.setItem("bjmap:" + k, JSON.stringify(v)); } catch (e) { /* 保存できなくても動く */ } } };
-const S = { kopen: new Set(), route: store.get("route", "main"), pos: 0, mode: store.get("mode", "drive"),
+const S = { kopen: new Set(), fnview: null, route: store.get("route", "main"), pos: 0, mode: store.get("mode", "drive"),
   layers: store.get("layers", { "緊急": true, "悪意": true, "速さ": false }), issue: null, role: null, timer: null };
 S.ring = store.get("ring", "r01");
 
@@ -1306,21 +1317,51 @@ function endNext(e) {
   const L = SRC[e.f] || [], skipped = L.slice(e.ln, nx[1] - 1).some((t) => t.trim() && !t.trim().startsWith("#") && !/^\s*printx\(/.test(t));
   return skipped ? `→ ${where}` : "";
 }
+// その行が入っている関数（関数の外なら、一番外の文）全体と、外側から順に入っている文（def・for・while・if…）
+function enclosing(f, ln) {
+  const L = SRC[f] || [], ind = (t) => t.match(/^\s*/)[0].length, real = (t) => t.trim() && !t.trim().startsWith("#");
+  const heads = []; let cur = ind(L[ln - 1] || "");
+  for (let k = ln - 2; k >= 0 && cur > 0; k--) { const t = L[k];
+    if (real(t) && ind(t) < cur && /:\s*(#.*)?$/.test(t)) { heads.push(k + 1); cur = ind(t); } }
+  if (!heads.length) return null;
+  const top = heads.find((n) => /^\s*def /.test(L[n - 1])) || heads[heads.length - 1], base = ind(L[top - 1]);
+  let to = top;
+  while (to < L.length && (!L[to].trim() || ind(L[to]) > base)) to++;
+  while (to > top && !L[to - 1].trim()) to--;
+  return { from: top, to, top, heads: heads.filter((n) => n >= top).reverse() };
+}
+function fnView(f, ln) {
+  const r = enclosing(f, ln), L = SRC[f] || [];
+  if (!r) return `<div class="fnview"><p class="note">${esc(f)}:${ln} はどの関数・文にも入っていない（ファイルの一番外の行）。<button type="button" class="btn" data-fnview="">閉じる</button></p></div>`;
+  let h = "", inDoc = false, folded = false;
+  for (let n = r.from; n <= r.to; n++) { const t = L[n - 1], q3 = (t.match(/'{3}|"{3}/g) || []).length;
+    if (inDoc || q3 > 0) { if (q3 === 1) inDoc = !inDoc; if (!folded) { h += `<div class="gap">  （説明の文は省略）</div>`; folded = true; } continue; }
+    const hd = r.heads.includes(n), role = ROLE[`${f}:${n}`];
+    h += `<div class="ln${n === ln ? " x cur" : hd ? " hd" : ""}"><i>${n}</i><s style="--r:${role ? RC[role] : "transparent"}"></s><span>${esc(t)}</span><span>${n === ln ? `<em class="edm">← この行</em>` : hd ? `<em class="edm hdm">← 入っている所</em>` : ""}</span></div>`; }
+  const isDef = /^\s*def /.test(L[r.top - 1]);
+  return `<div class="fnview"><div class="fnh"><b>${esc(f.replace("players/", ""))}:${ln}</b> は${isDef ? "関数" : "文"} <code>${esc(L[r.top - 1].trim())}</code>（${r.from}〜${r.to} 行）の中。
+    外から順に: ${r.heads.map((n) => `<code>${esc(L[n - 1].trim())}</code>`).join(" › ")}<button type="button" class="btn" data-fnview="">閉じる</button></div><div class="code fnbox">${h}</div></div>`;
+}
+function scrollFnBoxes() {
+  document.querySelectorAll(".fnbox").forEach((b) => { const c = b.querySelector(".cur"); if (c) b.scrollTop = c.offsetTop - b.clientHeight / 2; });
+}
 function endingPanel(kind) {
   const E = DATA.endings[kind], C = LINEAGE[kind];
   const line = (e) => (SRC[e.f] || [])[e.ln - 1] || "";
   const bare = (t) => t.replace(/\s+#\s.*$/, "").trim();   // 行の後ろのコメントを外す
   const inChain = new Set(C.flatMap((x) => x.c.map(([ph, f, ln]) => `${ph}|${f}|${ln}`)));
-  const card = ([ph, f, ln, r, d]) => { const e = endEvent(E, ph, f, ln, r === "ret");
+  const card = ([ph, f, ln, r, d], ci, k) => { const e = endEvent(E, ph, f, ln, r === "ret"), fid = `c:${ci}:${k}`;
     if (!e) return `<div class="lcard"><p class="note">（${esc(f)}:${ln} が記録に無い）</p></div>`;
     const nx = endNext(e);
-    return `<div class="lcard"><div class="kh"><b>${esc(f.replace("players/", ""))}:${ln}</b>${esc(FN_NAME[e.fn] || e.fn)}</div><code class="src">${esc(e.back ? "result, num_turn = game(…)  ← 戻ってきた値" : bare(line(e)))}</code><div class="vals">${endVals(e, line(e))}</div>${nx ? `<div class="nx">${esc(nx)}</div>` : ""}<p>${esc(d)}</p></div>`; };
-  const chains = C.map((x) => `<h4>${esc(x.q)}</h4><div class="lchain">${x.c.map(card).join(`<span class="larr" aria-hidden="true">→</span>`)}</div>`).join("");
-  const rows = (ph) => E.events.filter((e) => e.phase === ph).map((e) => `<tr class="${inChain.has(`${ph}|${e.f}|${e.ln}`) ? "cur" : ""}${e.ret ? " r" : ""}"><td>${e.ln}</td><td>${esc(FN_NAME[e.fn] || e.fn)}</td><td><code>${esc(e.ret ? "↩ return の値" : e.back ? "result, num_turn = game(…)  ← 戻ってきた値" : line(e).trim())}</code></td><td>${endVals(e, line(e))}</td><td>${esc(endNext(e))}</td></tr>`).join("");
+    return `<div class="lcard"><div class="kh"><b>${esc(f.replace("players/", ""))}:${ln}</b>${esc(FN_NAME[e.fn] || e.fn)}</div><button type="button" class="srcbtn" data-fnview="${fid}" aria-expanded="${S.fnview === fid}" title="入っている関数・文の全体を見る"><code class="src">${esc(e.back ? "result, num_turn = game(…)  ← 戻ってきた値" : bare(line(e)))}</code></button><div class="vals">${endVals(e, line(e))}</div>${nx ? `<div class="nx">${esc(nx)}</div>` : ""}<p>${esc(d)}</p></div>`; };
+  const openIn = (pre, list) => { if (!S.fnview || !S.fnview.startsWith(pre)) return ""; const [f, ln] = list(+S.fnview.slice(pre.length)) || []; return f ? fnView(f, ln) : ""; };
+  const chains = C.map((x, ci) => `<h4>${esc(x.q)}</h4><div class="lchain">${x.c.map((c, k) => card(c, ci, k)).join(`<span class="larr" aria-hidden="true">→</span>`)}</div>${openIn(`c:${ci}:`, (k) => x.c[k] && [x.c[k][1], x.c[k][2]])}`).join("");
+  const rows = (ph) => E.events.filter((e) => e.phase === ph).map((e, i) => { const fid = `r:${ph}:${i}`;
+    return `<tr class="${inChain.has(`${ph}|${e.f}|${e.ln}`) ? "cur" : ""}${e.ret ? " r" : ""}"><td>${e.ln}</td><td>${esc(FN_NAME[e.fn] || e.fn)}</td><td><button type="button" class="srcbtn" data-fnview="${fid}" aria-expanded="${S.fnview === fid}" title="入っている関数・文の全体を見る"><code>${esc(e.ret ? "↩ return の値" : e.back ? "result, num_turn = game(…)  ← 戻ってきた値" : line(e).trim())}</code></button></td><td>${endVals(e, line(e))}</td><td>${esc(endNext(e))}</td></tr>${S.fnview === fid ? `<tr class="fnrow"><td colspan="5">${fnView(e.f, e.ln)}</td></tr>` : ""}`; }).join("");
   const table = PHASES.map(([ph, title, open]) => { const n = E.events.filter((e) => e.phase === ph).length; if (!n) return "";
-    return `<details${open ? " open" : ""}><summary>${esc(title)}（${n} 行）</summary><table class="ltab"><thead><tr><th>行</th><th>関数</th><th>コード</th><th>その行の値（型）・真偽・→ 入った値</th><th>次</th></tr></thead><tbody>${rows(ph)}</tbody></table></details>`; }).join("");
+    return `<details data-dkey="end:${ph}"${open ? " open" : ""}><summary>${esc(title)}（${n} 行）</summary><table class="ltab"><thead><tr><th>行</th><th>関数</th><th>コード</th><th>その行の値（型）・真偽・→ 入った値</th><th>次</th></tr></thead><tbody>${rows(ph)}</tbody></table></details>`; }).join("");
   return `<h3>変数の変遷: ゲームが終わるまでと、その次</h3>
-    <p class="note">build.py が本物の python3 autodealer.py と同じ動き（MAX = 4000 のまま）を乱数の種 ${E.seed} で流し、1ゲーム目が${kind === "win" ? "勝ち逃げ（place_bet が 0）" : "残高 0"}で終わる所から、__main__ が受け取って次のゲームを始める所、4000 回のあとまでを記録した。値の横の小さい字が型（int・bool・tuple…）。if の行は条件を本当に評価した真偽、「→」はその行で入った値、「次」は実際に次に動いた行。printx の行は省いた。</p>
+    <p class="note">build.py が本物の python3 autodealer.py と同じ動き（MAX = 4000 のまま）を乱数の種 ${E.seed} で流し、1ゲーム目が${kind === "win" ? "勝ち逃げ（place_bet が 0）" : "残高 0"}で終わる所から、__main__ が受け取って次のゲームを始める所、4000 回のあとまでを記録した。値の横の小さい字が型（int・bool・tuple…）。if の行は条件を本当に評価した真偽、「→」はその行で入った値、「次」は実際に次に動いた行。printx の行は省いた。<b>コードを押すと、その行が入っている関数（関数の外なら一番外の文）の全体が出て、外から順にどの def・for・while・if の中にいるかが分かる。</b></p>
     ${chains}<h4>通った行を全部（変遷に出てくる行は色つき）</h4>${table}`;
 }
 function taskPanel(lv) {
@@ -1595,12 +1636,17 @@ document.addEventListener("click", (ev) => {
     S.issue = it.id; S.pos = 0; goStation(it.station); window.scrollTo({ top: 0 }); return; }
   const dp = ev.target.closest("[data-dplayer]");
   if (dp) { S.dplayer = dp.dataset.dplayer; redrawC4(); return; }
+  const fv = ev.target.closest("[data-fnview]");
+  if (fv) { const id = fv.dataset.fnview; S.fnview = !id || S.fnview === id ? null : id; const y = window.scrollY;
+    const dk = {}; document.querySelectorAll("details[data-dkey]").forEach((d) => { dk[d.dataset.dkey] = d.open; });   // 開いていた折りたたみはそのまま
+    redrawC4(); document.querySelectorAll("details[data-dkey]").forEach((d) => { if (d.dataset.dkey in dk) d.open = dk[d.dataset.dkey]; });
+    window.scrollTo({ top: y }); scrollFnBoxes(); return; }
   const kt = ev.target.closest("[data-ktog]");
   if (kt) { const id = kt.dataset.ktog; S.kopen.has(id) ? S.kopen.delete(id) : S.kopen.add(id); const y = window.scrollY; redrawC4(); window.scrollTo({ top: y }); return; }
   const ds = ev.target.closest("[data-dscen]");
   if (ds) { S.dscen = ds.dataset.dscen; redrawC4(); return; }
   const tk = ev.target.closest("[data-task]");
-  if (tk) { S.task = tk.dataset.task || null; S.tstep = S.task ? 0 : null; store.set("task", S.task); redrawC4(); return; }
+  if (tk) { S.task = tk.dataset.task || null; S.tstep = S.task ? 0 : null; S.fnview = null; store.set("task", S.task); redrawC4(); return; }
   const ts = ev.target.closest("[data-tstep]");
   if (ts) { S.tstep = +ts.dataset.tstep; redrawC4(); return; }
   const g = ev.target.closest("[data-c4]");
