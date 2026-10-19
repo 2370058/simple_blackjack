@@ -58,7 +58,16 @@ button:focus-visible, [tabindex]:focus-visible { outline: 3px solid var(--car); 
 .ptab .pu { margin: 2px 0; } .ptab .pd { margin-top: 3px; font-size: .76rem; }
 .pk { display: inline-block; font: 800 .7rem var(--display); border-radius: 4px; padding: 0 5px; margin-right: 4px; background: color-mix(in srgb, var(--fg) 12%, transparent); }
 .pk.j { background: var(--branch); color: #fff; } .pk.s { background: var(--player); color: #fff; }
-.pa { margin-left: 6px; border: 1.5px solid var(--pre); color: var(--pre); background: transparent; border-radius: 999px; font: 800 .7rem var(--display); padding: 0 6px; cursor: pointer; }
+.ptab tr.ref td { background: repeating-linear-gradient(135deg, transparent 0 8px, color-mix(in srgb, var(--fg) 4%, transparent) 8px 16px); }
+.ptab tr.ref td code { font-style: italic; } .params summary code.rc { background: color-mix(in srgb, var(--fg) 10%, transparent); font-style: italic; }
+.refbox { border: 1.5px dashed var(--line); border-radius: 10px; padding: 8px 10px; margin: 6px 0 10px; }
+.refbox h4 { margin: 0 0 6px; font: 800 .85rem var(--display); }
+.refc { padding: 6px 0; border-top: 1px solid var(--line); font-size: .82rem; min-width: 0; } .refc:first-of-type { border-top: 0; }
+.refc .rh { display: flex; flex-wrap: wrap; gap: 4px 8px; align-items: center; } .refc .rh code { font: 700 .82rem var(--mono); }
+.refc p { margin: 4px 0; } .refc code { font-family: var(--mono); font-size: .76rem; overflow-wrap: anywhere; } .refc small { color: var(--muted); }
+.rex .code { max-width: 100%; overflow-x: auto; }
+.rex { margin-top: 4px; } .rex summary { font: 700 .74rem var(--display); cursor: pointer; } .rex .code { font-size: .74rem; }
+.pa { --c: var(--pre); margin-left: 6px; border: 1.5px solid var(--c); color: var(--c); background: transparent; border-radius: 999px; font: 800 .7rem var(--display); padding: 0 6px; cursor: pointer; }
 .routes button.trel { box-shadow: 0 0 0 2.5px var(--c); }
 .tfilter { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 10px 0; }
 .tfilter .tfl { font: 800 .85rem var(--display); }
@@ -509,6 +518,37 @@ function cargoHtml(entry) {
   }).join("");
 }
 
+// ---- 参考実装: まだコードに無いが、この駅に足せるパラメータ（例はこのページを作るときに全部を同時に入れて autodealer.py を流し、止まらずに動くことを確かめた） ----
+const REFIMPL = {
+  s3: [
+    { n: "retreat_balance", v: "500", ty: "int", f: "players/player_simple.py", task: "B", use: "if balance <= retreat_balance: return 0",
+      t: "撤退条件。残高がこれ以下になったら 0 を返してやめる（負けを小さくする）",
+      ex: "  hit_threshold = 16\n+ retreat_balance = 500   # これ以下になったらやめる（撤退）\n  …\n          if balance > self.stop_balance:\n              return 0\n+         if balance <= retreat_balance:\n+             return 0" },
+    { n: "bet_ratio", v: "0.1", ty: "float", f: "players/player_simple.py", task: "B", use: "return max(1, int(balance * bet_ratio))",
+      t: "残高のこの割合を賭ける（unit_bet の決まった額の代わり）。勝つと掛け金も増える",
+      ex: "+ bet_ratio = 0.1         # 残高のこの割合を賭ける\n  …\n          if balance > self.stop_balance:\n              return 0\n+         if bet_ratio:\n+             return max(1, int(balance * bet_ratio))" }],
+  s4: [
+    { n: "MIN_BET・MAX_BET", v: "10, 500", ty: "int", f: "autodealer.py", task: "C", use: "if MIN_BET <= bet_amount <= min(player_balance, MAX_BET):",
+      t: "テーブルの最低・最高掛け金。今は 1 以上・残高以下なら何でも通る。範囲の外は無効（-1 を返す。緊1）",
+      ex: "+ MIN_BET, MAX_BET = 10, 500   # テーブルの最低・最高掛け金\n  …\n- if 0 < bet_amount <= player_balance:\n+ if MIN_BET <= bet_amount <= min(player_balance, MAX_BET):",
+      note: "player_random は 1〜残高の乱数で賭けるので、10 未満を出すと無効になり -1 で終わる（平均が 576 → 215 に下がった）。緊1 を直してから入れる" }],
+  s5: [
+    { n: "NUM_DECKS", v: "6", ty: "int", f: "autodealer.py", task: "C", use: "if len(deck) < 52*NUM_DECKS*penetration:",
+      t: "何デッキで遊ぶか（カジノは 6〜8）。山札を作る2か所と、混ぜ直す判定の 52 にかける",
+      ex: "- deck = [Card(suit, value) for suit in suits for value in values]\n+ NUM_DECKS = 6      # 何デッキで遊ぶか\n+ deck = [Card(suit, value) for suit in suits for value in values] * NUM_DECKS\n  …\n- if len(deck) < 52*penetration:\n-     deck = [Card(suit, value) for suit in suits for value in values]\n+ if len(deck) < 52*NUM_DECKS*penetration:\n+     deck = [Card(suit, value) for suit in suits for value in values] * NUM_DECKS" }],
+  s8: [
+    { n: "weak_threshold", v: "12", ty: "int", f: "players/player_simple.py", task: "B", use: "if Card.sum(self.hand) >= weak_threshold and Card.sum([self.dealer_card]) <= 6: return \"stand\"",
+      t: "ディーラーの表が 2〜6（弱い）なら、この点数から stand（ベーシックストラテジーの一部。self.dealer_card を使う）",
+      ex: "+ weak_threshold = 12     # ディーラーの表が 2〜6 なら、この点数から stand\n  …\n+         if Card.sum(self.hand) >= weak_threshold and Card.sum([self.dealer_card]) <= 6:\n+             return \"stand\"\n          if Card.sum(self.hand) < self.hit_threshold:" }],
+  s14: [
+    { n: "DEALER_STAND・HIT_SOFT17", v: "17, True", ty: "int, bool", f: "autodealer.py", task: "C", use: "if Card.sum(dealer_hand) < DEALER_STAND:",
+      t: "ディーラーが引くのをやめる点数と、ソフト 17 で引くか（ハウスルール）。今は 17 が2か所に直に書いてある",
+      ex: "+ DEALER_STAND = 17  # ディーラーが引くのをやめる点数\n+ HIT_SOFT17 = True  # ソフト 17 で引くか\n  …\n- if Card.sum(dealer_hand) == 17 and Card.is_soft(dealer_hand):\n+ if HIT_SOFT17 and Card.sum(dealer_hand) == DEALER_STAND and Card.is_soft(dealer_hand):\n  …\n- if Card.sum(dealer_hand) < 17:\n+ if Card.sum(dealer_hand) < DEALER_STAND:" }],
+  s19: [
+    { n: "BJ_PAYOUT", v: "1.5", ty: "float", f: "autodealer.py", task: "C", use: "player_balance += int(bet_amount * BJ_PAYOUT)",
+      t: "ブラックジャックの配当（3:2 なら 1.5、6:5 なら 1.2）。今は 1.5 が4か所に直に書いてある",
+      ex: "+ BJ_PAYOUT = 1.5    # ブラックジャックの配当\n  …\n- player_balance += int(bet_amount * 1.5)\n+ player_balance += int(bet_amount * BJ_PAYOUT)\n- player.notify_result(\"win\", int(bet_amount*1.5))\n+ player.notify_result(\"win\", int(bet_amount*BJ_PAYOUT))\n  （174・175 行も同じ）" }] };
+REFIMPL.s18 = REFIMPL.s19;
 // ---- 荷物の出どころ（build.py が、値が変わった直後に、直前に実行した行と駅を記録したもの） ----
 const ORIG_FALLBACK = { round: ["autodealer.py", /^round = 1/, "ゲームの前から（import のとき）。turn_end で +1、check_shuffle で 1 に戻る"],
   deck_left: ["autodealer.py", /^deck = \[/, "ゲームの前から（import のときに作った山札）"],
@@ -569,10 +609,15 @@ function paramsHtml(e) {
       <td><span class="${chg ? "chg" : ""}">${chg ? `${esc(before[0])} → ` : ""}<b>${esc(v)}</b></span> <small>${esc(ty)}</small></td>
       <td>${u ? u.map((x) => `<div class="pu"><span class="pk ${x.kind === "判定" ? "j" : x.kind === "入れた" ? "s" : ""}">${x.kind}</span><code>${esc(x.f.replace("players/", ""))}:${x.ln}</code> <code>${esc(x.t)}</code>${x.n > 1 ? ` <small>×${x.n}</small>` : ""}</div>`).join("") : `<small>この駅では使っていない</small>`}</td>
       <td><small>${esc(info.t)}</small>${defOf(n) ? `<div class="pd">置き場: ${defOf(n)}</div>` : ""}${originHtml("p", e, n) ? `<div class="pd">入った所: ${originHtml("p", e, n)}</div>` : ""}</td></tr>`; }).join("");
+  const refs = (S.ring === "r01" && REFIMPL[e.id]) || [];
+  const refBox = refs.length ? `<div class="refbox"><h4>参考実装（まだコードに無い。この駅に足すなら）</h4>${refs.map((x) => `<div class="refc"><div class="rh"><code>${esc(x.n)}</code> = <b>${esc(x.v)}</b> <small>${esc(x.ty)}</small><button type="button" class="pa" data-rtask="${x.task}" style="--c:${TASKS[x.task].c}" title="環状線をタスク ${x.task} で絞る">タスク ${x.task}</button><small>置き場: ${esc(x.f.replace("players/", ""))}</small></div>
+      <p>${esc(x.t)}</p><div class="pu"><span class="pk j">足したら</span><code>${esc(x.use)}</code></div>${x.note ? `<p class="note">${esc(x.note)}</p>` : ""}
+      <details class="rex"><summary>変更の例（${esc(x.f.replace("players/", ""))}）</summary>${diffHtml(x.ex)}</details></div>`).join("")}
+    <p class="note">例は、このページを作るときに全部を同時に入れて autodealer.py を流し（MAX = 300）、止まらずに動くことを確かめた。player_simple の平均は 918.8 になった（今のままでは 875 前後）。</p></div>` : "";
   const usedNames = order.filter((n) => used[n]);
-  return `<details class="params" id="pdet"${store.get("paramsOpen", false) ? " open" : ""}><summary>パラメータ（self.… と設定）${usedNames.length ? `・この駅で使ったもの: ${usedNames.map((n) => `<code>${esc(n)}</code>`).join(" ")}` : "・この駅では使っていない"}</summary>
+  return `<details class="params" id="pdet"${store.get("paramsOpen", false) ? " open" : ""}><summary>パラメータ（self.… と設定）${usedNames.length ? `・この駅で使ったもの: ${usedNames.map((n) => `<code>${esc(n)}</code>`).join(" ")}` : "・この駅では使っていない"}${refs.length ? `・参考実装 ${refs.map((x) => `<code class="rc">${esc(x.n)}</code>`).join(" ")}` : ""}</summary>
     <p class="note">この駅を出るときの、プレイヤーのインスタンス（player）の self.… と、game()・autodealer の設定。本物の game() を流して記録した値と型。色の付いた行が、この駅で実行した行に出てくるもの（判定 = if の条件に使った・入れた = 代入した・読んだ = それ以外）。値が変わったものは「前 → 後」。</p>
-    <div class="tw"><table class="ptab"><thead><tr><th>名前</th><th>値（型）</th><th>この駅で使った行</th><th>何か・置き場</th></tr></thead><tbody>${rows}</tbody></table></div>${originView("p")}</details>`;
+    ${refBox}<div class="tw"><table class="ptab"><thead><tr><th>名前</th><th>値（型）</th><th>この駅で使った行</th><th>何か・置き場</th></tr></thead><tbody>${rows}</tbody></table></div>${originView("p")}</details>`;
 }
 
 // ---- この駅のコード ----
