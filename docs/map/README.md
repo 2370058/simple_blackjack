@@ -29,6 +29,8 @@ W と L の下には **変数の変遷** がある。`build.py` の `trace_endin
 
 2 の図では、1ラウンドの流れを **dealer.py の箱に1回だけ** 書いてある。autodealer.py の `game()` はその流れを関数に入れたもので、箱には dealer.py と違う所（±: print → printx・exit/break → return・配る前の check_shuffle・turns・Player を引数で）だけを書き、「while True: … dealer.py と同じ」の行から dealer.py の箱へ線でつなぐ。本物の差分は `build.py` が difflib で比べて埋め込み（`dealer_diff`）、game の箱を押すと出る。
 
+3 環状線の上の **タスクで絞る**（なし・A・B・C・タスク外）を選ぶと、そのタスクが関係する駅だけが色の輪で囲まれ、駅名に手順の番号（`B3`・`Bb` など。小文字は準備）が付き、ほかの駅と旗は薄くなる（`taskRel`）。関係は、タスクの手順の `st`・`where`、`where` に書いた一手の流れの手順（`"Q:…"`）の駅、`issue` の旗の駅から集める。下の表に駅ごとの手順（押すと 2 の図のその手順へ）とルートが出て、駅のコードでは、そのタスクで変える行に「← … で変える」が付く。2 の図のタスクから環状線へ跳ぶと、同じタスクで絞った状態になる。
+
 3 環状線は2本ある。**01 1ラウンド**（game() の while True ＝ dealer.py と同じ流れ）と、**02 autodealer のテスト**（autodealer.py だけにある __main__。`ring2.json`。build.py が MAX だけ 2 にして本物どおりに流す `trace_main`）。02 の「1ゲーム」の駅の中が 01。2 の図の autodealer の集計の行からは 02 の駅へ行ける。
 
 01 のルートには、ゲームが終わるまで流すもの（`full: true`。勝ち逃げで終わる・全額を賭けて残高 0 で終わる）と、プレイヤーの place_bet（players/player_simple.py 65 行）か input（131 行）を1行だけ変えたもの（`variant`。全額を賭ける・いつも stand）がある。変えた所は `variantEx` に書き、ルートの結末の下に出る。`seed` を書いたルートは、`cards` の代わりに乱数の種で混ぜた本物の山札で流す。`tail: true` は最後のラウンドだけを残す（「負けて終わる（player_simple のまま）」は種 1 で 26 ラウンド遊んで残高 0 になる最後のラウンド）。

@@ -46,6 +46,14 @@ p { margin: 0; }
 .seg.layers button[aria-pressed="true"] { background: var(--c); color: #fff; }
 button:focus-visible, [tabindex]:focus-visible { outline: 3px solid var(--car); outline-offset: 2px; }
 .routes { display: flex; flex-wrap: wrap; gap: 6px; }
+.routes button.trel { box-shadow: 0 0 0 2.5px var(--c); }
+.tfilter { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 10px 0; }
+.tfilter .tfl { font: 800 .85rem var(--display); }
+.seg.tseg button[aria-pressed="true"] { background: var(--c); color: #fff; }
+.tsum { flex: 1 1 100%; min-width: 0; border: 2px solid var(--t); border-radius: 12px; padding: 10px 12px; background: var(--panel); font-size: .88rem; }
+.tsum p { margin: 0 0 8px; } .tsum .tw { overflow-x: auto; } .tsum table { border-collapse: collapse; width: 100%; }
+.tsum td, .tsum th { border-top: 1px solid var(--line); padding: 5px 6px; text-align: left; vertical-align: top; }
+.tsum td:first-child { white-space: nowrap; } .tsum td .btn { margin: 2px 4px 2px 0; } .tsum small { color: var(--muted); margin-right: 8px; }
 .routes button { border: 1px solid var(--line); background: var(--panel); color: var(--fg); border-radius: 999px; padding: 4px 12px; font: 600 .85rem var(--display); cursor: pointer; }
 .routes button[aria-pressed="true"] { background: var(--fg); color: var(--bg); border-color: var(--fg); }
 .box { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 16px; display: grid; gap: 10px; align-content: start; }
@@ -302,6 +310,7 @@ code.vv.yes { background: color-mix(in srgb, var(--player) 25%, transparent); } 
     <div class="seg layers" id="layers"></div>
     <button type="button" class="btn" id="auto">⏵ 自動で走る</button>
   </div>
+  <div class="tfilter" id="tfilter"></div>
   <div class="routes" id="routes" role="group" aria-label="ルート"></div>
   <section class="summary" id="summary"></section>
   <div class="flags" id="flags"></div>
@@ -332,7 +341,7 @@ const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&l
 const store = { get(k, d) { try { const v = localStorage.getItem("bjmap:" + k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } },
   set(k, v) { try { localStorage.setItem("bjmap:" + k, JSON.stringify(v)); } catch (e) { /* 保存できなくても動く */ } } };
 const S = { kopen: new Set(), fnview: null, route: store.get("route", "main"), pos: 0, mode: store.get("mode", "drive"),
-  layers: store.get("layers", { "緊急": true, "悪意": true, "速さ": false }), issue: null, role: null, timer: null };
+  rtask: store.get("rtask", null), layers: store.get("layers", { "緊急": true, "悪意": true, "速さ": false }), issue: null, role: null, timer: null };
 S.ring = store.get("ring", "r01");
 
 // 駅ごとに、そのルートで寄った拠点（ファイルと山札）を、実行した行から出す
@@ -376,7 +385,7 @@ const BOX = { player: { x: 470, y: 178, w: 260, h: 64 }, calc: { x: 330, y: 400,
 const posOf = (id) => id === "end" ? END : pt(idx[id]);
 
 function svgMap() {
-  const P = path(), here = cur(), visited = new Set(P.map((p) => p.id));
+  const P = path(), here = cur(), visited = new Set(P.map((p) => p.id)), TREL = S.rtask ? taskRel(S.rtask) : null;
   let s = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="1ラウンドの環状線。駅を押すと詳しい所が出る">`;
   s += `<defs><marker id="ah" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0 10 5 0 10z" fill="var(--exit)"/></marker>
     <marker id="ahc" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0 10 5 0 10z" fill="var(--car)"/></marker></defs>`;
@@ -421,7 +430,8 @@ function svgMap() {
   }
   // 終了の駅
   { const on = visited.has("end"), isCur = here.id === "end";
-    s += `<g class="st" data-st="end" tabindex="0"><rect x="${END[0] - 60}" y="${END[1] - 20}" width="120" height="40" rx="8" fill="${isCur ? "var(--car)" : "var(--panel)"}" stroke="var(--exit)" stroke-width="2" ${on ? "" : 'opacity=".4"'}/>
+    const tl = TREL && TREL.st.end;
+    s += `<g class="st" data-st="end" tabindex="0">${tl ? `<rect x="${END[0] - 66}" y="${END[1] - 26}" width="132" height="52" rx="11" fill="none" stroke="${TREL.T.c}" stroke-width="5"/><text x="${END[0]}" y="${END[1] + 44}" text-anchor="middle" font-size="12" font-weight="800" fill="${TREL.T.c}">${esc(relTags(TREL, tl))}</text>` : ""}<rect x="${END[0] - 60}" y="${END[1] - 20}" width="120" height="40" rx="8" fill="${isCur ? "var(--car)" : "var(--panel)"}" stroke="var(--exit)" stroke-width="2" ${on && !(TREL && !tl) ? "" : 'opacity=".4"'}/>
       <text x="${END[0]}" y="${END[1] + 5}" text-anchor="middle" font-size="13" font-weight="800" fill="${isCur ? "var(--car-fg)" : "var(--fg)"}">${esc(ST.end ? ST.end.title : "ゲーム終了")}</text></g>`; }
   // 駅
   const issuesAt = {};
@@ -432,13 +442,15 @@ function svgMap() {
     const col = st.kind === "分岐" ? "var(--branch)" : st.kind === "入口" ? "var(--exit)" : "var(--dealer)";
     const shape = st.kind === "分岐" ? `<rect class="dot" x="-13" y="-13" width="26" height="26" rx="3" transform="rotate(45)" fill="${isCur ? "var(--car)" : "var(--panel)"}" stroke="${col}" stroke-width="2.5"/>`
       : `<circle class="dot" r="15" fill="${isCur ? "var(--car)" : "var(--panel)"}" stroke="${col}" stroke-width="2.5"/>`;
-    s += `<g class="st" data-st="${st.id}" tabindex="0" role="button" aria-label="${esc(st.title)}" opacity="${on ? 1 : .32}"><g transform="translate(${x},${y})">${shape}
+    const tl = TREL && TREL.st[st.id], op = TREL ? (tl ? 1 : .16) : on ? 1 : .32;
+    s += `<g class="st" data-st="${st.id}" tabindex="0" role="button" aria-label="${esc(st.title)}${tl ? `（${esc(TREL.T.t)} ${relTags(TREL, tl)}）` : ""}" opacity="${op}"><g transform="translate(${x},${y})">${tl ? `<circle r="23" fill="none" stroke="${TREL.T.c}" stroke-width="5"/>` : ""}${shape}
       <text y="4.5" text-anchor="middle" font-size="12" font-weight="800" fill="${isCur ? "var(--car-fg)" : "var(--fg)"}">${i}</text></g>
-      <text x="${lx}" y="${ly + 4}" text-anchor="${anchor}" font-size="12.5" font-weight="${isCur ? 800 : 500}" fill="var(--fg)">${esc(st.title)}</text></g>`;
+      <text x="${lx}" y="${ly + 4}" text-anchor="${anchor}" font-size="12.5" font-weight="${isCur || tl ? 800 : 500}" fill="var(--fg)">${esc(st.title)}${tl && anchor === "middle" ? `<tspan dx="6" fill="${TREL.T.c}" font-weight="900">${esc(relTags(TREL, tl))}</tspan>` : ""}</text>
+      ${tl && anchor !== "middle" ? `<text x="${lx}" y="${ly < y - 10 ? ly - 13 : ly + 21}" text-anchor="${anchor}" font-size="12.5" font-weight="900" fill="${TREL.T.c}"><tspan>${esc(relTags(TREL, tl))}</tspan></text>` : ""}</g>`;
     (issuesAt[st.id] || []).forEach((it, k) => {
       const [fx, fy] = pt(i, -56), ox = (k - ((issuesAt[st.id].length - 1) / 2)) * 34;
       const c = IK[it.kind].c, fill = it.g === "bad" ? c : "var(--panel)", tc = it.g === "bad" ? "#fff" : c;
-      s += `<g class="st" data-issue="${it.id}" tabindex="0" role="button" aria-label="${esc(it.id + " " + it.title)}" transform="translate(${fx + ox},${fy})">
+      s += `<g class="st" data-issue="${it.id}" tabindex="0" role="button" aria-label="${esc(it.id + " " + it.title)}" transform="translate(${fx + ox},${fy})"${TREL && !TREL.st[st.id] ? ' opacity=".2"' : ""}>
         <rect x="-16" y="-10" width="32" height="20" rx="4" fill="${fill}" stroke="${c}" stroke-width="1.5" ${S.issue === it.id ? 'stroke-width="3"' : ""}/>
         <text y="4" text-anchor="middle" font-size="11" font-weight="800" fill="${tc}">${esc(it.id)}${it.g === "good" ? "✓" : ""}</text></g>`;
     });
@@ -448,7 +460,7 @@ function svgMap() {
     s += `<g transform="translate(${x},${y - 22})" pointer-events="none"><path d="M0 0 V-26" stroke="var(--fg)" stroke-width="2"/><path d="M0 -26 L18 -20 0 -14z" fill="var(--car)" stroke="var(--fg)" stroke-width="1"/></g>`; }
   return s + `</svg><div class="legend"><span><i style="--c:var(--dealer)"></i>本線の駅（ディーラー）</span><span><i style="--c:var(--branch)"></i>◇ 分岐（if）</span>
     <span><i style="--c:var(--player)"></i>プレイヤーへのランプ</span><span><i style="--c:var(--deck)"></i>山札へのランプ</span><span><i style="--c:var(--calc)"></i>card.py へのランプ</span>
-    <span><i style="--c:var(--exit)"></i>点線 = 近道・出口・戻り</span><span><i style="--c:var(--car)"></i>旗 = 今データがいる駅（← → で動く）</span></div>`;
+    <span><i style="--c:var(--exit)"></i>点線 = 近道・出口・戻り</span>${TREL ? `<span><i style="--c:${TREL.T.c}"></i>色の輪 = ${esc(TREL.T.t)} が関係する駅（駅名に添えた字は手順の番号）</span>` : ""}<span><i style="--c:var(--car)"></i>旗 = 今データがいる駅（← → で動く）</span></div>`;
 }
 
 // ---- 荷物（その駅に着いたときの game() の変数） ----
@@ -467,7 +479,7 @@ function cargoHtml(entry) {
 function codeHtml(entry, roleFilter) {
   const byFile = {};
   for (const [k, n] of Object.entries(entry.lines)) { const [f, ln] = splitKey(k); (byFile[f] = byFile[f] || {})[ln] = n; }
-  const flagAt = {};
+  const flagAt = {}, TRC = S.rtask ? taskRel(S.rtask) : null;
   for (const it of R.issues) if (S.layers[it.kind] && it.station === entry.id) flagAt[it.line] = it;
   const order = ["autodealer.py", "players/player_simple.py", "card.py"];
   let h = "";
@@ -483,8 +495,9 @@ function codeHtml(entry, roleFilter) {
       last = n;
       const text = SRC[f][n - 1], key = `${f}:${n}`, r = ROLE[key], hit = byFile[f][n];
       const dim = roleFilter && r !== roleFilter;
+      const ed = TRC && TRC.edits.some(([ef, t]) => ef === f && text.includes(t));
       const fl = f === "autodealer.py" && flagAt[n] ? `<span class="fl" style="--c:${IK[flagAt[n].kind].c}">${flagAt[n].id}</span>` : "";
-      h += `<div class="ln${hit ? " x" : ""}${dim ? " dim" : ""}" ${r ? `title="${r}"` : ""}><i>${n}</i><s style="--r:${hit && r ? RC[r] : "transparent"}"></s><span>${esc(text)}</span><span>${hit > 1 ? `<em>×${hit}</em>` : ""}${fl}</span></div>`;
+      h += `<div class="ln${hit ? " x" : ""}${dim ? " dim" : ""}${ed ? " ed" : ""}" ${r ? `title="${r}"` : ""}><i>${n}</i><s style="--r:${hit && r ? RC[r] : "transparent"}"></s><span>${esc(text)}</span><span>${hit > 1 ? `<em>×${hit}</em>` : ""}${fl}${ed ? `<em class="edm">← ${esc(TRC.T.t)} で変える</em>` : ""}</span></div>`;
     }
   }
   return `<div class="code">${h}</div>`;
@@ -570,6 +583,37 @@ function partsTable() {
     ${stationDetail()}`;
 }
 
+// 環状線をタスクで絞る: そのタスクの手順の st・where（一手の流れの手順を通したものも）・旗から、今の環状線の駅を集める
+const RTASKS = [["A", "A 分析"], ["B", "B 戦略"], ["C", "C 改造"], ["X", "タスク外"]];
+function taskRel(k) {
+  const T = TASKS[k], st = {}, routes = new Set(), edits = [];
+  const add = (ref, i, via) => { if (!ref) return;
+    if (ref.startsWith("route:")) { routes.add(ref.slice(6)); return; }
+    const m = ref.match(/^([A-Z]):(.*)$/);
+    if (m) { const Q = TASKS[m[1]], j = Q ? Q.c4.findIndex((x) => x.label.startsWith(m[2])) : -1;
+      if (j >= 0) add(Q.c4[j].st, i, `${Q.t} ${stepTag(Q.c4, j, Q)}「${Q.c4[j].label}」を通して`); return; }
+    const r = stRef(ref); if (r.rk !== S.ring) return;
+    const list = st[r.id] = st[r.id] || [], had = list.find((x) => x.i === i);
+    if (!had) list.push({ i, via }); else if (!via) had.via = "";
+  };
+  T.c4.forEach((s, i) => { add(s.st, i, ""); (s.where || []).forEach((w) => add(w, i, ""));
+    if (s.issue) { const it = DATA.rings.r01.ring.issues.find((x) => x.id === s.issue); if (it) add(it.station, i, `旗 ${it.id}`); }
+    (s.code || []).forEach((c) => (c[4] || []).forEach((t) => edits.push([c[0], t]))); });
+  return { st, routes, edits, T, k };
+}
+const relTags = (rel, list) => list.map((x) => `${rel.k === "X" ? "" : rel.k}${stepTag(rel.T.c4, x.i, rel.T)}`).join("・");
+function rtaskPanel() {
+  const bar = `<span class="tfl">タスクで絞る</span><div class="seg tseg">${[["", "なし"], ...RTASKS].map(([k, t]) => `<button type="button" data-rtask="${k}" aria-pressed="${(S.rtask || "") === k}" style="--c:${k ? TASKS[k].c : "var(--fg)"}">${t}</button>`).join("")}</div>`;
+  if (!S.rtask) return bar;
+  const rel = taskRel(S.rtask), T = rel.T, ids = Object.keys(rel.st).sort((a, b) => (a === "end") - (b === "end") || idx[a] - idx[b]);
+  const rows = ids.map((id) => { const list = rel.st[id];
+    return `<tr><td><button type="button" class="btn" data-tst="${id}">${esc(id === "end" ? (ST.end ? ST.end.title : "ゲーム終了") : `${idx[id]}. ${ST[id].title}`)}</button></td><td>${list.map((x) => { const s = T.c4[x.i];
+      return `<button type="button" class="btn" data-goflow="${S.rtask}:${x.i}" style="border-color:${s.p === 2 ? "var(--prep2)" : s.p ? "var(--prep)" : T.c}">${s.p ? "準備 " : ""}${stepTag(T.c4, x.i, T)}. ${esc(s.label)}</button>${x.via ? `<small>${esc(x.via)}</small>` : ""}`; }).join("")}</td></tr>`; }).join("");
+  const rts = [...rel.routes].filter((r) => TR[r]);
+  return `${bar}<div class="tsum" style="--t:${T.c}"><p><b>${esc(T.t)}</b> が関係する駅 ${ids.length} か所（環状線 ${S.ring === "r02" ? "02" : "01"}）。図では関係する駅だけを色の輪で囲み、駅名に添えてそのタスクの手順の番号を出した（紫の a・b… は準備）。関係しない駅は薄くなる。駅のコードでは、このタスクで変える行に「← ${esc(T.t)} で変える」が付く。</p>
+    ${ids.length ? `<div class="tw"><table><thead><tr><th>駅</th><th>この駅を変える・この駅に効く手順（押すと 2 の図のその手順へ）</th></tr></thead><tbody>${rows}</tbody></table></div>` : `<p class="note">この環状線には関係する駅が無い。${S.ring === "r02" ? "環状線 01 に切り替えると出る。" : ""}</p>`}
+    ${rts.length ? `<p class="where"><b>このタスクのルート</b>${rts.map((r) => `<button type="button" class="btn" data-route="${r}">${esc(routeOf(r).title)}</button>`).join("")}</p>` : ""}</div>`;
+}
 function render() {
   document.getElementById("crumb-ring").textContent = R.title;
   document.getElementById("rings").innerHTML = [["r01", "01 1ラウンド（dealer.py と同じ流れ）"], ["r02", "02 autodealer のテスト（__main__ だけ）"]]
@@ -579,7 +623,9 @@ function render() {
   document.getElementById("modes").innerHTML = [["drive", "走る（データを追う）"], ["parts", "部品図（役割ごと）"]]
     .map(([k, t]) => `<button type="button" data-mode="${k}" aria-pressed="${S.mode === k}">${t}</button>`).join("");
   document.getElementById("layers").innerHTML = Object.keys(IK).map((k) => `<button type="button" data-layer="${k}" style="--c:${IK[k].c}" aria-pressed="${!!S.layers[k]}">${k}</button>`).join("");
-  document.getElementById("routes").innerHTML = R.routes.map((r) => `<button type="button" data-route="${r.id}" aria-pressed="${S.route === r.id}">${esc(r.title)}</button>`).join("");
+  const trel = S.rtask ? taskRel(S.rtask) : null;
+  document.getElementById("tfilter").innerHTML = rtaskPanel();
+  document.getElementById("routes").innerHTML = R.routes.map((r) => `<button type="button" data-route="${r.id}" aria-pressed="${S.route === r.id}"${trel && trel.routes.has(r.id) ? ` class="trel" style="--c:${trel.T.c}"` : ""}>${esc(r.title)}</button>`).join("");
   const r = routeOf(S.route), t = TR[S.route], dealt = r.cards.length;
   const delta = t.result[0] < 0 ? "エラー（-1 を返す）" : `${t.result[0] - 1000 >= 0 ? "+" : ""}${t.result[0] - 1000}`;
   document.getElementById("summary").innerHTML = S.ring === "r02" ? `<p><b>このルートの結末:</b> ${esc(r.summary)}</p><div class="code term"><div class="file">print された結果（MAX = 2 なので本物より短い）</div>${(t.stdout || "").trim().split("\n").map((l) => `<div class="ln"><i></i><s></s><span>${esc(l)}</span><span></span></div>`).join("")}</div>` : `<p><b>このルートの結末:</b> ${esc(r.summary)}</p>${r.variantEx ? `<p class="note">プレイヤーをこう1行だけ変えて流した（players/player_simple.py の ${r.variant.place_bet ? "place_bet（65 行）" : "input（131 行）"}）:</p>${diffHtml(r.variantEx)}` : ""}
@@ -602,6 +648,11 @@ function stopAuto() { if (S.timer) { clearInterval(S.timer); S.timer = null; } }
 document.addEventListener("click", (ev) => {
   const rg = ev.target.closest("[data-ring]");
   if (rg) { stopAuto(); useRing(rg.dataset.ring); S.issue = null; render(); return; }
+  const rt = ev.target.closest("[data-rtask]");
+  if (rt) { S.rtask = rt.dataset.rtask || null; store.set("rtask", S.rtask); render(); return; }
+  const ts = ev.target.closest("[data-tst]");
+  if (ts) { const id = ts.dataset.tst; if (!path().some((e) => e.id === id)) { const r = R.routes.find((x) => TR[x.id].path.some((e) => e.id === id)); if (r) { S.route = r.id; S.pos = 0; } }
+    goStation(id); document.getElementById("map").scrollIntoView({ block: "start" }); return; }
   const b = ev.target.closest("[data-mode],[data-layer],[data-route],[data-step],[data-st],[data-issue],[data-goto],#auto");
   if (!b) return;
   if (b.id === "auto") { if (S.timer) stopAuto(); else { if (S.pos >= path().length - 1) S.pos = 0;
@@ -1623,7 +1674,7 @@ document.addEventListener("click", (ev) => {
   const lv = ev.target.closest("[data-level]");
   if (lv) { setLevel(lv.dataset.level); window.scrollTo({ top: 0 }); return; }
   const rs = ev.target.closest("[data-ringst]");
-  if (rs) { const r0 = stRef(rs.dataset.ringst), st = r0.id; setLevel("ring"); useRing(r0.rk);
+  if (rs) { const r0 = stRef(rs.dataset.ringst), st = r0.id; if (RTASKS.some(([k]) => k === S.task)) { S.rtask = S.task; store.set("rtask", S.rtask); } setLevel("ring"); useRing(r0.rk);
     if (!path().some((e) => e.id === st)) { const r = R.routes.find((x) => TR[x.id].path.some((e) => e.id === st)); if (r) S.route = r.id; }
     S.pos = 0; goStation(st); window.scrollTo({ top: 0 }); return; }
   const gr = ev.target.closest("[data-goroute]");
