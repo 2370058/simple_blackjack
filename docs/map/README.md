@@ -33,7 +33,7 @@ W と L の下には **変数の変遷** がある。`build.py` の `trace_endin
 
 パラメータの折りたたみの上には、駅によって **参考実装**（`REFIMPL`。まだコードに無いが、その駅に足せるパラメータ）が出る: 掛け金を聞く（retreat_balance・bet_ratio）、掛け金を確かめる（MIN_BET・MAX_BET）、山札の残り（NUM_DECKS）、hit か stand か（weak_threshold）、ディーラーが 17 まで引く（DEALER_STAND・HIT_SOFT17）、点数を比べる・残高を動かす（BJ_PAYOUT）。既定値と型・置き場・足したら使う行・タスク・変更の例つき。例はこのページを作るときに全部を同時に入れて autodealer.py を流し、止まらずに動くことを確かめた。
 
-また「旗の荷物」の下には、折りたたみの **パラメータ** がある。この駅を出るときのプレイヤーのインスタンスの `self.…`（stop_balance・unit_bet・hit_threshold・balance・hand・round・dealer_card…）と、game()・autodealer の設定（initial_balance・penetration・is_print）を、値と型つきで出す（`build.py` の `run_route` が荷物と一緒に記録）。その駅で実行した行に出てくるものは色が付き、判定（if に使った）・入れた（代入）・読んだ の行が並ぶ。置き場（例: player_simple.py:5 `unit_bet = 100` → __init__ の既定値 → self.unit_bet）も出る。タスク A で変えるパラメータには A の印があり、押すと環状線をタスク A で絞る。
+また「旗の荷物」の下には、折りたたみの **パラメータ** がある。この駅を出るときのプレイヤーのインスタンスの `self.…`（stop_balance・unit_bet・hit_threshold・balance・hand・round・dealer_card…）と、game()・autodealer の設定（initial_balance・penetration・is_print）を、値と型つきで出す（`build.py` の `run_route` が荷物と一緒に記録）。その駅で実行した行に出てくるものは色が付き、判定（if に使った）・入れた（代入）・読んだ の行が並ぶ。置き場（例: player_simple.py:5 `unit_bet = 100` → __init__ の既定値 → self.unit_bet）も出る。使った行の行番号を押すと、その行のすぐ下に、行のまわり（入っている関数の全体）が出る。参考実装にも「今のコードで入れる所」の行がある。タスク A で変えるパラメータには A の印があり、押すと環状線をタスク A で絞る。
 
 3 環状線の上の **タスクで絞る**（なし・A・B・C・タスク外）を選ぶと、そのタスクが関係する駅だけが色の輪で囲まれ、駅名に手順の番号（`B3`・`Bb` など。小文字は準備）が付き、ほかの駅と旗は薄くなる（`taskRel`）。関係は、タスクの手順の `st`・`where`、`where` に書いた一手の流れの手順（`"Q:…"`）の駅、`issue` の旗の駅から集める。下の表に駅ごとの手順（押すと 2 の図のその手順へ）とルートが出て、駅のコードでは、そのタスクで変える行に「← … で変える」が付く。2 の図のタスクから環状線へ跳ぶと、同じタスクで絞った状態になる。
 
