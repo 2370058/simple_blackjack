@@ -141,6 +141,28 @@ tfoot td { font-weight: 700; }
 .c4 .ahd { fill: var(--muted); }
 .d4 { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 16px; display: grid; gap: 10px; align-content: start; }
 .d4 .dh h2 { font-size: 1.05rem; }
+.taskbar { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.taskbar button { border: 1.5px solid var(--c, var(--line)); background: var(--panel); color: var(--fg); border-radius: 999px; padding: 4px 12px; font: 700 .85rem var(--display); cursor: pointer; }
+.taskbar button[aria-pressed="true"] { background: var(--c, var(--fg)); color: #fff; border-color: var(--c, var(--fg)); }
+.taskbar button.none[aria-pressed="true"] { background: var(--fg); color: var(--bg); }
+.c4.tasking .box4:not(.inflow) { opacity: .32; }
+.c4.tasking .edge { opacity: .14; pointer-events: none; }
+.c4 .box4 .row.trow rect { fill: color-mix(in srgb, var(--t) 22%, transparent); }
+.c4 .tflow path { fill: none; stroke: var(--t); stroke-width: 3; stroke-linejoin: round; }
+.c4 .tflow.dim path { stroke-opacity: .35; }
+.c4 .tflow.cur path { stroke-width: 5; }
+.c4 .tflow.hl path { stroke-dasharray: 3 4; }
+.c4 .tbadge { cursor: pointer; }
+.c4 .tbadge circle { fill: var(--t); stroke: var(--panel); stroke-width: 2.5; }
+.c4 .tbadge.cur circle { stroke: var(--fg); stroke-width: 3; }
+.c4 .tbadge text { font: 800 12px var(--display); fill: #fff; }
+.c4 .tah { fill: var(--t); }
+.tpanel { border: 2px solid var(--t); border-radius: 12px; background: var(--panel); padding: 14px 16px; display: grid; gap: 10px; }
+.tpanel ol { margin: 0; padding: 0; list-style: none; display: grid; gap: 4px; }
+.tpanel li button { display: flex; gap: 10px; align-items: baseline; width: 100%; text-align: left; border: 0; background: transparent; color: var(--fg); padding: 4px 6px; border-radius: 8px; font: .9rem var(--body); cursor: pointer; }
+.tpanel li button b { flex: none; display: inline-grid; place-items: center; width: 1.6em; height: 1.6em; border-radius: 50%; background: var(--t); color: #fff; font: 800 .8rem var(--display); }
+.tpanel li button[aria-pressed="true"] { background: color-mix(in srgb, var(--t) 14%, transparent); font-weight: 700; }
+.tpanel .step { border-left: 4px solid var(--t); padding: 4px 0 4px 12px; display: grid; gap: 8px; }
 .hidden-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
 </style>
@@ -156,7 +178,9 @@ tfoot td { font-weight: 700; }
   <section class="lv" data-lv="ctx" hidden>
     <h1>コンテキスト図</h1>
     <p class="lead">C4 モデルの1段目。simple_blackjack 全体を1つの箱にして、周りの人と外部のものとのやりとりだけを描く。授業の3つのタスク（A 分析・B 戦略・C 改造）をする人も、ここでは別の人として並べる。箱や矢印を押すと、下に説明が出る。</p>
+    <div class="taskbar" id="ctxbar"></div>
     <div class="map c4"><svg id="ctxmap" viewBox="0 0 1150 440" role="img" aria-label="遊ぶ人・タスク A B C の学生・授業の担当と、GitHub・Ubuntu と VS Code・Excel が、simple_blackjack とどうやりとりするかを表したコンテキスト図"></svg></div>
+    <div id="ctxtask"></div>
     <div id="ctxdetail"></div>
   </section>
   <section class="lv" data-lv="c4" hidden>
@@ -164,7 +188,9 @@ tfoot td { font-weight: 700; }
     <p class="lead">C4 モデルの2段目と3段目。点線の大きな枠がコンテナ（python3 で動かす単位と、import される部品の置き場）、中の箱がコンポーネント（ファイルや関数のまとまり）。
       いちばん大事な境目は、ディーラーとプレイヤーをつなぐ <b>7つの命令</b>（start_turn・place_bet・receive_hand・look_dealer_hand・input・finish_dealer_hand・notify_result）。この形を変えると、players/ の全部のファイルが動かなくなる。
       同じ1ラウンドの流れが dealer.py と autodealer.py の game() の2か所に書いてあるので、ルールを直すときは両方を直す。行を押すとそのコードが出る。右端に ◯ がある行は環状線に駅があり、「環状線で見る」で3段目に下りられる。</p>
+    <div class="taskbar" id="c4bar"></div>
     <div class="map c4"><svg id="c4map" viewBox="0 0 1150 1000" role="img" aria-label="dealer.py と autodealer.py の2つのプログラムが、card.py と players/ のプレイヤーを import して使い、ターミナルに入出力する構成図"></svg></div>
+    <div id="c4task"></div>
     <div id="c4detail"></div>
   </section>
   <section class="lv" data-lv="ring">
@@ -585,8 +611,83 @@ const C4E = [
   ["k11", "main", 4, "term", -1, "結果の1行", "print で「名前, 1ゲームの ms, ラウンド数, 残高の平均」。", "call"],
 ];
 
+// タスク A・B・C の流れ。ctx: [from, to, label, desc]（to が null なら箱だけ光らせる）
+// c4: [[箱, 行], [箱, 行] か null, label, desc]（行が -1 なら箱の題名）
+const TASKS = {
+  A: { t: "A 分析する", c: "var(--pre)", note: "player_simple.py のパラメータを変えたコピーを players/ に並べ、autodealer.py で平均を出して比べる。コードの流れは変えず、数字だけを変える。",
+    ctx: [["p_anal", "x_vscode", "パラメータを書き換える", "player_simple.py をコピーして player_simple_1200_100_16.py のように名前を付け、stop_balance・unit_bet・hit_threshold を書き換える。撤退条件は place_bet に足す。"],
+      ["x_vscode", "sys", "python3 autodealer.py", "players/ の .py が全部、1ファイル1行で比べられる。player_random も一緒に流れるので、基準が毎回出る。"],
+      ["sys", "p_anal", "平均の1行（ファイルごと）", "名前, 1ゲームの ms, ラウンド数, 残高の平均。MAX が小さいと、同じパラメータでも毎回ぶれる。"],
+      ["p_anal", "x_excel", "表・グラフ・統計", "パラメータごとに並べ、何回か流してばらつき（標準偏差・信頼区間）も見る。"],
+      ["x_excel", "p_teacher", "レポート", "どのパラメータが結果を変えるか、どれだけ信頼できるかを書く。"]],
+    c4: [[["simple", -1], ["mine", -1], "コピーして数字を変える", "player_simple.py をコピーし、上の3つの数字（stop_balance・unit_bet・hit_threshold）だけを書き換える。ファイル名に数字を入れると、結果の1行でどれか分かる。"],
+      [["main", 2], ["game", 0], "MAX 回・初期残高", "autodealer.py の MAX（4000）を増やすと平均のぶれが小さくなる（そのぶん時間がかかる）。初期残高（initial_balance = 1000）を変えたら、stop_balance と撤退条件も合わせて変える。"],
+      [["main", 0], ["mine", -1], "players/ から見つける", "os.listdir で players/ の .py を全部探す。コピーを何個置いても、全部1行ずつ出る。"],
+      [["main", 1], ["mine", -1], "1つずつ import", "import_module で読み込み、BlackjackPlayer クラスを game() に渡す。"],
+      [["game", 2], ["mine", 0], "place_bet・input を呼ぶ", "パラメータが効くのは、この2つの命令の中だけ。place_bet で stop_balance と unit_bet、input で hit_threshold を使う。"],
+      [["mine", 1], ["card", 2], "Card.sum と比べる", "合計が hit_threshold 未満なら hit。ここを変えると、バーストの回数とディーラーに負ける回数の釣り合いが変わる。"],
+      [["game", 4], ["main", 3], "残高をたす", "game() が返した残高を MAX 回たす。無効な掛け金の -1 もここに混ざる（緊1）。"],
+      [["main", 4], ["term", 2], "結果の1行", "名前, ms, ラウンド数, 残高の平均。これを表に写す。"]] },
+  B: { t: "B 戦略を書く", c: "var(--ok)", note: "player_simple.py をコピーして、place_bet（いくら賭けるか・いつやめるか）と input（hit か stand か）を自分の戦略に書き換える。dealer.py で1手ずつ試してから、autodealer.py で数を回す。",
+    ctx: [["p_strat", "x_vscode", "player_xxx.py を書く", "VS Code でコピーして書き換え、学籍番号develop のブランチにコミットする。"],
+      ["x_vscode", "sys", "dealer.py で試す・players/ に置く", "dealer.py の import を差し替えて1手ずつ確かめ、players/ に置いて autodealer.py で回す。"],
+      ["sys", "p_strat", "平均の1行", "player_random・player_simple と並んで出るので、良くなったかがすぐ分かる。"],
+      ["p_strat", "x_excel", "結果の表・グラフ", "工夫の前と後を並べる。"],
+      ["x_excel", "p_teacher", "プログラムとレポート", "戦略の説明と、実際のコード（テキストで貼る）と、結果の表。"]],
+    c4: [[["simple", -1], ["mine", -1], "コピーして作る", "player_simple.py をコピーして player_xxx.py にする。7つの命令は消さない（消すと動かない）。"],
+      [["mine", 0], null, "撤退条件を足す", "place_bet の中で、残高が〇〇円を下回ったら 0 を返してやめる。勝ち逃げ（stop_balance）と組み合わせる。"],
+      [["mine", 1], ["card", 2], "自分の合計を数える", "input の中で Card.sum(self.hand) を使う。ソフトかどうかは Card.is_soft(self.hand)。"],
+      [["mine", 2], null, "ディーラーの表のカード", "self.dealer_card.value（\"2\"〜\"A\"）と自分の合計で、ベーシックストラテジーの表を引く。表はリストのリストか if 文で書く。"],
+      [["dealer", 2], ["mine", -1], "import を差し替えて試す", "dealer.py の from player import BlackjackPlayer を from players.player_xxx import BlackjackPlayer にすると、自分の戦略が1手ずつ画面に出る。"],
+      [["dealer", 4], ["mine", 1], "1手ずつ呼ばれる", "思った所で hit・stand しているかを見る。確かめたら import を元に戻す。"],
+      [["main", 1], ["mine", -1], "autodealer が読み込む", "players/ に置けば、何もしなくても比べる対象に入る。"],
+      [["game", 2], ["mine", 1], "MAX 回 × 何ラウンドも呼ばれる", "input は1ラウンドに何回も呼ばれる。重い計算を書くと、結果の ms が増える。"],
+      [["main", 4], ["term", 2], "結果の1行で比べる", "player_random より悪ければ、悪い戦略。player_simple と並べて、どれだけ良くなったかを見る。"]] },
+  C: { t: "C 改造する", c: "var(--branch)", note: "autodealer.py の game() に、特殊ルール（ダブルダウン・サレンダーなど）や新しい集計を足す。7つの命令の形は変えずに、答えや命令を増やす形にすると、今のプレイヤーも動き続ける。",
+    ctx: [["p_mod", "x_vscode", "autodealer.py を改造", "ブランチを切ってから直す。改造前の結果も残しておく。"],
+      ["x_vscode", "sys", "python3 autodealer.py で試す", "is_print = True にすると、1ラウンドずつの流れが画面に出て、改造した所を確かめられる。"],
+      ["sys", "p_mod", "新しい結果", "ルールを足す前と後で、player_simple の平均がどう変わるか。"],
+      ["p_mod", "x_excel", "改造の前と後を比べる", "同じプレイヤー・同じ MAX で並べる。"],
+      ["x_excel", "p_teacher", "プログラムとレポート", "改造した機能の説明と、改造した部分のコード（テキストで貼る）と、結果。"]],
+    c4: [[["game", 1], null, "ルールを足す場所", "1ラウンドの流れ（3 の環状線）のどの駅に足すかを決める。ダブルダウンなら「hit か stand かを聞く」の所、サレンダーなら最初の2枚を配った後。"],
+      [["game", 2], ["simple", 4], "input の答えを増やす", "input が \"double\" や \"surrender\" を返せるようにする。今の player_simple・player_random は返さないので、そのまま動く。新しい命令を足すなら、全部のプレイヤーに足すか、hasattr で確かめてから呼ぶ。"],
+      [["game", 1], ["deck", 0], "1枚だけ引く", "ダブルダウンは、掛け金を2倍にして1枚だけ引き、そこで stand。deck.pop() は今と同じ。"],
+      [["game", 3], ["card", 2], "勝ち負けと精算", "bet_amount を2倍にした分を player_balance に入れる。ブラックジャックの int(bet × 1.5) の切り捨て（緊4）にも注意。"],
+      [["game", 1], ["dealer", 3], "dealer.py にも同じ変更", "同じ流れが dealer.py にも書いてある。対話で遊んで確かめるなら、こちらも直す（直さないと2つのルールが食い違う）。"],
+      [["printx", 1], ["term", 1], "途中を見て確かめる", "is_print = True にすると printx が print になり、改造した所の流れが見える。確かめたら False に戻す（4000 回分出てしまう）。"],
+      [["main", 4], ["term", 2], "新しい集計を出す", "勝率・ブラックジャックの回数・最大残高などを1行に足す。無効な掛け金の -1 を別に数える（緊1 を直す）のもここ。"]] },
+};
+function taskBar(lv) {
+  const el = document.getElementById(lv + "bar");
+  el.innerHTML = `<span class="levels-label">タスクで見る</span><button type="button" class="none" data-task="" aria-pressed="${!S.task}">なし</button>` +
+    Object.entries(TASKS).map(([k, t]) => `<button type="button" data-task="${k}" style="--c:${t.c}" aria-pressed="${S.task === k}">${t.t}</button>`).join("");
+}
+function taskPanel(lv) {
+  const el = document.getElementById(lv + "task"), T = TASKS[S.task];
+  if (!T) { el.innerHTML = ""; return; }
+  const steps = T[lv], k = S.tstep, st = k != null ? steps[k] : null;
+  const name = (x) => lv === "ctx" ? CTX.find((b) => b.id === x).title : C4B.find((b) => b.id === x[0]).title + (x[1] >= 0 ? " の " + C4B.find((b) => b.id === x[0]).rows[x[1]][0] : "");
+  let body = "";
+  if (st) {
+    const [a, b, label, desc] = steps[k];
+    let code = "";
+    if (lv === "c4") { for (const x of [a, b]) { const r = x && x[1] >= 0 && C4B.find((q) => q.id === x[0]).rows[x[1]][2]; if (r && r.f) { code = codeBlock(r.f, r.find, 16); break; } } }
+    body = `<div class="step"><div class="dh"><span class="kind" style="--c:${T.c}">${k + 1}</span><h3>${esc(label)}</h3>
+      <div class="nav"><button type="button" data-tstep="${k - 1}" ${k ? "" : "disabled"}>← 前</button><button type="button" data-tstep="${k + 1}" ${k < steps.length - 1 ? "" : "disabled"}>次 →</button></div></div>
+      <p class="note">${esc(name(a))}${b ? " → " + esc(name(b)) : "（ここを書き換える）"}</p><p>${esc(desc)}</p>${code}</div>`;
+  }
+  el.innerHTML = `<section class="tpanel" style="--t:${T.c}"><div class="dh"><span class="kind" style="--c:${T.c}">タスク</span><h2>${esc(T.t)}の流れ</h2></div><p class="note">${esc(T.note)}</p>
+    <ol>${steps.map((x, i) => `<li><button type="button" data-tstep="${i}" aria-pressed="${k === i}"><b>${i + 1}</b><span>${esc(x[2])}</span></button></li>`).join("")}</ol>${body}</section>`;
+}
+function badge(g, x, y, i) {
+  const b = svgEl("g", { class: "tbadge" + (S.tstep === i ? " cur" : ""), "data-tstep": i, tabindex: 0, role: "button" }, g);
+  svgEl("circle", { cx: x, cy: y, r: 11 }, b);
+  svgEl("text", { x, y: y + 4, "text-anchor": "middle" }, b).textContent = i + 1;
+}
+function flowCls(i) { return "tflow" + (S.tstep == null ? "" : S.tstep === i ? " cur" : " dim"); }
+
 const svgEl = (tag, attrs, parent) => { const e = document.createElementNS("http://www.w3.org/2000/svg", tag); for (const k in attrs) e.setAttribute(k, attrs[k]); if (parent) parent.appendChild(e); return e; };
-function arrowDefs(root, id) { const d = svgEl("defs", {}, root), m = svgEl("marker", { id, viewBox: "0 0 10 10", refX: 9, refY: 5, markerWidth: 7, markerHeight: 7, orient: "auto-start-reverse" }, d); svgEl("path", { d: "M0 0 L10 5 L0 10 z", class: "ahd" }, m); }
+function arrowDefs(root, id, cls = "ahd", size = 7) { const d = svgEl("defs", {}, root), m = svgEl("marker", { id, viewBox: "0 0 10 10", refX: 9, refY: 5, markerWidth: size, markerHeight: size, orient: "auto-start-reverse", markerUnits: "userSpaceOnUse" }, d); svgEl("path", { d: "M0 0 L10 5 L0 10 z", class: cls }, m); }
 function clip(b, tx, ty) { // 箱の中心から (tx, ty) へ向かう線が、箱の縁と交わる点
   const cx = b.x + b.w / 2, cy = b.y + b.h / 2, dx = tx - cx, dy = ty - cy, s = Math.min(Math.abs((b.w / 2) / (dx || 1e-9)), Math.abs((b.h / 2) / (dy || 1e-9)));
   return [cx + dx * s, cy + dy * s]; }
@@ -601,8 +702,9 @@ function funcLines(f, find) {
   else { while (j + 1 < L.length && L[j + 1].trim() && ind(L[j + 1]) > base) j++; }
   return { from: i + 1, to: Math.min(j + 1, i + 60), hit: i + 1, more: j + 1 > i + 60 };
 }
-function codeBlock(f, find) {
+function codeBlock(f, find, max) {
   const r = funcLines(f, find); if (!r) return `<p class="note">（${esc(f)} に「${esc(find)}」が見つからない）</p>`;
+  if (max && r.to - r.from + 1 > max) { r.to = r.from + max - 1; r.more = true; }
   let h = `<div class="file">${esc(f)}</div>`;
   for (let n = r.from; n <= r.to; n++) { const role = ROLE[`${f}:${n}`];
     h += `<div class="ln${n === r.hit ? " x" : ""}" ${role ? `title="${role}"` : ""}><i>${n}</i><s style="--r:${role ? RC[role] : "transparent"}"></s><span>${esc(SRC[f][n - 1])}</span><span></span></div>`; }
@@ -611,7 +713,7 @@ function codeBlock(f, find) {
 }
 
 function drawCtx() {
-  const root = document.getElementById("ctxmap"); root.innerHTML = ""; arrowDefs(root, "ahx");
+  const root = document.getElementById("ctxmap"); root.innerHTML = ""; arrowDefs(root, "ahx", "ahd", 10);
   const B = Object.fromEntries(CTX.map((b) => [b.id, b])), eg = svgEl("g", {}, root), bg = svgEl("g", {}, root);
   for (const [id, a, b, label, , dx, dy] of CTX_E) {
     const A = B[a], Z = B[b], par = CTX_E.some((e) => e[1] === b && e[2] === a) ? (a < b ? -9 : 9) : 0;
@@ -622,8 +724,21 @@ function drawCtx() {
     svgEl("path", { d: `M${x1 + nx} ${y1 + ny} L${x2 + nx} ${y2 + ny}`, "marker-end": "url(#ahx)" }, g);
     svgEl("text", { x: (x1 + x2) / 2 + nx * 2 + dx, y: (y1 + y2) / 2 + ny * 2 + dy, "text-anchor": "middle" }, g).textContent = label;
   }
+  const T = TASKS[S.task], inflow = new Set(), tg = svgEl("g", {}, root);
+  root.parentElement.classList.toggle("tasking", !!T);
+  if (T) {
+    root.style.setProperty("--t", T.c); arrowDefs(root, "aht", "tah", 14);
+    T.ctx.forEach(([a, b], i) => { inflow.add(a); if (b) inflow.add(b);
+      const A = B[a], Z = B[b];
+      let [x1, y1] = clip(A, Z.x + Z.w / 2, Z.y + Z.h / 2), [x2, y2] = clip(Z, A.x + A.w / 2, A.y + A.h / 2);
+      const len = Math.hypot(x2 - x1, y2 - y1) || 1, nx = -(y2 - y1) / len * 14, ny = (x2 - x1) / len * 14;
+      const g = svgEl("g", { class: flowCls(i) }, tg);
+      svgEl("path", { d: `M${x1 + nx} ${y1 + ny} L${x2 + nx} ${y2 + ny}`, "marker-end": "url(#aht)" }, g);
+      badge(g, x1 + nx + (x2 - x1) * .5, y1 + ny + (y2 - y1) * .5, i); });
+  }
+  root.appendChild(tg);
   for (const b of CTX) {
-    const g = svgEl("g", { class: `box4 ${b.kind}${S.c4pick === b.id ? " on" : ""}`, "data-c4": b.id, tabindex: 0, role: "button", style: `--c:${C4K[b.kind].c}` }, bg);
+    const g = svgEl("g", { class: `box4 ${b.kind}${S.c4pick === b.id ? " on" : ""}${inflow.has(b.id) ? " inflow" : ""}`, "data-c4": b.id, tabindex: 0, role: "button", style: `--c:${C4K[b.kind].c}` }, bg);
     svgEl("rect", { class: "body", x: b.x, y: b.y, width: b.w, height: b.h, rx: b.kind === "person" ? 30 : 8 }, g);
     svgEl("text", { class: "t", x: b.x + 16, y: b.y + (b.kind === "sys" ? 40 : 30) }, g).textContent = b.title;
     svgEl("text", { class: "sub", x: b.x + 16, y: b.y + (b.kind === "sys" ? 62 : 51) }, g).textContent = b.sub;
@@ -643,7 +758,7 @@ function c4Layout() { // 箱の高さを行の数から決め、コンテナご�
 }
 function rowY(p, r) { return r < 0 ? p.y + 22 : p.y + HEAD + r * RH + RH / 2 - 2; }
 function drawC4() {
-  const root = document.getElementById("c4map"); root.innerHTML = ""; arrowDefs(root, "ahk");
+  const root = document.getElementById("c4map"); root.innerHTML = ""; arrowDefs(root, "ahk", "ahd", 10);
   const { pos, fb, H } = c4Layout(); root.setAttribute("viewBox", `0 0 1150 ${H}`);
   const fg = svgEl("g", {}, root), eg = svgEl("g", {}, root), bg = svgEl("g", {}, root);
   for (const f of Object.values(fb)) {
@@ -652,35 +767,57 @@ function drawC4() {
     svgEl("text", { class: "tag", x: f.x + 14, y: f.y + 42 }, fg).textContent = f.sub;
   }
   const side = {}; // 同じ列の中の線は、箱の右の溝を少しずつずらして通す
-  for (const [id, a, ra, b, rb, label, , style] of C4E) {
-    const A = pos[a], Z = pos[b]; let d, lx, ly, anchor = "middle";
-    const y1 = rowY(A, ra), y2 = rowY(Z, rb);
+  // 線の道筋。shift はタスクの線を、ふだんの線から少しずらすため。bx・by は番号の札を置く所
+  function route(a, ra, b, rb, shift = 0) {
+    const A = pos[a], Z = pos[b], y1 = rowY(A, ra) + (shift ? 4 : 0), y2 = rowY(Z, rb) + (shift ? 4 : 0); let d, lx, ly, anchor = "middle", bx, by;
     if (b === "term") { // ターミナルへは真下に下ろす
-      const x = A.x + A.w * (a === "main" ? .7 : .5), sx = A.x + A.w;
-      const gx = a === "main" ? sx + 14 : sx + 12;
-      d = `M${sx} ${y1} H${gx} V${Z.y - 30} H${x} V${Z.y}`; lx = x + 6; ly = Z.y - 36; anchor = "start";
+      const x = A.x + A.w * (a === "main" ? .7 : .5) + shift, sx = A.x + A.w;
+      const gx = (a === "main" ? sx + 14 : sx + 12) + shift / 2;
+      d = `M${sx} ${y1} H${gx} V${Z.y - 30} H${x} V${Z.y}`; lx = x + 6; ly = Z.y - 36; anchor = "start"; bx = x; by = Z.y - 18;
+    } else if (Math.abs(A.x - Z.x) > 600) { // 遠い列どうし: コンテナの下を回る
+      const yb = fb.f_lib.y + fb.f_lib.h + 26 + shift / 2, sx = A.x > Z.x ? A.x : A.x + A.w, ex = A.x > Z.x ? Z.x + Z.w : Z.x, o = A.x > Z.x ? -1 : 1;
+      d = `M${sx} ${y1} H${sx + o * 10} V${yb} H${ex - o * 10} V${y2} H${ex}`; lx = (sx + ex) / 2; ly = yb - 6; bx = (sx + ex) / 2; by = yb;
+    } else if (Math.abs(A.x - Z.x) < 5 && shift) { // タスクの線で同じ列: 左の溝を回る（右はふだんの線で埋まっている）
+      const gx = A.x - 4 - shift / 2; d = `M${A.x} ${y1} H${gx} V${y2} H${Z.x}`; lx = gx; ly = y2; bx = gx; by = null;
     } else if (Math.abs(A.x - Z.x) < 5) { // 同じ列: 右の溝を回る
       const k = (side[A.x] = (side[A.x] || 0) + 1), gx = A.x + A.w + 6 + k * 9;
-      const lo = A.y > Z.y ? A : Z; d = `M${A.x + A.w} ${y1} H${gx} V${y2} H${Z.x + Z.w}`; lx = lo.x + lo.w - 8; ly = lo.y - 7; anchor = "end";
-    } else if (A.x < Z.x) { const gx = (A.x + A.w + Z.x) / 2; d = `M${A.x + A.w} ${y1} H${gx} V${y2} H${Z.x}`; lx = Z.x - 6; ly = y2 - 6; anchor = "end"; }
-    else { const gx = (Z.x + Z.w + A.x) / 2; d = `M${A.x} ${y1} H${gx} V${y2} H${Z.x + Z.w}`; lx = Z.x + Z.w + 6; ly = y2 - 6; anchor = "start"; }
+      const lo = A.y > Z.y ? A : Z; d = `M${A.x + A.w} ${y1} H${gx} V${y2} H${Z.x + Z.w}`; lx = lo.x + lo.w - 8; ly = lo.y - 7; anchor = "end"; bx = gx; by = (y1 + y2) / 2;
+    } else if (A.x < Z.x) { const gx = (A.x + A.w + Z.x) / 2 + shift; d = `M${A.x + A.w} ${y1} H${gx} V${y2} H${Z.x}`; lx = Z.x - 6; ly = y2 - 6; anchor = "end"; bx = gx; by = (y1 + y2) / 2; }
+    else { const gx = (Z.x + Z.w + A.x) / 2 - shift; d = `M${A.x} ${y1} H${gx} V${y2} H${Z.x + Z.w}`; lx = Z.x + Z.w + 6; ly = y2 - 6; anchor = "start"; bx = gx; by = (y1 + y2) / 2; }
+    return { d, lx, ly, anchor, bx, by, y1, y2 };
+  }
+  for (const [id, a, ra, b, rb, label, , style] of C4E) {
+    const r = route(a, ra, b, rb);
     const g = svgEl("g", { class: `edge ${style}${S.c4pick === id ? " on" : ""}`, "data-c4": id, tabindex: 0, role: "button" }, eg);
-    svgEl("path", { d, "marker-end": "url(#ahk)" }, g);
-    svgEl("text", { x: lx, y: ly, "text-anchor": anchor }, g).textContent = label;
+    svgEl("path", { d: r.d, "marker-end": "url(#ahk)" }, g);
+    svgEl("text", { x: r.lx, y: r.ly, "text-anchor": r.anchor }, g).textContent = label;
+  }
+  const T = TASKS[S.task], inflow = new Set(), trows = new Set(), tg = svgEl("g", {}, root);
+  root.parentElement.classList.toggle("tasking", !!T);
+  if (T) {
+    root.style.setProperty("--t", T.c); arrowDefs(root, "aht", "tah", 14);
+    T.c4.forEach(([a, b], i) => {
+      for (const x of [a, b]) if (x) { inflow.add(x[0]); if (x[1] >= 0) trows.add(x[0] + ":" + x[1]); }
+      const g = svgEl("g", { class: flowCls(i) }, tg);
+      if (!b) { const p = pos[a[0]]; svgEl("path", { d: `M${p.x + 2} ${rowY(p, a[1]) - 10} V${rowY(p, a[1]) + 10}`, "stroke-width": 6 }, g); badge(g, p.x - 2, rowY(p, a[1]), i); return; }
+      const r = route(a[0], a[1], b[0], b[1], 7 + (i % 3) * 5);
+      svgEl("path", { d: r.d, "marker-end": "url(#aht)" }, g); badge(g, r.bx, r.by == null ? r.y1 + (r.y2 - r.y1) * (.2 + .3 * (i % 3)) : r.by + ((i % 3) - 1) * 14, i);
+    });
   }
   for (const b of C4B) {
-    const p = pos[b.id], g = svgEl("g", { class: `box4${b.mine ? " mine" : ""}${S.c4pick === b.id ? " on" : ""}`, "data-c4": b.id, tabindex: 0, role: "button", style: `--c:${b.c}` }, bg);
+    const p = pos[b.id], g = svgEl("g", { class: `box4${b.mine ? " mine" : ""}${S.c4pick === b.id ? " on" : ""}${inflow.has(b.id) ? " inflow" : ""}`, "data-c4": b.id, tabindex: 0, role: "button", style: `--c:${b.c}` }, bg);
     svgEl("rect", { class: "body", x: p.x, y: p.y, width: p.w, height: p.h, rx: 8 }, g);
     svgEl("text", { class: "tm", x: p.x + 12, y: p.y + 22 }, g).textContent = b.title;
     svgEl("text", { class: "tag", x: p.x + p.w - 12, y: p.y + 22, "text-anchor": "end" }, g).textContent = b.tag;
     b.rows.forEach(([l, r, ln], i) => {
-      const y = p.y + HEAD + i * RH, rg = svgEl("g", { class: "row" + (S.c4pick === b.id && S.c4row === i ? " on" : ""), "data-c4": b.id, "data-row": i }, g);
+      const y = p.y + HEAD + i * RH, rg = svgEl("g", { class: "row" + (S.c4pick === b.id && S.c4row === i ? " on" : "") + (trows.has(b.id + ":" + i) ? " trow" : ""), "data-c4": b.id, "data-row": i, style: T ? `--t:${T.c}` : "" }, g);
       svgEl("rect", { x: p.x + 4, y: y - 4, width: p.w - 8, height: RH }, rg);
       svgEl("text", { class: "l", x: p.x + 12, y: y + 11 }, rg).textContent = l;
       svgEl("text", { class: "r", x: p.x + p.w - (ln && ln.st ? 30 : 12), y: y + 11, "text-anchor": "end" }, rg).textContent = r;
       if (ln && ln.st) svgEl("text", { class: "ring", x: p.x + p.w - 10, y: y + 11, "text-anchor": "end" }, rg).textContent = "◯";
     });
   }
+  root.appendChild(tg);
 }
 
 function c4Detail(level) {
@@ -705,13 +842,13 @@ function c4Detail(level) {
       ${ln ? codeBlock(ln.f, ln.find) : b.file ? codeBlock(b.file, b.rows.find((r) => r[2])[2].find) : `<p class="note">まだ無いファイル。players/player_simple.py をコピーして作る。</p>`}</section></div>`;
 }
 
+function redrawC4() { if (S.level === "ctx") { taskBar("ctx"); drawCtx(); taskPanel("ctx"); c4Detail("ctx"); } else if (S.level === "c4") { taskBar("c4"); drawC4(); taskPanel("c4"); c4Detail("c4"); } }
 function setLevel(lv) {
-  S.level = lv; store.set("level", lv); S.c4pick = null; S.c4row = null;
+  S.level = lv; store.set("level", lv); S.c4pick = null; S.c4row = null; S.tstep = null;
   document.querySelectorAll("#levels button").forEach((b) => b.setAttribute("aria-selected", String(b.dataset.level === lv)));
   document.querySelectorAll(".lv").forEach((s) => { s.hidden = s.dataset.lv !== lv; });
   document.getElementById("crumb-ring").textContent = { ctx: "コンテキスト図", c4: "コンテナ・コンポーネント図", ring: R.title }[lv];
-  if (lv === "ctx") { drawCtx(); c4Detail("ctx"); }
-  if (lv === "c4") { drawC4(); c4Detail("c4"); }
+  redrawC4();
 }
 document.addEventListener("click", (ev) => {
   const lv = ev.target.closest("[data-level]");
@@ -720,17 +857,25 @@ document.addEventListener("click", (ev) => {
   if (rs) { const st = rs.dataset.ringst; setLevel("ring");
     if (!path().some((e) => e.id === st)) { const r = R.routes.find((x) => TR[x.id].path.some((e) => e.id === st)); if (r) S.route = r.id; }
     S.pos = 0; goStation(st); return; }
+  const tk = ev.target.closest("[data-task]");
+  if (tk) { S.task = tk.dataset.task || null; S.tstep = S.task ? 0 : null; store.set("task", S.task); redrawC4(); return; }
+  const ts = ev.target.closest("[data-tstep]");
+  if (ts) { S.tstep = +ts.dataset.tstep; redrawC4(); return; }
   const g = ev.target.closest("[data-c4]");
   if (!g) return;
   const row = ev.target.closest("[data-row]");
   S.c4pick = g.dataset.c4; S.c4row = row ? +row.dataset.row : null;
-  if (S.level === "ctx") { drawCtx(); c4Detail("ctx"); } else { drawC4(); c4Detail("c4"); }
+  redrawC4();
 });
 document.addEventListener("keydown", (ev) => {
-  const g = ev.target.closest && ev.target.closest("[data-c4]");
-  if (g && (ev.key === "Enter" || ev.key === " ")) { ev.preventDefault(); g.dispatchEvent(new MouseEvent("click", { bubbles: true })); }
+  const g = ev.target.closest && ev.target.closest("[data-c4],.tbadge");
+  if (g && (ev.key === "Enter" || ev.key === " ")) { ev.preventDefault(); g.dispatchEvent(new MouseEvent("click", { bubbles: true })); return; }
+  const T = TASKS[S.task];
+  if (S.level !== "ring" && T && (ev.key === "ArrowRight" || ev.key === "ArrowLeft")) { ev.preventDefault();
+    const n = T[S.level].length; S.tstep = Math.max(0, Math.min(n - 1, (S.tstep == null ? -1 : S.tstep) + (ev.key === "ArrowRight" ? 1 : -1))); redrawC4(); }
 }, true);
 
+S.task = TASKS[store.get("task", "")] ? store.get("task", "") : null;
 render();
 setLevel(["ctx", "c4", "ring"].includes(store.get("level", "c4")) ? store.get("level", "c4") : "c4");
 })();

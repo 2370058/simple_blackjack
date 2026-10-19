@@ -10,6 +10,8 @@
 
 デプロイは無いので、デプロイ図は作っていません。1 と 2 の図のデータ（箱・行・矢印）は `ring.src.html` の `CTX`・`C4B`・`C4E` にあります。
 
+1 と 2 の図の上の「タスクで見る」で A（分析）・B（戦略）・C（改造）を選ぶと、そのタスクの流れが番号つきの矢印で重なります。関係しない箱は薄くなり、下に手順の一覧が出ます（← → で前後）。2 の図では、手順ごとに関係するコードも出ます。流れのデータは `ring.src.html` の `TASKS` にあります（`ctx` は人や外部の箱の id、`c4` は `[箱, 行]` の組）。
+
 ```bash
 python docs/map/build.py      # ring.html を作る（コミットしない）
 open docs/map/ring.html       # Mac（Windows は start、Linux は xdg-open）
