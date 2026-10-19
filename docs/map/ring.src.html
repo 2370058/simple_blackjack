@@ -1227,7 +1227,7 @@ function matCard(task, m, side) {
       <dt>変えると（今の駅のロジック）</dt><dd>${esc(m.change)}</dd><dt>変える順番</dt><dd><ol>${m.order.map((o) => `<li>${esc(o)}</li>`).join("")}</ol></dd></dl></div>`;
 }
 // プロンプトに渡すファイル（タスクごと）と、そのインポート文・入る理由
-const promptFiles = (task) => task === "C" ? ["autodealer.py", "card.py", "players/player_simple.py", "dealer.py", "player.py"] : ["autodealer.py", "card.py", "players/player_simple.py"];
+const promptFiles = (task) => task === "C" ? ["autodealer.py", "card.py", ...DATA.players, "dealer.py", "player.py"] : ["autodealer.py", "card.py", "players/player_simple.py"];   // C はルールを変えるので、players/ の全員（今ある .py 全部）に効く
 function fileImports(f) { return (SRC[f] || []).map((t, i) => ({ ln: i + 1, t: t.trim() })).filter((x) => /^(import|from)\s/.test(x.t) || /import_module\(/.test(x.t) && !/^from /.test(x.t)); }
 function fileWhy(f, files) {
   if (f === "autodealer.py") return "python3 autodealer.py で動かす本体（game() と __main__）";
@@ -1269,7 +1269,7 @@ function buildPrompt() {
     out.push(`- ${m.f} ${m.n}${sts.length ? `（駅 ${sts.map((x) => idx[x]).join("・")} で呼ばれる）` : "（今のルートでは呼ばれない）"}${on ? " ← 選んだ" : ""}: 今は ${m.now}`);
     if (on) out.push(`  - 使っていない・余地: ${m.room}`, `  - できること: ${m.can}`, `  - 別ファイル・別の駅: ${m.cross}`, `  - 注意: ${m.caution}`); }
   out.push("", "# メモした変数（まだコードに無い。こういう変数があればいいかも）", ...(vars.length ? vars.map((v) => `- ${v.n}\n  - 初期値: ${v.init || "（未定）"}\n  - ロジック: ${v.logic || "（未定）"}`) : ["（なし）"]));
-  if (side) { const refs = REFIMPL[side.st] || []; if (refs.length) { out.push("", "# この駅の参考実装（似た変更の例）"); for (const x of refs) out.push(`- ${x.n} = ${x.v}（${x.f}）: ${x.t}`, `  足した行: \`${x.use}\``); } }
+  if (side) { const refs = REFIMPL[side.st] || []; if (refs.length) { out.push("", "# この駅の参考実装（似た変更の例）"); for (const x of refs) { out.push(`- ${x.n} = ${x.v}（${x.f}）: ${x.t}`, `  足した行: \`${x.use}\``); const g = REFLOGIC[x.n]; if (g) { out.push(...g.how.map((h, i) => `  ${i + 1}. ${h}`), ...g.eg.map((h) => `  - 例: ${h}`), `  - ねらい: ${g.why}`); if (g.caution) out.push(`  - 注意: ${g.caution}`); } if (x.note) out.push(`  - 注意: ${x.note}`); } } }
   const files = promptFiles(F.task), mode = S.pcode || "paste";
   const ups = mode === "pick" ? files.filter((f) => pfileMode(f) === "upload") : [], pastes = mode === "paste" ? files : mode === "pick" ? files.filter((f) => pfileMode(f) === "paste") : [];
   out.push("", "# ファイルとインポート（なぜこのファイルが要るか）");
@@ -1282,7 +1282,9 @@ function buildPrompt() {
     "2. 足りなければ、メモした変数のうち必要なものについて、どこで定義するか（ファイルの上・__init__）、どの駅のどのメソッドで更新するか、どこで判定に使うかを決めてください。",
     "3. 変更を、加える順番に、ファイル・関数・行番号・変更前と変更後のコードで示してください。",
     "4. その変更で、環状線の流れ（この駅の判断の結果、次にどの駅へ進むか）がどう変わるかを説明してください。",
-    "5. 今の決まり（place_bet が 0 を返すとゲーム終了・掛け金は 1 以上で残高以下・input は \"hit\" か \"stand\"・Card.sum はリストを受け取る）を壊さないか確かめてください。");
+    "5. 今の決まり（place_bet が 0 を返すとゲーム終了・掛け金は 1 以上で残高以下・input は \"hit\" か \"stand\"・Card.sum はリストを受け取る）を壊さないか確かめてください。",
+    "6. players/ にいる全部のプレイヤー（貼った・アップロードした .py ごと）が、変更のあとも動くか確かめてください。特に、place_bet が決める掛け金が新しい決まりの外に出るプレイヤー（ランダムに賭ける・全額を賭ける）は、無効な掛け金で return -1, 0 になり、平均に -1 が混ざります（緊1）。そうなるプレイヤーがいれば、先にそれを指摘してください。",
+    "7. 最後に、変更を試すテスト（有効・無効・境目の値）を、期待する結果つきで挙げてください。");
   return out.join("\n");
 }
 function findPanel(bar) {
