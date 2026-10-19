@@ -97,6 +97,11 @@ button:focus-visible, [tabindex]:focus-visible { outline: 3px solid var(--car); 
 .cargo { display: grid; gap: 4px; font-size: .85rem; }
 .cargo div { display: flex; flex-wrap: wrap; gap: 4px 8px; align-items: center; }
 .cargo code { font-family: var(--mono); color: var(--muted); min-width: 9.5em; }
+.deal { display: inline-flex; align-items: center; gap: 2px; border-radius: 6px; padding: 1px 3px 1px 1px; }
+.deal small { font: 800 .72rem var(--display); color: #fff; border-radius: 4px; padding: 0 4px; }
+.deal.P { background: color-mix(in srgb, var(--player) 18%, transparent); } .deal.P small { background: var(--player); }
+.deal.D { background: color-mix(in srgb, var(--dealer) 18%, transparent); } .deal.D small { background: var(--dealer); }
+.deal.u small { background: var(--muted); } .rsep { font: 800 .74rem var(--display); color: var(--muted); margin: 0 2px 0 6px; } .dlg { font-size: .8rem; color: var(--muted); display: inline-flex; gap: 4px; align-items: center; flex-wrap: wrap; }
 .cargo .org, .ptab .org { display: flex; flex-wrap: wrap; gap: 2px 6px; align-items: center; margin: -2px 0 4px 1.2em; font-size: .78rem; }
 .cargo .org code, .ptab .org code { min-width: 0; color: var(--fg); font-family: var(--mono); font-size: .74rem; }
 .org code.ot { overflow-wrap: anywhere; } .org small { color: var(--muted); }
@@ -483,6 +488,16 @@ function svgMap() {
 }
 
 // ---- 荷物（その駅に着いたときの game() の変数） ----
+// 配る順のカードが、プレイヤーとディーラーのどちらの手札に入ったか（駅ごとの荷物の手札の増え方から決める）
+function cardOwners(r, t) {
+  const got = [];
+  for (const e of t.path) { const a = e.after || e.cargo;
+    for (const [k, o] of [["player_hand", "P"], ["dealer_hand", "D"]]) { const b = e.cargo[k] || [], x = a[k] || [];
+      const fresh = x.length >= b.length && b.every((c, i) => x[i] === c) ? x.slice(b.length) : x;
+      fresh.forEach((c) => got.push([c, o, e.id === "s6"])); } }   // s6 = 4枚配る駅。それ以外の駅で増えたカードは引いたもの
+  const used = new Array(got.length).fill(false);
+  return r.cards.map((c) => { const j = got.findIndex(([g], k) => !used[k] && g === c); if (j < 0) return null; used[j] = true; return { o: got[j][1], deal: got[j][2] }; });
+}
 function cardChip(c, isNew) { return `<span class="card${/[♡♢]/.test(c) ? " red" : ""}${isNew ? " new" : ""}">${esc(c)}</span>`; }
 function cargoHtml(entry) {
   const c = entry.after || entry.cargo, p = entry.cargo, prev = !!entry.after;
@@ -715,7 +730,12 @@ function render() {
   const r = routeOf(S.route), t = TR[S.route], dealt = r.cards.length;
   const delta = t.result[0] < 0 ? "エラー（-1 を返す）" : `${t.result[0] - 1000 >= 0 ? "+" : ""}${t.result[0] - 1000}`;
   document.getElementById("summary").innerHTML = S.ring === "r02" ? `<p><b>このルートの結末:</b> ${esc(r.summary)}</p><div class="code term"><div class="file">print された結果（MAX = 2 なので本物より短い）</div>${(t.stdout || "").trim().split("\n").map((l) => `<div class="ln"><i></i><s></s><span>${esc(l)}</span><span></span></div>`).join("")}</div>` : `<p><b>このルートの結末:</b> ${esc(r.summary)}</p>${r.variantEx ? `<p class="note">プレイヤーをこう1行だけ変えて流した（players/player_simple.py の ${r.variant.place_bet ? "place_bet（65 行）" : "input（131 行）"}）:</p>${diffHtml(r.variantEx)}` : ""}
-    <div class="stats"><span>配る順 ${dealt ? r.cards.map((c, i) => `${cardChip(c)}<small>${i < 4 ? ["P", "D", "P", "D"][i] : "引"}</small>`).join(" ") : "<b>なし</b>"}</span>
+    <div class="stats"><span>配る順 ${dealt ? (() => { const own = cardOwners(r, t);
+      let deals = 0;
+      return r.cards.map((c, i) => { const x = own[i], o = x ? x.o : "", who = o === "P" ? "プレイヤー" : "ディーラー";
+        const sep = x && x.deal && deals++ % 4 === 0 && i > 0 ? `<b class="rsep">${deals / 4 + 1 | 0}周目</b>` : "";
+        return `${sep}<span class="deal ${o || "u"}" title="${x ? who + (x.deal ? "に配る" : "が引く") : "使わなかった"}">${cardChip(c)}<small>${x ? (x.deal ? o : o + "引") : "残り"}</small></span>`; }).join(" "); })() : "<b>なし</b>"}</span>
+      ${dealt ? `<span class="dlg"><span class="deal P"><small>P</small></span>プレイヤー <span class="deal D"><small>D</small></span>ディーラー（「引」は hit・17 まで引いたカード）</span>` : ""}
     <span>game() の戻り値 <b>(${t.result.join(", ")})</b></span><span>残高 <b>${delta}</b></span><span>Card.sum <b>${t.calls["Card.sum"] || 0} 回</b></span></div>`;
   const shown = R.issues.filter((it) => S.layers[it.kind]);
   document.getElementById("flags").innerHTML = shown.length ? Object.keys(IK).filter((k) => S.layers[k]).map((k) =>
