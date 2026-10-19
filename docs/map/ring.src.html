@@ -162,6 +162,10 @@ tfoot td { font-weight: 700; }
 .tpanel li button { display: flex; gap: 10px; align-items: baseline; width: 100%; text-align: left; border: 0; background: transparent; color: var(--fg); padding: 4px 6px; border-radius: 8px; font: .9rem var(--body); cursor: pointer; }
 .tpanel li button b { flex: none; display: inline-grid; place-items: center; width: 1.6em; height: 1.6em; border-radius: 50%; background: var(--t); color: #fff; font: 800 .8rem var(--display); }
 .tpanel li button[aria-pressed="true"] { background: color-mix(in srgb, var(--t) 14%, transparent); font-weight: 700; }
+.tpanel .ways { margin: 0; display: grid; grid-template-columns: minmax(8em, max-content) minmax(0, 1fr); gap: 6px 14px; font-size: .9rem; }
+.tpanel .ways dt { font: 700 .85rem var(--display); color: var(--t); }
+.tpanel .ways dd { margin: 0; }
+@media (max-width: 600px) { .tpanel .ways { grid-template-columns: minmax(0, 1fr); } }
 .tpanel .step { border-left: 4px solid var(--t); padding: 4px 0 4px 12px; display: grid; gap: 8px; }
 .hidden-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
@@ -614,20 +618,30 @@ const C4E = [
 // タスク A・B・C の流れ。ctx: [from, to, label, desc]（to が null なら箱だけ光らせる）
 // c4: [[箱, 行], [箱, 行] か null, label, desc]（行が -1 なら箱の題名）
 const TASKS = {
-  A: { t: "A 分析する", c: "var(--pre)", note: "player_simple.py のパラメータを変えたコピーを players/ に並べ、autodealer.py で平均を出して比べる。コードの流れは変えず、数字だけを変える。",
-    ctx: [["p_anal", "x_vscode", "パラメータを書き換える", "player_simple.py をコピーして player_simple_1200_100_16.py のように名前を付け、stop_balance・unit_bet・hit_threshold を書き換える。撤退条件は place_bet に足す。"],
+  A: { t: "A 分析する", c: "var(--pre)", note: "player_simple.py のパラメータ4つ（stop_balance・撤退条件・unit_bet・hit_threshold）と、autodealer.py の2つ（MAX・initial_balance）を変えて、平均を比べる（スライド p.60）。撤退条件以外のコードは基本変えない（変えてもよい）。player_random が比べる基準。",
+    ctx: [["p_anal", "x_vscode", "パラメータと撤退条件を書き換える", "player_simple.py をコピーして player_simple_1200_100_16.py のように名前を付け、4つのパラメータを書き換える。autodealer.py の MAX と initial_balance も変えられる。"],
       ["x_vscode", "sys", "python3 autodealer.py", "players/ の .py が全部、1ファイル1行で比べられる。player_random も一緒に流れるので、基準が毎回出る。"],
-      ["sys", "p_anal", "平均の1行（ファイルごと）", "名前, 1ゲームの ms, ラウンド数, 残高の平均。MAX が小さいと、同じパラメータでも毎回ぶれる。"],
-      ["p_anal", "x_excel", "表・グラフ・統計", "パラメータごとに並べ、何回か流してばらつき（標準偏差・信頼区間）も見る。"],
-      ["x_excel", "p_teacher", "レポート", "どのパラメータが結果を変えるか、どれだけ信頼できるかを書く。"]],
-    c4: [[["simple", -1], ["mine", -1], "コピーして数字を変える", "player_simple.py をコピーし、上の3つの数字（stop_balance・unit_bet・hit_threshold）だけを書き換える。ファイル名に数字を入れると、結果の1行でどれか分かる。"],
-      [["main", 2], ["game", 0], "MAX 回・初期残高", "autodealer.py の MAX（4000）を増やすと平均のぶれが小さくなる（そのぶん時間がかかる）。初期残高（initial_balance = 1000）を変えたら、stop_balance と撤退条件も合わせて変える。"],
-      [["main", 0], ["mine", -1], "players/ から見つける", "os.listdir で players/ の .py を全部探す。コピーを何個置いても、全部1行ずつ出る。"],
-      [["main", 1], ["mine", -1], "1つずつ import", "import_module で読み込み、BlackjackPlayer クラスを game() に渡す。"],
-      [["game", 2], ["mine", 0], "place_bet・input を呼ぶ", "パラメータが効くのは、この2つの命令の中だけ。place_bet で stop_balance と unit_bet、input で hit_threshold を使う。"],
-      [["mine", 1], ["card", 2], "Card.sum と比べる", "合計が hit_threshold 未満なら hit。ここを変えると、バーストの回数とディーラーに負ける回数の釣り合いが変わる。"],
-      [["game", 4], ["main", 3], "残高をたす", "game() が返した残高を MAX 回たす。無効な掛け金の -1 もここに混ざる（緊1）。"],
-      [["main", 4], ["term", 2], "結果の1行", "名前, ms, ラウンド数, 残高の平均。これを表に写す。"]] },
+      ["sys", "p_anal", "平均の1行（ファイルごと）", "名前, 1ゲームの ms, ラウンド数, 残高の平均。同じ設定でも流すたびに少し変わるので、何回か流してばらつきも見る。"],
+      ["p_anal", "x_excel", "表・グラフ・統計", "1つずつ変えた折れ線、2つを組み合わせた表、平均と信頼区間。差がばらつきより大きいかを確かめる。"],
+      ["x_excel", "p_teacher", "レポート", "どのパラメータが結果を変えるか（重要な要素）と、その結果がどれだけ信頼できるかを書く（p.65）。"]],
+    c4: [[["simple", -1], ["mine", -1], "コピーして名前に数字", "player_simple.py をコピーして player_simple_1200_100_16.py のようにする。ファイル名に数字を入れると、結果の1行でどの設定か分かる。"],
+      [["simple", 0], null, "stop_balance（勝ち逃げ）", "残高がこれを超えたら place_bet が 0 を返してやめる。大きくすると長く遊ぶ（ラウンド数が増える）ぶん、届かずに減っていく回も増える。"],
+      [["mine", 0], null, "撤退条件を足す（全員・p.58）", "今のファイルには無い。place_bet に「残高が〇〇円を下回ったら return 0」を足し、その金額も変えるパラメータにする。stop_balance との幅で、勝ち逃げと損切りの釣り合いが決まる。"],
+      [["simple", 1], null, "unit_bet（掛け金の単位）", "1回の勝ち負けの大きさ。大きいと早く stop_balance か撤退条件に届く（ラウンド数が減る）。奇数だとブラックジャックの 1.5 倍が切り捨てになる（緊4）。"],
+      [["simple", 2], ["card", 2], "hit_threshold（hit する点）", "Card.sum(self.hand) がこれ未満なら hit。12〜20 を1つずつ試すと、バーストと「ディーラーに負ける」の釣り合いが見える。"],
+      [["main", 2], null, "MAX（ゲームの回数）", "autodealer.py 203 行。増やすと平均のぶれが小さくなる（時間も比例して増える）。2000 回だと残高の平均は ±24 ほどぶれるので、それより小さい差は偶然かもしれない。"],
+      [["game", 0], null, "initial_balance（初期残高）", "autodealer.py 41 行。変えたら stop_balance と撤退条件も合わせて変える（比率で考えると比べやすい）。"],
+      [["deck", 1], null, "penetration（スライドには無い）", "山札を何割使ったら混ぜ直すか。スライドの変えるパラメータには入っていないが、「撤退条件以外の変更もしてよい」の範囲。ルール（penetration = 0.5）を変えることになるので、変えたらレポートに書く。"],
+      [["main", 0], ["mine", -1], "players/ から全部見つける", "os.listdir で players/ の .py を全部探して import する。コピーを何個置いても、全部1行ずつ出る。"],
+      [["game", 2], ["mine", 0], "place_bet・input を呼ぶ", "パラメータが効くのはこの2つの命令の中だけ。place_bet で stop_balance・撤退条件・unit_bet、input で hit_threshold を使う。"],
+      [["main", 4], ["term", 2], "結果の1行（3つの数字）", "残高の平均だけでなく、ラウンド数（何ラウンドで終わるか）と ms も見る。無効な掛け金の -1 が混ざっていないか（緊1）も確かめる。"]],
+    ways: [["1つずつ変える", "ほかを固定して1つだけ動かし、グラフの横軸にする（例: hit_threshold を 12〜20）。どれが効くか（重要な要素）を探す最初の一歩。"],
+      ["2つを組み合わせて変える", "stop_balance × 撤退条件、unit_bet × stop_balance のように、効き合いそうな2つを表（ヒートマップ）にする。1つずつでは見えない釣り合いが出る。"],
+      ["同じ設定を何回も流す", "平均・標準偏差・95% 信頼区間（平均 ± 1.96 × 標準偏差 ÷ √回数）を出す。2つの設定の差が区間の幅より小さければ、偶然かもしれない（p.65 の「結果の信頼性」）。"],
+      ["基準と比べる", "player_random と元の player_simple を毎回一緒に流す。player_random より悪い設定は悪い戦略（p.60）。"],
+      ["残高以外の列も見る", "ラウンド数（長く遊べるか）と ms。勝ち逃げできた割合や破産した割合は今は出ないので、出すなら autodealer の集計を少し足す（変えてよい範囲。タスク C に近い）。"],
+      ["山札の条件をそろえる", "deck はゲームをまたいで続く（緊5）。設定ごとに random.seed(1) のように種をそろえると、同じカードの列で比べられ、差が見えやすくなる。"],
+      ["コピーを作らずにまとめて流す", "player_simple の BlackjackPlayer は stop_balance・unit_bet・hit_threshold を引数で受け取れる。functools.partial(BlackjackPlayer, hit_threshold=t) を autodealer.game() に渡すと、ファイルを何十個もコピーせずに一気に流せる（変えてよい範囲の小さなスクリプト）。"]] },
   B: { t: "B 戦略を書く", c: "var(--ok)", note: "player_simple.py をコピーして、place_bet（いくら賭けるか・いつやめるか）と input（hit か stand か）を自分の戦略に書き換える。dealer.py で1手ずつ試してから、autodealer.py で数を回す。",
     ctx: [["p_strat", "x_vscode", "player_xxx.py を書く", "VS Code でコピーして書き換え、学籍番号develop のブランチにコミットする。"],
       ["x_vscode", "sys", "dealer.py で試す・players/ に置く", "dealer.py の import を差し替えて1手ずつ確かめ、players/ に置いて autodealer.py で回す。"],
@@ -677,7 +691,8 @@ function taskPanel(lv) {
       <p class="note">${esc(name(a))}${b ? " → " + esc(name(b)) : "（ここを書き換える）"}</p><p>${esc(desc)}</p>${code}</div>`;
   }
   el.innerHTML = `<section class="tpanel" style="--t:${T.c}"><div class="dh"><span class="kind" style="--c:${T.c}">タスク</span><h2>${esc(T.t)}の流れ</h2></div><p class="note">${esc(T.note)}</p>
-    <ol>${steps.map((x, i) => `<li><button type="button" data-tstep="${i}" aria-pressed="${k === i}"><b>${i + 1}</b><span>${esc(x[2])}</span></button></li>`).join("")}</ol>${body}</section>`;
+    <ol>${steps.map((x, i) => `<li><button type="button" data-tstep="${i}" aria-pressed="${k === i}"><b>${i + 1}</b><span>${esc(x[2])}</span></button></li>`).join("")}</ol>${body}
+    ${T.ways ? `<h3>分析のしかた（アプローチ）</h3><dl class="ways">${T.ways.map(([w, d]) => `<dt>${esc(w)}</dt><dd>${esc(d)}</dd>`).join("")}</dl>` : ""}</section>`;
 }
 function badge(g, x, y, i) {
   const b = svgEl("g", { class: "tbadge" + (S.tstep === i ? " cur" : ""), "data-tstep": i, tabindex: 0, role: "button" }, g);
@@ -799,7 +814,7 @@ function drawC4() {
     T.c4.forEach(([a, b], i) => {
       for (const x of [a, b]) if (x) { inflow.add(x[0]); if (x[1] >= 0) trows.add(x[0] + ":" + x[1]); }
       const g = svgEl("g", { class: flowCls(i) }, tg);
-      if (!b) { const p = pos[a[0]]; svgEl("path", { d: `M${p.x + 2} ${rowY(p, a[1]) - 10} V${rowY(p, a[1]) + 10}`, "stroke-width": 6 }, g); badge(g, p.x - 2, rowY(p, a[1]), i); return; }
+      if (!b) { const p = pos[a[0]]; svgEl("path", { d: `M${p.x + p.w - 2} ${rowY(p, a[1]) - 10} V${rowY(p, a[1]) + 10}`, "stroke-width": 6 }, g); badge(g, p.x + p.w + 2, rowY(p, a[1]), i); return; }
       const r = route(a[0], a[1], b[0], b[1], 7 + (i % 3) * 5);
       svgEl("path", { d: r.d, "marker-end": "url(#aht)" }, g); badge(g, r.bx, r.by == null ? r.y1 + (r.y2 - r.y1) * (.2 + .3 * (i % 3)) : r.by + ((i % 3) - 1) * 14, i);
     });
