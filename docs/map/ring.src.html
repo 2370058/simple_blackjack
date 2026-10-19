@@ -110,6 +110,12 @@ h5.mg { margin: 8px 0 4px; font: 800 .8rem var(--display); color: var(--muted); 
 .lsteps { display: grid; gap: 8px; margin: 6px 0; } .ls { display: flex; flex-wrap: wrap; gap: 4px 6px; align-items: center; border: 1px solid var(--line); border-radius: 10px; padding: 6px 8px; background: var(--panel); } .lsn { font: 800 .8rem var(--display); background: var(--t); color: #fff; border-radius: 999px; min-width: 1.6em; text-align: center; }
 .ls select, .ls input { font: .82rem var(--body); border: 1px solid var(--line); border-radius: 8px; padding: 4px 6px; background: var(--bg); color: var(--fg); min-width: 0; max-width: 100%; } .ls input { flex: 1 1 260px; }
 .lsw { flex: 1 1 100%; display: flex; flex-wrap: wrap; gap: 3px 8px; align-items: baseline; } .lsw small { color: var(--muted); } .lc { font-size: .78rem; font-weight: 700; } .lc small { font-weight: 400; margin-left: 4px; } .lc.ok { color: var(--player); } .lc.oth { color: var(--perf); } .lc.ng { color: var(--danger); }
+.pal { position: sticky; bottom: 6px; z-index: 5; margin: 10px 0; border: 2px solid var(--t); border-radius: 12px; padding: 6px 10px; background: var(--panel); box-shadow: 0 -4px 14px rgb(0 0 0 / .12); max-height: 42vh; overflow: auto; } .pal > summary { cursor: pointer; font: 800 .86rem var(--display); } .pal > summary small { margin-left: 8px; color: var(--perf); font-weight: 700; }
+.palbody { display: flex; flex-wrap: wrap; gap: 4px; margin: 6px 0; } .chip { border: 1px solid var(--line); background: var(--bg); color: var(--fg); border-radius: 999px; padding: 2px 9px; cursor: pointer; display: inline-flex; gap: 6px; align-items: baseline; max-width: 100%; } .chip b { font: 700 .76rem var(--mono); } .chip small { color: var(--muted); font-size: .68rem; white-space: nowrap; }
+.chip.ok { border-color: var(--player); background: color-mix(in srgb, var(--player) 12%, var(--bg)); } .chip.oth { border-color: var(--perf); background: color-mix(in srgb, var(--perf) 12%, var(--bg)); } .chip.ng { border-color: var(--danger); background: color-mix(in srgb, var(--danger) 10%, var(--bg)); }
+.codelist { display: flex; flex-wrap: wrap; gap: 4px; max-height: 22vh; overflow: auto; width: 100%; } .palq { font: .8rem var(--body); border: 1px solid var(--line); border-radius: 8px; padding: 3px 8px; background: var(--bg); color: var(--fg); min-width: 0; flex: 1 1 160px; } .palhint { color: var(--muted); display: block; }
+.ivform { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 6px 10px; align-items: end; margin: 6px 0; } .fld { display: flex; flex-direction: column; gap: 2px; font-size: .78rem; min-width: 0; } .fld > span { font: 800 .74rem var(--display); color: var(--muted); } .fld.wide { grid-column: 1 / -1; }
+.fld input, .fld select { font: .84rem var(--body); border: 1px solid var(--line); border-radius: 8px; padding: 5px 8px; background: var(--bg); color: var(--fg); min-width: 0; max-width: 100%; }
 .ptot { grid-column: 1 / -1; font: 800 .84rem var(--display); }
 .ivs { margin-top: 3px; } .ms { font-size: .78rem; margin: 2px 0; } .ms b { border-radius: 4px; padding: 0 5px; color: #fff; font-size: .7rem; } .ms.new b { background: var(--danger); } .ms.code b { background: var(--perf); } .ms.mat b { background: var(--player); } .ms small { color: var(--muted); }
 .mh2 { display: flex; flex-direction: column; margin: 1px 0 0 1em; overflow-x: auto; } .mh2 span { white-space: nowrap; font-size: .72rem; } .mh2 code { font-size: .72rem; }
@@ -1222,7 +1228,62 @@ const FIND_EX = [
     logic: [{ k: "init", st: "s0", t: "MIN_BET, MAX_BET = 10, 500 を autodealer.py の上に置く（MIN_BET・MAX_BET）" }, { k: "judge", st: "s4", t: "bet_amount が MIN_BET 以上で、player_balance と MAX_BET の小さい方以下か" }, { k: "ret", st: "s4", t: "外れたら今の else（0 ならゲーム終了、それ以外は無効で return -1, 0）" }],
     mm: { "bet_amount": "place_bet が返した掛け金が MIN_BET 以上・MAX_BET 以下かを確かめる", "player_balance": "掛け金が残高を超えないように、上限を min(player_balance, MAX_BET) にする" },
     vars: [{ n: "MIN_BET・MAX_BET", init: "10, 500（autodealer.py の上の行。どのプレイヤーにも同じ決まり）", logic: "駅 4 の if を MIN_BET <= bet_amount <= min(player_balance, MAX_BET) にする。外れたら今の else（0 なら終了、それ以外は無効）" }] }];
-const ivars = () => { try { return store.get("ideaVars", []).map((v) => ({ kind: "var", ...(v.init != null || v.logic != null ? v : { n: v.n, init: "", logic: v.note || "" }) })); } catch (e) { return []; } };
+// ---- タスクごとの入力（アイデア・メモした材料・自分の設計）: B と C で別々に持つ ----
+const tkey = (k) => k + ":" + ((S.find && S.find.task) || "-");
+const tget = (k, d) => store.get(tkey(k), d);
+const tset = (k, v) => store.set(tkey(k), v);
+// ---- 使える材料のパレット: 値・メソッド・メモ・コードにある名前。押すと、書いている欄に入る ----
+let CODE_NAMES = null;
+function codeNames() {
+  if (CODE_NAMES) return CODE_NAMES;
+  const out = [], seen = new Set();
+  for (const f of Object.keys(SRC).filter((x) => /\.py$/.test(x))) { let doc = false;
+    (SRC[f] || []).forEach((t, i) => { const q = (t.match(/'''|"""/g) || []).length; if (doc || q) { if (q === 1) doc = !doc; return; }
+      const code = t.split("#")[0]; let m, kind;
+      if ((m = code.match(/^\s*def\s+(\w+)\(/))) kind = "メソッド・関数"; else if ((m = code.match(/^\s*(self\.\w+)\s*(?:\+|-)?=(?!=)/))) kind = "属性（self.…）";
+      else if ((m = code.match(/^(\w+)\s*(?::\s*[\w\[\]]+)?\s*=(?!=)/))) kind = "ファイルの上の変数・定数"; else if ((m = code.match(/^\s+(\w+)\s*(?:\+|-)?=(?!=)/))) kind = "関数の中の変数";
+      if (!m) return; const key = `${f}|${kind}|${m[1]}`; if (seen.has(key)) return; seen.add(key); out.push({ n: m[1], kind, f, ln: i + 1 }); }); }
+  return (CODE_NAMES = out);
+}
+const PTABS = [["val", "値（変数・引数）"], ["meth", "メソッド"], ["memo", "メモした材料"], ["code", "コードにある名前"]];
+function palCtxStation() {
+  const el = S.lastInput && S.lastInput.isConnected ? S.lastInput : null, { side } = findPick();
+  if (el && el.dataset.lst != null) { const s2 = lsteps()[+el.dataset.lst]; if (s2) return s2.st; }
+  if (el && el.dataset.ivn !== undefined) { const s3 = document.querySelector("[data-ivst]"); if (s3 && s3.value) return s3.value; }
+  return side ? side.st : null;
+}
+function palChips(F) {
+  const tab = S.palTab || "val", ctx = palCtxStation(), cls = (m) => { if (!ctx) return ""; const a = availAt(m, ctx); return a === true || a === "call" ? " ok" : a === "other" ? " oth" : " ng"; };
+  const chip = (tok, m, extra) => `<button type="button" class="chip${m ? cls(m) : ""}" data-ins="${esc(tok)}" ${m ? `data-pm="${esc(m.n)}"` : ""} title="${esc(m ? m.d || m.now || "" : extra || "")}"><b>${esc(tok)}</b><small>${m ? (m.now ? ((ss) => ss.length ? (ss.length > 3 ? ss.length + " 駅" : "駅 " + ss.map((x) => idx[x]).join("・")) : "呼ばれない")(methodStations(m)) : "駅 " + idx[m.st] + (m.arg ? "（引数）" : "")) : esc(extra || "")}</small></button>`;
+  if (tab === "val") return (MATS[F.task] || []).flatMap((m) => tokensOf(m.n).map((tk) => chip(tk, m))).join("");
+  if (tab === "meth") return (METHODS[F.task] || []).map((m) => chip(tokensOf(m.n)[0], m)).join("");
+  if (tab === "memo") return ivars().map((v) => chip(memoTokens(v.n)[0] || v.n, null, `${mkLabel(v.kind)}`)).join("") || "<small>（まだ無い。「4. メモ」で足すと、ここに出る）</small>";
+  const q = (S.palQ || "").trim().toLowerCase(), list = codeNames().filter((c) => !q || c.n.toLowerCase().includes(q) || c.f.includes(q) || c.kind.includes(q));
+  return `<div class="codelist">${list.slice(0, 60).map((c) => `<button type="button" class="chip code" data-ins="${esc(c.n)}" title="${esc(c.kind)}"><b>${esc(c.n)}</b><small>${esc(c.f.replace("players/", ""))}:${c.ln}・${esc(c.kind)}</small></button>`).join("")}${list.length > 60 ? `<small>ほか ${list.length - 60} 件（上の欄で絞る）</small>` : ""}${list.length ? "" : "<small>（見つからない）</small>"}</div>`;
+}
+function palette(F) {
+  if (!F.task) return "";
+  const tab = S.palTab || "val";
+  return `<details class="pal" data-dkey="pal" open><summary>使える材料（押すと、いま書いている欄に入る）<small id="palTarget">${S.lastLabel ? "入る欄: " + esc(S.lastLabel) : "先に、書く欄をクリックする"}</small></summary>
+    <div class="h3row"><div class="seg ptabs">${PTABS.map(([k, t]) => `<button type="button" data-paltab="${k}" aria-pressed="${tab === k}">${t}</button>`).join("")}</div>${tab === "code" ? `<input class="palq" data-palq placeholder="名前・ファイル・種類で絞る" value="${esc(S.palQ || "")}">` : ""}</div>
+    <div class="palbody">${palChips(F)}</div>
+    <small class="palhint">色: 緑 = 入れる欄の駅で使える／橙 = 別の駅のメソッド／赤 = その駅ではまだ無い。入れる欄の駅は、自分の設計のステップなら、そのステップの駅。それ以外は置き場所の駅。</small></details>`;
+}
+const INS_SEL = ".tsum.find input:not([type=checkbox]):not([type=radio]):not([data-palq]), .tsum.find textarea:not(.prompt)";
+function lastSelOf(el) { for (const a of ["data-lst", "data-mmemo", "data-memo", "data-ivn", "data-ivinit", "data-ivlogic"]) if (el.hasAttribute(a)) return `[${a}="${el.getAttribute(a)}"]`; return null; }
+function updatePalette() {
+  const F = findPick().F, t = document.getElementById("palTarget"), ctx = palCtxStation();
+  if (t) t.textContent = S.lastLabel ? "入る欄: " + S.lastLabel : "先に、書く欄をクリックする";
+  document.querySelectorAll(".chip[data-pm]").forEach((c) => { const m = matOf(F.task, c.dataset.pm); if (!m || !ctx) return; const a = availAt(m, ctx); c.classList.remove("ok", "oth", "ng"); c.classList.add(a === true || a === "call" ? "ok" : a === "other" ? "oth" : "ng"); });
+}
+function insertToken(tok) {
+  let el = document.activeElement && document.activeElement.matches && document.activeElement.matches(INS_SEL) ? document.activeElement : null;
+  if (!el && S.lastSel) el = document.querySelector(S.lastSel);
+  if (!el) { const t = document.getElementById("palTarget"); if (t) t.textContent = "先に、書く欄をクリックしてください"; return; }
+  const a = el.selectionStart ?? el.value.length, b = el.selectionEnd ?? a;
+  el.value = el.value.slice(0, a) + tok + el.value.slice(b); el.focus(); el.setSelectionRange(a + tok.length, a + tok.length); el.dispatchEvent(new Event("input", { bubbles: true }));
+}
+const ivars = () => { try { return tget("ideaVars", []).map((v) => ({ kind: "var", ...(v.init != null || v.logic != null ? v : { n: v.n, init: "", logic: v.note || "" }) })); } catch (e) { return []; } };
 const matOf = (task, n) => (MATS[task] || []).find((x) => x.n === n) || (METHODS[task] || []).find((x) => x.n === n);
 function matOk(m, side) { if (!side) return null; if (m.fn && m.now) return methodStations(m).includes(side.st) ? true : "other"; if (m.arg) return m.st === side.st; return idx[m.st] <= idx[side.st] || !!m.prev; }
 function findRel() {
@@ -1267,7 +1328,7 @@ const pfileMode = (f) => ((S.pfiles || {})[f]) || "upload";
 // ---- 自分のロジック（設計）: 自分で組んだステップを、駅・メソッド・材料に当てて確かめる ----
 const LKINDS = [["init", "初期値を置く"], ["update", "値を更新する"], ["judge", "判定する（if）"], ["ret", "返す（return）"], ["call", "呼ぶ・渡す"]];
 const lkLabel = (k) => (LKINDS.find((x) => x[0] === k) || [0, k])[1];
-const lsteps = () => { try { return store.get("logicSteps", []); } catch (e) { return []; } };
+const lsteps = () => { try { return tget("logicSteps", []); } catch (e) { return []; } };
 const AIROLES = [["design", "設計してもらう"], ["review", "自分の設計をレビュー"], ["hint", "ヒントだけ"]];
 const airole = () => S.airole || (lsteps().length ? "review" : "design");   // 自分の設計があれば、選ぶまではレビュー
 // 材料の名前から、文の中で探す言葉（"self.hand"・"Card.sum"・"balance"…）
@@ -1350,7 +1411,7 @@ function refreshLive() {
 // プロンプトを章に分ける: inputs = 渡す内容の章、asks = 相手の AI に答えてほしい章（お願いの 0〜7）。どちらもチェックでオン・オフできる
 function promptParts() {
   const { F, tm, side, none } = findPick(); if (!F.task) return null;
-  let memo = ""; try { memo = store.get("ideaMemo", ""); } catch (e) {}
+  let memo = ""; try { memo = tget("ideaMemo", ""); } catch (e) {}
   const f = FTASK[F.task].f, L = SRC[f] || [], vars = ivars(), mats = MATS[F.task], sel = (F.mats || []);
   const files = promptFiles(F.task), mode = S.pcode || "paste";
   const ups = mode === "pick" ? files.filter((x) => pfileMode(x) === "upload") : [], pastes = mode === "paste" ? files : mode === "pick" ? files.filter((x) => pfileMode(x) === "paste") : [];
@@ -1437,9 +1498,9 @@ function chapterChecks() {
 }
 function findPanel(bar) {
   const { F, tm, side, none } = findPick(), FS = stationFiles(), btn = (k, v, on, t) => `<button type="button" data-fset="${k}:${esc(v)}" aria-pressed="${on}">${t}</button>`;
-  let memo = ""; try { memo = store.get("ideaMemo", ""); } catch (e) {}
+  let memo = ""; try { memo = tget("ideaMemo", ""); } catch (e) {}
   const vars = ivars();
-  const ex = `<div class="fstep"><b>例を読み込む</b>（参考実装を、このアイデアの流れで入れたもの）<div class="routes">${FIND_EX.map((x, i) => `<button type="button" data-fex="${i}">${esc(x.t)}</button>`).join("")}</div></div>`;
+  const ex = `<div class="fstep"><b>例を読み込む</b>（参考実装を、このアイデアの流れで入れたもの）<div class="routes">${FIND_EX.map((x, i) => `<button type="button" data-fex="${i}">${esc(x.t)}</button>`).join("")}<button type="button" data-clearall>${F.task ? `タスク ${F.task} の入力を全部消す` : "入力を全部消す"}</button></div><small>アイデア・メモ・自分の設計は、タスク B と C で別々に持つ。例を読み込むと、そのタスクの入力を置き換える。</small></div>`;
   const step1 = `<div class="fstep"><b>1. どのタスク？</b><div class="seg">${["B", "C"].map((k) => btn("task", k, F.task === k, FTASK[k].t)).join("")}</div>${F.task ? `<p class="note">${esc(FTASK[F.task].note)}（ファイル: <code>${esc(FTASK[F.task].f)}</code>）</p>` : ""}</div>`;
   const step2 = F.task ? `<div class="fstep"><b>2. アイデアは、いつ動けばいい？</b><div class="routes">${TIMINGS.map((x) => { const s2 = x[F.task];
     return btn("when", x.id, F.when === x.id, `${esc(x.t)}${s2.none ? "（B では無理）" : `<small> 駅 ${idx[s2.st]}</small>`}`); }).join("")}</div></div>` : "";
@@ -1456,7 +1517,12 @@ function findPanel(bar) {
     return `<button type="button" class="mat${ok === false ? " ng" : ok ? " ok" : ""}" data-fset="mat:${esc(m.n)}" aria-pressed="${on}"><code>${esc(m.n)}</code><small>駅 ${idx[m.st]} から・${esc(m.d)}</small>${ok === false ? `<em>この駅ではまだ無い${m.arg ? "（引数なので駅 " + idx[m.st] + " の中だけ）" : ""}</em>` : ""}</button>`; }).join("")}</div>${methBtns}${selMemoBlock}</div>` : "";
   const step4 = F.task ? `<div class="fstep"><b>4. メモ: こういう材料があればいいかも</b>（変数でも、新しく呼ぶメソッドでも。もうコードに無いかを自動で調べて、あれば場所、無ければ作る場所を出す。プロンプトでは、まず既存の材料で代わりにならないかを検討させる）
     <div class="ivars">${vars.map((v, i) => `<div class="iv"><code>${esc(v.n)}</code><div><small class="kd">${esc(mkLabel(v.kind))}${v.st && ST[v.st] ? `・使う駅 ${idx[v.st]}` : ""}</small><small><b>初期値</b> ${esc(v.init || "—")}</small><small><b>ロジック</b> ${esc(v.logic || "—")}</small>${memoStHtml(v, F.task)}</div><button type="button" class="btn sb" data-ivdel="${i}" aria-label="${esc(v.n)} を消す">×</button></div>`).join("") || "<small>（まだ無い）</small>"}</div>
-    <div class="ivadd"><select data-ivkind aria-label="種類">${MKINDS.map(([k, t]) => `<option value="${k}">${t}</option>`).join("")}</select><select data-ivst aria-label="使う駅"><option value="">使う駅（メソッドは呼ぶ駅）</option>${RING.map((r) => `<option value="${r.id}"${side && side.st === r.id ? " selected" : ""}>駅 ${idx[r.id]}. ${esc(r.title)}</option>`).join("")}</select><input data-ivn placeholder="名前（変数・メソッド。例: lose_streak、on_shuffle）"><input data-ivinit placeholder="初期値（例: 0。__init__ で）"><input data-ivlogic placeholder="ロジック（例: notify_result で lose なら +1・win なら 0、place_bet で 3 以上なら掛け金を半分）"><button type="button" class="btn" data-ivadd>足す</button></div></div>` : "";
+    <div class="ivform"><label class="fld"><span>名前</span><input data-ivn aria-label="メモの名前" placeholder="例: lose_streak、on_shuffle"></label>
+      <label class="fld"><span>種類</span><select data-ivkind aria-label="種類">${MKINDS.map(([k, t]) => `<option value="${k}">${t}</option>`).join("")}</select></label>
+      <label class="fld"><span>使う駅（メソッドは呼ぶ駅）</span><select data-ivst aria-label="使う駅"><option value="">（選ばない）</option>${RING.map((r) => `<option value="${r.id}"${side && side.st === r.id ? " selected" : ""}>駅 ${idx[r.id]}. ${esc(r.title)}</option>`).join("")}</select></label>
+      <label class="fld"><span>初期値</span><input data-ivinit aria-label="メモの初期値" placeholder="例: 0（__init__）"></label>
+      <label class="fld wide"><span>ロジック</span><input data-ivlogic aria-label="メモのロジック" placeholder="例: notify_result で lose なら +1・win なら 0、place_bet で 3 以上なら掛け金を半分"></label>
+      <button type="button" class="btn" data-ivadd>足す</button></div></div>` : "";
   let result = "";
   if (none) { const alt = TIMINGS.find((x) => x.id === none.alt);
     result = `<div class="fres ng"><b>B（プレイヤー）では、このタイミングにメソッドが呼ばれない。</b><p>${esc(none.none)}</p>${alt ? `<p>近いのは <button type="button" class="btn" data-fset="when:${alt.id}">${esc(alt.t)}（駅 ${idx[alt.B.st]}）</button>。それとも、ルールとして C（autodealer.py）で入れるか。</p>` : ""}</div>`; }
@@ -1497,7 +1563,7 @@ function findPanel(bar) {
     return `<tr${side && side.st === s.id ? ' class="cur"' : ""}><td><button type="button" class="btn" data-tst="${s.id}">${idx[s.id]}. ${esc(s.title)}</button></td><td>${col((f) => f === "autodealer.py")}</td><td>${col((f) => f.startsWith("players/"))}</td><td>${col((f) => f === "card.py")}</td></tr>`; }).join("")}</tbody></table></div></details>`;
   return `${bar}<div class="tsum find" style="--t:${FIND_C}"><p><b>アイデアの置き場所を探す</b>（タスク B・C）。自由に考えたアイデアを、1 タスク → 2 いつ動くか → 3 材料 → 4 メモした変数 の順に選ぶと、環状線の駅・ファイル・関数・入れる行まで絞り、材料の今の使われ方と、そのまま使えるプロンプトを作る。図では、入れる駅（ここに入れる）と、材料が入る駅を色の輪で囲む。</p>
     <label class="memo"><b>アイデア（自由に。このブラウザに残る）</b><textarea data-memo rows="2" placeholder="例: ディーラーの表が 2〜6 のときは 12 から stand する／3連敗したら掛け金を半分にする">${esc(memo)}</textarea></label>
-    ${ex}${step1}${step2}${step3}${step4}${logicPanel(F, side)}${result}${cards}${prompt}${files}</div>`;
+    ${ex}${step1}${step2}${step3}${step4}${logicPanel(F, side)}${palette(F)}${result}${cards}${prompt}${files}</div>`;
 }
 function rtaskPanel() {
   const bar = `<span class="tfl">タスクで絞る</span><div class="seg tseg">${[["", "なし"], ...RTASKS, ["REF", "参考実装"], ["FIND", "置き場所を探す"]].map(([k, t]) => `<button type="button" data-rtask="${k}" aria-pressed="${(S.rtask || "") === k}" style="--c:${k === "REF" ? REF_C : k === "FIND" ? FIND_C : k ? TASKS[k].c : "var(--fg)"}">${t}</button>`).join("")}</div>`;
@@ -1564,8 +1630,8 @@ document.addEventListener("click", (ev) => {
   const ov = ev.target.closest("[data-ofv]");
   if (ov) { const id = ov.dataset.ofv; S.ofv = !id || S.ofv === id ? null : id; const y = window.scrollY; render(); window.scrollTo({ top: y }); scrollFnBoxes(); return; }
   const fx = ev.target.closest("[data-fex]");
-  if (fx) { const x = FIND_EX[+fx.dataset.fex]; S.find = { task: x.task, when: x.when, mats: [...x.mats], ex: +fx.dataset.fex }; store.set("find", S.find); store.set("ideaMemo", x.memo); S.mmemo = { ...(S.mmemo || {}), ...(x.mm || {}) }; store.set("matMemo", S.mmemo); if (x.logic) store.set("logicSteps", x.logic.map((q) => ({ ...q })));
-    const vs = ivars().filter((y) => !x.vars.some((v) => v.n === y.n)); vs.push(...x.vars); store.set("ideaVars", vs);
+  if (fx) { const x = FIND_EX[+fx.dataset.fex]; S.find = { task: x.task, when: x.when, mats: [...x.mats], ex: +fx.dataset.fex }; store.set("find", S.find); tset("ideaMemo", x.memo); S.mmemo = { ...(x.mm || {}) }; store.set("matMemo", S.mmemo); tset("logicSteps", (x.logic || []).map((q) => ({ ...q })));
+    tset("ideaVars", x.vars.map((v) => ({ ...v })));   // 例は、そのタスクの入力を置き換える（足さない）
     const { side } = findPick(); if (side) { if (!path().some((e) => e.id === side.st)) { const r = R.routes.find((q) => TR[q.id].path.some((e) => e.id === side.st)); if (r) { S.route = r.id; S.pos = 0; } } goStation(side.st); } else render(); return; }
   const pa = ev.target.closest("[data-psecall]");
   if (pa) { const [g, v] = pa.dataset.psecall.split(":"), P = promptParts(), ids = (g === "in" ? P.inputs.map((x) => "in:" + x.id) : P.asks.map((x) => "ask:" + x.id)); const m = { ...(S.psec || {}) }; for (const k of ids) m[k] = v === "1"; S.psec = m; store.set("psec", m); const y = window.scrollY; render(); window.scrollTo({ top: y }); return; }
@@ -1578,20 +1644,26 @@ document.addEventListener("click", (ev) => {
   if (pc) { S.pcode = pc.dataset.pcode; store.set("pcode", S.pcode); const y = window.scrollY; render(); window.scrollTo({ top: y }); return; }
   const mt = ev.target.closest("[data-mattog]");
   if (mt) { S.showMat = !S.showMat; store.set("showMat", S.showMat); if (!S.showMat && S.ofv && S.ofv.startsWith("m|")) S.ofv = null; const y = window.scrollY; render(); window.scrollTo({ top: y }); return; }
+  const ca = ev.target.closest("[data-clearall]");
+  if (ca) { tset("ideaMemo", ""); tset("ideaVars", []); tset("logicSteps", []); S.mmemo = {}; store.set("matMemo", {}); S.find = { ...(S.find || {}), mats: [], ex: undefined }; store.set("find", S.find); const y = window.scrollY; render(); window.scrollTo({ top: y }); return; }
+  const pt = ev.target.closest("[data-paltab]");
+  if (pt) { S.palTab = pt.dataset.paltab; const y = window.scrollY; render(); window.scrollTo({ top: y }); return; }
+  const ci = ev.target.closest("[data-ins]");
+  if (ci) { insertToken(ci.dataset.ins); return; }
   const sa = ev.target.closest("[data-lsadd]");
-  if (sa) { const { side } = findPick(), ls = lsteps(); ls.push({ k: ls.length ? "judge" : "init", st: side ? side.st : "s0", t: "" }); store.set("logicSteps", ls); const y = window.scrollY; render(); window.scrollTo({ top: y }); return; }
+  if (sa) { const { side } = findPick(), ls = lsteps(); ls.push({ k: ls.length ? "judge" : "init", st: side ? side.st : "s0", t: "" }); tset("logicSteps", ls); const y = window.scrollY; render(); window.scrollTo({ top: y }); return; }
   const sd = ev.target.closest("[data-lsdel]");
-  if (sd) { const ls = lsteps(); ls.splice(+sd.dataset.lsdel, 1); store.set("logicSteps", ls); const y = window.scrollY; render(); window.scrollTo({ top: y }); return; }
+  if (sd) { const ls = lsteps(); ls.splice(+sd.dataset.lsdel, 1); tset("logicSteps", ls); const y = window.scrollY; render(); window.scrollTo({ top: y }); return; }
   const sm = ev.target.closest("[data-lsmv]");
-  if (sm) { const [i, d] = sm.dataset.lsmv.split(":").map(Number), ls = lsteps(), j = i + d; if (j >= 0 && j < ls.length) { [ls[i], ls[j]] = [ls[j], ls[i]]; store.set("logicSteps", ls); const y = window.scrollY; render(); window.scrollTo({ top: y }); } return; }
+  if (sm) { const [i, d] = sm.dataset.lsmv.split(":").map(Number), ls = lsteps(), j = i + d; if (j >= 0 && j < ls.length) { [ls[i], ls[j]] = [ls[j], ls[i]]; tset("logicSteps", ls); const y = window.scrollY; render(); window.scrollTo({ top: y }); } return; }
   const sc = ev.target.closest("[data-lsclear]");
-  if (sc) { store.set("logicSteps", []); const y = window.scrollY; render(); window.scrollTo({ top: y }); return; }
+  if (sc) { tset("logicSteps", []); const y = window.scrollY; render(); window.scrollTo({ top: y }); return; }
   const ar = ev.target.closest("[data-airole]");
   if (ar) { S.airole = ar.dataset.airole; store.set("airole", S.airole); const y = window.scrollY; render(); window.scrollTo({ top: y }); return; }
   const ia = ev.target.closest("[data-ivadd]");
-  if (ia) { const n = document.querySelector("[data-ivn]").value.trim(), init = document.querySelector("[data-ivinit]").value.trim(), logic = document.querySelector("[data-ivlogic]").value.trim(), kind = document.querySelector("[data-ivkind]").value, st = document.querySelector("[data-ivst]").value; if (n) { const vs = ivars(); vs.push({ n, init, logic, kind, st }); store.set("ideaVars", vs); const y = window.scrollY; render(); window.scrollTo({ top: y }); } return; }
+  if (ia) { const n = document.querySelector("[data-ivn]").value.trim(), init = document.querySelector("[data-ivinit]").value.trim(), logic = document.querySelector("[data-ivlogic]").value.trim(), kind = document.querySelector("[data-ivkind]").value, st = document.querySelector("[data-ivst]").value; if (n) { const vs = ivars(); vs.push({ n, init, logic, kind, st }); tset("ideaVars", vs); const y = window.scrollY; render(); window.scrollTo({ top: y }); } return; }
   const idl = ev.target.closest("[data-ivdel]");
-  if (idl) { const vs = ivars(); vs.splice(+idl.dataset.ivdel, 1); store.set("ideaVars", vs); const y = window.scrollY; render(); window.scrollTo({ top: y }); return; }
+  if (idl) { const vs = ivars(); vs.splice(+idl.dataset.ivdel, 1); tset("ideaVars", vs); const y = window.scrollY; render(); window.scrollTo({ top: y }); return; }
   const cp = ev.target.closest("[data-copyprompt]");
   if (cp) { const ta = document.querySelector("textarea.prompt"); const done = () => { const m = document.querySelector(".copied"); if (m) m.hidden = false; };
     if (navigator.clipboard) navigator.clipboard.writeText(ta.value).then(done, () => { ta.select(); document.execCommand("copy"); done(); }); else { ta.select(); document.execCommand("copy"); done(); } return; }
@@ -1623,17 +1695,21 @@ document.addEventListener("click", (ev) => {
   else if (b.dataset.st) goStation(b.dataset.st);
 });
 document.addEventListener("change", (ev) => { const sel = ev.target.closest && ev.target.closest("[data-ls]");
-  if (sel) { const [i, f] = sel.dataset.ls.split(":"), ls = lsteps(); if (ls[+i]) { ls[+i][f] = sel.value; store.set("logicSteps", ls); const y = window.scrollY; render(); window.scrollTo({ top: y }); } return; }
+  if (sel) { const [i, f] = sel.dataset.ls.split(":"), ls = lsteps(); if (ls[+i]) { ls[+i][f] = sel.value; tset("logicSteps", ls); const y = window.scrollY; render(); window.scrollTo({ top: y }); } return; }
   const c = ev.target.closest && ev.target.closest("[data-psec]"); if (!c) return;
   S.psec = { ...(S.psec || {}), [c.dataset.psec]: c.checked }; store.set("psec", S.psec); const y = window.scrollY; render(); window.scrollTo({ top: y }); });
-document.addEventListener("input", (ev) => { const li = ev.target.closest && ev.target.closest("[data-lst]");
-  if (li) { const ls = lsteps(), i = +li.dataset.lst; if (ls[i]) { ls[i].t = li.value; store.set("logicSteps", ls); const { F } = findPick();
+document.addEventListener("mousedown", (ev) => { if (ev.target.closest && ev.target.closest(".chip[data-ins]")) ev.preventDefault(); });   // 押しても、書いている欄のカーソルを外さない
+document.addEventListener("focusin", (ev) => { const el = ev.target; if (!el.matches || !el.matches(INS_SEL) || el.closest(".pal")) return;
+  S.lastInput = el; S.lastSel = lastSelOf(el); S.lastLabel = el.dataset.lst != null ? `自分の設計 ${+el.dataset.lst + 1} の内容` : el.dataset.mmemo ? `使いたいこと（${el.dataset.mmemo.split(/[（(]/)[0]}）` : el.hasAttribute("data-memo") ? "アイデア" : (el.getAttribute("aria-label") || "メモ"); updatePalette(); });
+document.addEventListener("input", (ev) => { if (ev.target.matches && ev.target.matches("[data-palq]")) { S.palQ = ev.target.value; const b = document.querySelector(".palbody"); if (b) b.innerHTML = palChips(findPick().F); return; }
+  const li = ev.target.closest && ev.target.closest("[data-lst]");
+  if (li) { const ls = lsteps(), i = +li.dataset.lst; if (ls[i]) { ls[i].t = li.value; tset("logicSteps", ls); const { F } = findPick();
       document.querySelectorAll(".ls").forEach((box, k) => { const w = box.querySelector(".lsw"), x = ls[k];   // 新しい変数の初期値は、ほかのステップにも関わるので、全部確かめ直す
         if (w && x) w.innerHTML = `<small>置く所: ${esc(stepWhere(F.task, x))}</small>` + stepChecks(F.task, x, ls).map((c) => `<span class="lc ${c.ok ? "ok" : c.other ? "oth" : "ng"}">${c.ok ? "✓" : c.other ? "↪" : "✗"} ${esc(c.n.split(/[（(]/)[0])}<small>${esc(c.msg)}</small></span>`).join(""); });
       refreshLive(); } return; }
   const mi = ev.target.closest && ev.target.closest("[data-mmemo]");
   if (mi) { S.mmemo = { ...(S.mmemo || {}), [mi.dataset.mmemo]: mi.value }; store.set("matMemo", S.mmemo); mi.closest(".mm").classList.toggle("empty", !mi.value.trim()); refreshLive(); return; }
-  if (ev.target.matches && ev.target.matches("[data-memo]")) { store.set("ideaMemo", ev.target.value); refreshLive(); } });
+  if (ev.target.matches && ev.target.matches("[data-memo]")) { tset("ideaMemo", ev.target.value); refreshLive(); } });
 document.addEventListener("toggle", (ev) => { if (ev.target.id === "pdet") store.set("paramsOpen", ev.target.open); }, true);
 document.addEventListener("keydown", (ev) => {
   if (S.level !== "ring" || (ev.target.closest && ev.target.closest("input,textarea"))) return;
