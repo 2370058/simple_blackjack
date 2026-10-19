@@ -46,6 +46,19 @@ p { margin: 0; }
 .seg.layers button[aria-pressed="true"] { background: var(--c); color: #fff; }
 button:focus-visible, [tabindex]:focus-visible { outline: 3px solid var(--car); outline-offset: 2px; }
 .routes { display: flex; flex-wrap: wrap; gap: 6px; }
+.detail > .box, .detail > section { min-width: 0; }
+.params { min-width: 0; max-width: 100%; margin: 10px 0; border: 1px solid var(--line); border-radius: 10px; padding: 6px 10px; background: var(--panel); }
+.params summary { cursor: pointer; font: 800 .9rem var(--display); padding: 4px 0; } .params summary code { font: 700 .78rem var(--mono); background: color-mix(in srgb, var(--player) 18%, transparent); border-radius: 4px; padding: 0 5px; }
+.params .tw { overflow-x: auto; } .ptab { border-collapse: collapse; width: 100%; font-size: .82rem; }
+.ptab th, .ptab td { border-top: 1px solid var(--line); padding: 5px 6px; text-align: left; vertical-align: top; }
+.ptab tr.pg th { background: color-mix(in srgb, var(--fg) 6%, transparent); font: 800 .8rem var(--display); }
+.ptab tr.used td { background: color-mix(in srgb, var(--player) 12%, transparent); }
+.ptab code { font-family: var(--mono); font-size: .76rem; } .ptab td:first-child, .ptab th { white-space: nowrap; } .ptab td:nth-child(3) { min-width: 260px; } .ptab td:nth-child(4) { min-width: 220px; }
+.ptab .chg { background: var(--hit); border-radius: 4px; padding: 0 4px; } .ptab small { color: var(--muted); }
+.ptab .pu { margin: 2px 0; } .ptab .pd { margin-top: 3px; font-size: .76rem; }
+.pk { display: inline-block; font: 800 .7rem var(--display); border-radius: 4px; padding: 0 5px; margin-right: 4px; background: color-mix(in srgb, var(--fg) 12%, transparent); }
+.pk.j { background: var(--branch); color: #fff; } .pk.s { background: var(--player); color: #fff; }
+.pa { margin-left: 6px; border: 1.5px solid var(--pre); color: var(--pre); background: transparent; border-radius: 999px; font: 800 .7rem var(--display); padding: 0 6px; cursor: pointer; }
 .routes button.trel { box-shadow: 0 0 0 2.5px var(--c); }
 .tfilter { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 10px 0; }
 .tfilter .tfl { font: 800 .85rem var(--display); }
@@ -475,6 +488,50 @@ function cargoHtml(entry) {
   }).join("");
 }
 
+// ---- パラメータ（プレイヤーのインスタンスの self.… と、game()・autodealer の設定）と、この駅でそれを使った行 ----
+const PARAMS = {
+  "self.stop_balance": { g: 0, def: ["players/player_simple.py", /^stop_balance\s*=/], t: "勝ち逃げの残高。place_bet でこれを超えていたら 0 を返して終わる" },
+  "self.unit_bet": { g: 0, def: ["players/player_simple.py", /^unit_bet\s*=/], t: "1回に賭ける額。残高がこれ以下なら残り全部" },
+  "self.hit_threshold": { g: 0, def: ["players/player_simple.py", /^hit_threshold\s*=/], t: "input で、手札の合計がこれ未満なら hit" },
+  initial_balance: { g: 0, def: ["autodealer.py", /^\s*initial_balance\s*=/], t: "ゲームの最初の残高。Player(initial_balance) と player_balance の元" },
+  penetration: { g: 1, def: ["autodealer.py", /^penetration\s*=/], t: "山札が 52 × これより少なくなったら、check_shuffle で混ぜ直す" },
+  is_print: { g: 1, def: ["autodealer.py", /^is_print/], t: "途中を print するか（printx の if。どの駅でも読むので「使った行」には数えない）" },
+  "self.balance": { g: 2, t: "place_bet で受け取った残高を覚え、notify_result で増減させるプレイヤー側の写し（game() の player_balance とは別の変数）" },
+  "self.hand": { g: 2, t: "receive_hand で渡された手札（input の判断に使う）" },
+  "self.round": { g: 2, t: "start_turn で渡されたラウンド数（山札を混ぜてから何ラウンド目か）" },
+  "self.dealer_card": { g: 2, t: "ディーラーの表のカード（ベーシックストラテジーに使える）" },
+  "self.last_dealer_hand": { g: 2, t: "ディーラーが開いた手（カウンティングに使える）" } };
+const PGROUP = ["タスク A で変えるパラメータ", "autodealer の設定", "プレイヤーが覚えた状態（タスク B・C の材料）"];
+function paramUses(e, names) {
+  const used = {};
+  for (const k of Object.keys(e.lines)) { const [f, ln] = splitKey(k), t = (SRC[f] || [])[ln - 1] || "", code = t.split("#")[0];
+    const found = f.startsWith("players/") ? [...code.matchAll(/self\.(\w+)/g)].map((m) => "self." + m[1]) : f === "autodealer.py" ? [...code.matchAll(/\b(initial_balance|penetration)\b/g)].map((m) => m[1]) : [];
+    for (const n of new Set(found)) { if (!names.has(n)) continue;
+      const kind = new RegExp(`^\\s*${n.replace(".", "\\.")}\\s*(\\+|-)?=(?!=)`).test(code) ? "入れた" : /^\s*(if|elif|while)\b/.test(code) ? "判定" : "読んだ";
+      (used[n] = used[n] || []).push({ f, ln, t: t.trim(), kind, n: e.lines[k] }); } }
+  for (const n of Object.keys(used)) used[n].sort((a, b) => a.f.localeCompare(b.f) || a.ln - b.ln);
+  return used;
+}
+function paramsHtml(e) {
+  const a = (e.after || e.cargo).params, b = e.cargo.params;
+  if (!a) return "";
+  const names = new Set(Object.keys(a)), used = paramUses(e, names);
+  const defOf = (n) => { const d = PARAMS[n] && PARAMS[n].def; if (!d) return ""; const L = SRC[d[0]] || [], i = L.findIndex((l) => d[1].test(l));
+    return i < 0 ? "" : `<code>${esc(d[0].replace("players/", ""))}:${i + 1}</code> <code>${esc(L[i].split("#")[0].trim())}</code>${n.startsWith("self.") ? " → __init__ の既定値 → " + esc(n) : ""}`; };
+  const order = [...names].sort((x, y) => ((PARAMS[x] || { g: 2 }).g - (PARAMS[y] || { g: 2 }).g) || (!!used[y] - !!used[x]));
+  let lastG = -1;
+  const rows = order.map((n) => { const info = PARAMS[n] || { g: 2, t: "" }, [v, ty] = a[n], before = b && b[n], chg = before && before[0] !== v, u = used[n];
+    const head = info.g !== lastG ? `<tr class="pg"><th colspan="4">${PGROUP[info.g]}</th></tr>` : ""; lastG = info.g;
+    return `${head}<tr class="${u ? "used" : ""}"><td><code>${esc(n)}</code>${info.g === 0 ? `<button type="button" class="pa" data-rtask="A" title="環状線をタスク A で絞る">A</button>` : ""}</td>
+      <td><span class="${chg ? "chg" : ""}">${chg ? `${esc(before[0])} → ` : ""}<b>${esc(v)}</b></span> <small>${esc(ty)}</small></td>
+      <td>${u ? u.map((x) => `<div class="pu"><span class="pk ${x.kind === "判定" ? "j" : x.kind === "入れた" ? "s" : ""}">${x.kind}</span><code>${esc(x.f.replace("players/", ""))}:${x.ln}</code> <code>${esc(x.t)}</code>${x.n > 1 ? ` <small>×${x.n}</small>` : ""}</div>`).join("") : `<small>この駅では使っていない</small>`}</td>
+      <td><small>${esc(info.t)}</small>${defOf(n) ? `<div class="pd">置き場: ${defOf(n)}</div>` : ""}</td></tr>`; }).join("");
+  const usedNames = order.filter((n) => used[n]);
+  return `<details class="params" id="pdet"${store.get("paramsOpen", false) ? " open" : ""}><summary>パラメータ（self.… と設定）${usedNames.length ? `・この駅で使ったもの: ${usedNames.map((n) => `<code>${esc(n)}</code>`).join(" ")}` : "・この駅では使っていない"}</summary>
+    <p class="note">この駅を出るときの、プレイヤーのインスタンス（player）の self.… と、game()・autodealer の設定。本物の game() を流して記録した値と型。色の付いた行が、この駅で実行した行に出てくるもの（判定 = if の条件に使った・入れた = 代入した・読んだ = それ以外）。値が変わったものは「前 → 後」。</p>
+    <div class="tw"><table class="ptab"><thead><tr><th>名前</th><th>値（型）</th><th>この駅で使った行</th><th>何か・置き場</th></tr></thead><tbody>${rows}</tbody></table></div></details>`;
+}
+
 // ---- この駅のコード ----
 function codeHtml(entry, roleFilter) {
   const byFile = {};
@@ -547,6 +604,7 @@ function stationDetail() {
       <dl class="shape"><dt>入る形</dt><dd>${esc(st.in)}</dd><dt>出る形</dt><dd>${esc(st.out)}</dd>${st.note ? `<dt>メモ</dt><dd>${esc(st.note)}</dd>` : ""}</dl>
       <h3>旗の荷物（この駅を出るときの変数）</h3><div class="cargo">${cargoHtml(e)}</div>
       <p class="note">黄色 = この駅で変わった値・光るカード = この駅で増えたカード。本物の game() を流して記録した値。</p>
+      ${paramsHtml(e)}
       <p class="stats"><span>この駅で実行した行 <b>${Object.keys(e.lines).length}</b></span><span>${S.ring === "r02" ? "game() を呼んだ回数" : "card.py を呼んだ回数"} <b>${esc(calls)}</b></span></p>
       ${calcBox(e)}
       ${issues.map(issueHtml).join("")}
@@ -667,6 +725,7 @@ document.addEventListener("click", (ev) => {
       goStation(it.station); } else render(); }
   else if (b.dataset.st) goStation(b.dataset.st);
 });
+document.addEventListener("toggle", (ev) => { if (ev.target.id === "pdet") store.set("paramsOpen", ev.target.open); }, true);
 document.addEventListener("keydown", (ev) => {
   if (S.level !== "ring" || (ev.target.closest && ev.target.closest("input,textarea"))) return;
   const el = ev.target.closest && ev.target.closest("[data-st],[data-issue]");

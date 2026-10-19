@@ -102,6 +102,18 @@ def run_route(ad, simple, card_mod, route, stations):
                 out[k] = [str(c) for c in v] if isinstance(v, list) else v
         out['deck_left'] = len(ad.deck)
         out['round'] = ad.round
+        # パラメータ: プレイヤーのインスタンスの self.… と、game() と autodealer の設定（値と型）
+        prm = {}
+        pl = fr.f_locals.get('player')
+        if pl is not None:
+            for k, v in vars(pl).items():
+                prm['self.' + k] = [_show(v), type(v).__name__]
+        for k in ('initial_balance',):
+            if k in fr.f_locals:
+                prm[k] = [_show(fr.f_locals[k]), type(fr.f_locals[k]).__name__]
+        for k in ('penetration', 'is_print'):
+            prm[k] = [_show(getattr(ad, k)), type(getattr(ad, k)).__name__]
+        out['params'] = prm
         return out
 
     def local(fr, ev, arg):

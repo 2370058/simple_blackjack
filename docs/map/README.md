@@ -29,6 +29,8 @@ W と L の下には **変数の変遷** がある。`build.py` の `trace_endin
 
 2 の図では、1ラウンドの流れを **dealer.py の箱に1回だけ** 書いてある。autodealer.py の `game()` はその流れを関数に入れたもので、箱には dealer.py と違う所（±: print → printx・exit/break → return・配る前の check_shuffle・turns・Player を引数で）だけを書き、「while True: … dealer.py と同じ」の行から dealer.py の箱へ線でつなぐ。本物の差分は `build.py` が difflib で比べて埋め込み（`dealer_diff`）、game の箱を押すと出る。
 
+3 環状線の駅の「旗の荷物」の下には、折りたたみの **パラメータ** がある。この駅を出るときのプレイヤーのインスタンスの `self.…`（stop_balance・unit_bet・hit_threshold・balance・hand・round・dealer_card…）と、game()・autodealer の設定（initial_balance・penetration・is_print）を、値と型つきで出す（`build.py` の `run_route` が荷物と一緒に記録）。その駅で実行した行に出てくるものは色が付き、判定（if に使った）・入れた（代入）・読んだ の行が並ぶ。置き場（例: player_simple.py:5 `unit_bet = 100` → __init__ の既定値 → self.unit_bet）も出る。タスク A で変えるパラメータには A の印があり、押すと環状線をタスク A で絞る。
+
 3 環状線の上の **タスクで絞る**（なし・A・B・C・タスク外）を選ぶと、そのタスクが関係する駅だけが色の輪で囲まれ、駅名に手順の番号（`B3`・`Bb` など。小文字は準備）が付き、ほかの駅と旗は薄くなる（`taskRel`）。関係は、タスクの手順の `st`・`where`、`where` に書いた一手の流れの手順（`"Q:…"`）の駅、`issue` の旗の駅から集める。下の表に駅ごとの手順（押すと 2 の図のその手順へ）とルートが出て、駅のコードでは、そのタスクで変える行に「← … で変える」が付く。2 の図のタスクから環状線へ跳ぶと、同じタスクで絞った状態になる。
 
 3 環状線は2本ある。**01 1ラウンド**（game() の while True ＝ dealer.py と同じ流れ）と、**02 autodealer のテスト**（autodealer.py だけにある __main__。`ring2.json`。build.py が MAX だけ 2 にして本物どおりに流す `trace_main`）。02 の「1ゲーム」の駅の中が 01。2 の図の autodealer の集計の行からは 02 の駅へ行ける。
