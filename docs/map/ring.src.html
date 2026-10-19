@@ -408,7 +408,7 @@ const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&l
 
 const store = { get(k, d) { try { const v = localStorage.getItem("bjmap:" + k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } },
   set(k, v) { try { localStorage.setItem("bjmap:" + k, JSON.stringify(v)); } catch (e) { /* 保存できなくても動く */ } } };
-const S = { kopen: new Set(), fnview: null, ofv: null, showOrig: store.get("showOrig", false), showRef: store.get("showRef", false), showMat: store.get("showMat", false), pcode: store.get("pcode", "paste"), route: store.get("route", "main"), pos: 0, mode: store.get("mode", "drive"),
+const S = { kopen: new Set(), fnview: null, ofv: null, showOrig: store.get("showOrig", false), showRef: store.get("showRef", false), showMat: store.get("showMat", false), pcode: store.get("pcode", "paste") === "upload" ? "pick" : store.get("pcode", "paste"), pfiles: store.get("pfiles", {}), route: store.get("route", "main"), pos: 0, mode: store.get("mode", "drive"),
   rtask: store.get("rtask", null), find: store.get("find", {}), layers: store.get("layers", { "緊急": true, "悪意": true, "速さ": false }), issue: null, role: null, timer: null };
 S.ring = store.get("ring", "r01");
 
@@ -1226,6 +1226,20 @@ function matCard(task, m, side) {
       <dt>外す・無効にする</dt><dd>${esc(m.off)}</dd><dt>置き換え</dt><dd>${esc(m.alt)}</dd><dt>併せて使う</dt><dd>${esc(m.combo)}</dd>
       <dt>変えると（今の駅のロジック）</dt><dd>${esc(m.change)}</dd><dt>変える順番</dt><dd><ol>${m.order.map((o) => `<li>${esc(o)}</li>`).join("")}</ol></dd></dl></div>`;
 }
+// プロンプトに渡すファイル（タスクごと）と、そのインポート文・入る理由
+const promptFiles = (task) => task === "C" ? ["autodealer.py", "card.py", "players/player_simple.py", "dealer.py", "player.py"] : ["autodealer.py", "card.py", "players/player_simple.py"];
+function fileImports(f) { return (SRC[f] || []).map((t, i) => ({ ln: i + 1, t: t.trim() })).filter((x) => /^(import|from)\s/.test(x.t) || /import_module\(/.test(x.t) && !/^from /.test(x.t)); }
+function fileWhy(f, files) {
+  if (f === "autodealer.py") return "python3 autodealer.py で動かす本体（game() と __main__）";
+  if (f === "dealer.py") return "python3 dealer.py で動かす、人が打つ版（タスク C は同じ変更がいる）";
+  const mod = f.replace(/\.py$/, "").replace("/", "."), out = [];
+  for (const g of files) if (g !== f) for (const x of fileImports(g)) {
+    if (new RegExp(`^from ${mod.replace(".", "\\.")} import|^import ${mod.replace(".", "\\.")}\\b`).test(x.t)) out.push(`${g}:${x.ln} ${x.t}`);
+    if (f.startsWith("players/") && /import_module\(/.test(x.t)) out.push(`${g}:${x.ln} ${x.t}（players/ の .py を名前で読み込む）`); }
+  return out.length ? out.join("、") + " で読み込まれる" : "—";
+}
+const fileBlock = (f) => { const L = SRC[f] || []; return [`## ${f}`, "```python", ...L.map((t, i) => `${String(i + 1).padStart(3)}  ${t}`), "```"].join("\n"); };
+const pfileMode = (f) => ((S.pfiles || {})[f]) || "upload";
 // プロンプトのテンプレート（今の状態を正確に書き出す）
 function buildPrompt() {
   const { F, tm, side, none } = findPick(); if (!F.task) return "";
@@ -1256,13 +1270,14 @@ function buildPrompt() {
     if (on) out.push(`  - 使っていない・余地: ${m.room}`, `  - できること: ${m.can}`, `  - 別ファイル・別の駅: ${m.cross}`, `  - 注意: ${m.caution}`); }
   out.push("", "# メモした変数（まだコードに無い。こういう変数があればいいかも）", ...(vars.length ? vars.map((v) => `- ${v.n}\n  - 初期値: ${v.init || "（未定）"}\n  - ロジック: ${v.logic || "（未定）"}`) : ["（なし）"]));
   if (side) { const refs = REFIMPL[side.st] || []; if (refs.length) { out.push("", "# この駅の参考実装（似た変更の例）"); for (const x of refs) out.push(`- ${x.n} = ${x.v}（${x.f}）: ${x.t}`, `  足した行: \`${x.use}\``); } }
-  const files = F.task === "C" ? ["autodealer.py", "card.py", "players/player_simple.py", "dealer.py", "player.py"] : ["autodealer.py", "card.py", "players/player_simple.py"];
-  const mode = S.pcode || "paste";
-  if (mode === "upload") out.splice(0, 0, "# 読んでほしいファイル", `このあと、次のファイルをアップロード（添付）します: ${files.join("、")}。下の説明より先に、ファイルの全体を読んでください。説明の行番号は、そのファイルの行番号です。`, "");
-  if (mode === "paste") { out.push("", "# コードの全体（今のファイル。行番号はこのとおり）");
-    for (const f of files) { const L = SRC[f] || []; out.push("", `## ${f}`, "```python", ...L.map((t, i) => `${String(i + 1).padStart(3)}  ${t}`), "```"); } }
+  const files = promptFiles(F.task), mode = S.pcode || "paste";
+  const ups = mode === "pick" ? files.filter((f) => pfileMode(f) === "upload") : [], pastes = mode === "paste" ? files : mode === "pick" ? files.filter((f) => pfileMode(f) === "paste") : [];
+  out.push("", "# ファイルとインポート（なぜこのファイルが要るか）");
+  for (const f of files) { out.push(`- ${f}（${(SRC[f] || []).length} 行）: ${fileWhy(f, files)}`); for (const x of fileImports(f)) out.push(`  - ${x.ln} 行: ${x.t}`); }
+  if (ups.length) out.splice(0, 0, "# アップロードするファイル", `このあと、次のファイルを1つずつアップロード（添付）します: ${ups.join("、")}。${pastes.length ? `${pastes.join("、")} は、このプロンプトの最後に貼ってあります。` : ""}下の説明より先に、ファイルの全体を読んでください。説明の行番号は、そのファイルの行番号です。`, "");
+  if (pastes.length) { out.push("", "# コードの全体（今のファイル。行番号はこのとおり）"); for (const f of pastes) out.push("", fileBlock(f)); }
   out.push("", "# お願い",
-    mode === "none" ? "0. コードの全体が無いときは、推測で書かずに、必要なファイル（" + files.join("、") + "）を見せてほしいと言ってください。" : `0. ${mode === "upload" ? "アップロードした" : "上に貼った"}コードの全体を読んで、下の説明（駅・行番号・材料の今の使われ方）と合っているか確かめてから考えてください。合っていない所があれば先に教えてください。`,
+    mode === "none" ? "0. コードの全体が無いときは、推測で書かずに、必要なファイル（" + files.join("、") + "）を見せてほしいと言ってください。" : `0. ${[ups.length ? "アップロードした" : "", pastes.length ? "貼った" : ""].filter(Boolean).join("・")}コードの全体を読んで、上の説明（駅・行番号・材料の今の使われ方・インポート）と合っているか確かめてから考えてください。合っていない所があれば先に教えてください。`,
     "1. まず、上の材料・メソッド（今は少ししか使っていないもの）・今のステートメント（代入）・判定（if）だけで、やりたいことが叶えられるか検討してください。メモした変数の中に、既にある材料やメソッドで代わりになるものが無いかも確かめてください。",
     "2. 足りなければ、メモした変数のうち必要なものについて、どこで定義するか（ファイルの上・__init__）、どの駅のどのメソッドで更新するか、どこで判定に使うかを決めてください。",
     "3. 変更を、加える順番に、ファイル・関数・行番号・変更前と変更後のコードで示してください。",
@@ -1313,7 +1328,13 @@ function findPanel(bar) {
     const [, f, ln] = S.ofv.split("|"); return h.replace(/<\/div>$/, `<div class="ofvw" style="--t:var(--dealer)">${fnView(f, +ln, 'data-ofv=""')}</div></div>`); };
   const cards = F.task && S.showMat ? `${sel.length ? `<h4>選んだ材料の説明</h4><div class="mcards">${sel.map(card).join("")}</div>` : ""}
     <details class="fall" data-dkey="allmats"><summary>材料の説明を全部見る（タスク ${F.task}・値 ${mats.length}・メソッド ${meths.length}）</summary><div class="mcards">${[...mats, ...meths].filter((m) => !sel.includes(m)).map(card).join("")}</div></details>` : "";
-  const prompt = F.task ? `<details class="fall pr" data-dkey="prompt" open><summary>プロンプトのテンプレート（今の状態から作る。コピーして使う）</summary><p class="note">アイデア・タスク・いつ・材料・メモした変数から、今のコードの状態（駅・ファイル・関数の今のコード・材料の今の使われ方・参考実装）を書き出したもの。コードの全体（関係するファイル）を貼るか、アップロードを頼むかも選べる。最後に「まず既存の材料・ステートメント・判定で叶えられるか検討 → 足りなければメモの変数をどこで定義・更新・判定するか → 順番に変更」を頼む。</p><div class="h3row"><span class="note">コードの全体を</span><div class="seg pcode">${[["paste", "プロンプトに貼る"], ["upload", "アップロードを頼む"], ["none", "入れない"]].map(([k, t]) => `<button type="button" data-pcode="${k}" aria-pressed="${(S.pcode || "paste") === k}">${t}</button>`).join("")}</div></div><p class="note">${F.task === "C" ? "autodealer.py・card.py・players/player_simple.py・dealer.py・player.py（タスク C は dealer.py と player.py も変えるので）" : "autodealer.py・card.py・players/player_simple.py"}。貼ると、AI がこのページの説明とコードを照らし合わせられる（長くなる）。アップロードを頼むと、プロンプトの最初に「先にファイルを読んで」と書く。</p><textarea class="prompt" readonly rows="14">${esc(buildPrompt())}</textarea><button type="button" class="btn" data-copyprompt>コピー</button> <small class="copied" hidden>コピーした</small></details>` : "";
+  const prompt = F.task ? `<details class="fall pr" data-dkey="prompt" open><summary>プロンプトのテンプレート（今の状態から作る。コピーして使う）</summary><p class="note">アイデア・タスク・いつ・材料・メモした変数から、今のコードの状態（駅・ファイル・関数の今のコード・材料の今の使われ方・参考実装）を書き出したもの。コードの全体（関係するファイル）を貼るか、アップロードを頼むかも選べる。最後に「まず既存の材料・ステートメント・判定で叶えられるか検討 → 足りなければメモの変数をどこで定義・更新・判定するか → 順番に変更」を頼む。</p><div class="h3row"><span class="note">コードの全体を</span><div class="seg pcode">${[["paste", "全部プロンプトに貼る"], ["pick", "ファイルごとに選ぶ（アップロード・貼る）"], ["none", "入れない"]].map(([k, t]) => `<button type="button" data-pcode="${k}" aria-pressed="${(S.pcode || "paste") === k}">${t}</button>`).join("")}</div></div>
+    <div class="tw"><table class="ftab pfiles"><thead><tr><th>ファイル</th><th>インポート</th><th>なぜ要るか</th>${(S.pcode || "paste") === "pick" ? "<th>渡し方</th>" : ""}<th></th></tr></thead><tbody>${promptFiles(F.task).map((f) => `<tr><td><code>${esc(f)}</code><br><small>${(SRC[f] || []).length} 行</small></td>
+      <td>${fileImports(f).map((x) => `${srcLink("i", f, x.ln)} <code>${esc(x.t)}</code>`).join("<br>") || "<small>—</small>"}</td><td><small>${esc(fileWhy(f, promptFiles(F.task)))}</small></td>
+      ${(S.pcode || "paste") === "pick" ? `<td><div class="seg pcode">${[["upload", "アップロード"], ["paste", "貼る"]].map(([k, t]) => `<button type="button" data-pfile="${esc(f)}:${k}" aria-pressed="${pfileMode(f) === k}">${t}</button>`).join("")}</div></td>` : ""}
+      <td><button type="button" class="btn sb" data-copyfile="${esc(f)}">この1ファイルをコピー</button></td></tr>`).join("")}</tbody></table></div>
+    ${(S.pcode || "paste") === "pick" ? `<p class="note"><b>個別にアップロードしてほしいファイル:</b> ${promptFiles(F.task).filter((f) => pfileMode(f) === "upload").map((f) => `<code>${esc(f)}</code>`).join("、") || "（なし）"}。アップロードには数や大きさの上限があるので、入りきらないファイルは「貼る」にすると、プロンプトの最後に全文が付く（「この1ファイルをコピー」で1つずつ貼ってもよい）。</p>` : ""}
+    <p class="note">インポートを見ると、どのファイルがどれを読み込むかが分かる（players/ のファイルは autodealer.py の import_module で名前から読み込まれる）。貼ると、AI がこのページの説明とコードを照らし合わせられる（長くなる）。</p>${originView("i")}<textarea class="prompt" readonly rows="14">${esc(buildPrompt())}</textarea><button type="button" class="btn" data-copyprompt>コピー</button> <small class="copied" hidden>コピーした</small></details>` : "";
   const files = `<details class="fall" data-dkey="stfiles"><summary>駅ごとに使っているファイル・関数（全ルートの本物の記録から）</summary><div class="tw"><table class="ftab"><thead><tr><th>駅</th><th>autodealer.py</th><th>players/</th><th>card.py</th></tr></thead><tbody>${RING.map((s) => { const m = FS[s.id] || {};
     const col = (pred) => Object.entries(m).filter(([f]) => pred(f)).map(([, fns]) => esc([...fns].join("・"))).join(" ") || "—";
     return `<tr${side && side.st === s.id ? ' class="cur"' : ""}><td><button type="button" class="btn" data-tst="${s.id}">${idx[s.id]}. ${esc(s.title)}</button></td><td>${col((f) => f === "autodealer.py")}</td><td>${col((f) => f.startsWith("players/"))}</td><td>${col((f) => f === "card.py")}</td></tr>`; }).join("")}</tbody></table></div></details>`;
@@ -1389,6 +1410,11 @@ document.addEventListener("click", (ev) => {
   if (fx) { const x = FIND_EX[+fx.dataset.fex]; S.find = { task: x.task, when: x.when, mats: [...x.mats], ex: +fx.dataset.fex }; store.set("find", S.find); store.set("ideaMemo", x.memo);
     const vs = ivars().filter((y) => !x.vars.some((v) => v.n === y.n)); vs.push(...x.vars); store.set("ideaVars", vs);
     const { side } = findPick(); if (side) { if (!path().some((e) => e.id === side.st)) { const r = R.routes.find((q) => TR[q.id].path.some((e) => e.id === side.st)); if (r) { S.route = r.id; S.pos = 0; } } goStation(side.st); } else render(); return; }
+  const pf = ev.target.closest("[data-pfile]");
+  if (pf) { const i = pf.dataset.pfile.lastIndexOf(":"); S.pfiles = { ...(S.pfiles || {}), [pf.dataset.pfile.slice(0, i)]: pf.dataset.pfile.slice(i + 1) }; store.set("pfiles", S.pfiles); const y = window.scrollY; render(); window.scrollTo({ top: y }); return; }
+  const cf = ev.target.closest("[data-copyfile]");
+  if (cf) { const txt = fileBlock(cf.dataset.copyfile), done = () => { cf.textContent = "コピーした"; };
+    if (navigator.clipboard) navigator.clipboard.writeText(txt).then(done, () => {}); return; }
   const pc = ev.target.closest("[data-pcode]");
   if (pc) { S.pcode = pc.dataset.pcode; store.set("pcode", S.pcode); const y = window.scrollY; render(); window.scrollTo({ top: y }); return; }
   const mt = ev.target.closest("[data-mattog]");
