@@ -139,6 +139,57 @@ def run_route(ad, simple, card_mod, route, stations):
     return {'path': path, 'calls': calls, 'result': list(result), 'edges': edges}
 
 
+def trace_dealer() -> dict:
+    """dealer.py（対話）を、キーボードの代わりに決めた答え（100 → hit → stand → 0）で1ラウンドだけ流す。
+    混ぜ方は random.seed で決め、hit しても バーストしない最初の種を使う。実行時の呼び出しと、画面に出た文字を記録する。"""
+    import builtins
+    import contextlib
+    import io
+    import random
+    import runpy
+    files = {str(REPO / f): f for f in FILES}
+    for seed in range(500):
+        answers = iter(['100', 'hit', 'stand', '0'])
+        shown = []
+
+        def fake_input(prompt=''):
+            a = next(answers)
+            shown.append(f'{prompt}{a}')
+            return a
+        edges, out = {}, io.StringIO()
+
+        def glob(fr, ev, arg):
+            f = files.get(fr.f_code.co_filename)
+            if not f:
+                return None
+            if ev == 'call':
+                up = fr.f_back
+                while up is not None and up.f_code.co_filename not in files:
+                    up = up.f_back
+                if up is not None:
+                    key = f"{modname(files[up.f_code.co_filename])}.{up.f_code.co_qualname}:{up.f_lineno} -> {modname(f)}.{fr.f_code.co_qualname}"
+                    edges[key] = edges.get(key, 0) + 1
+            return None
+        random.seed(seed)
+        real_input, builtins.input = builtins.input, fake_input
+        sys.modules.pop('player', None)
+        try:
+            with contextlib.redirect_stdout(out):
+                sys.settrace(glob)
+                try:
+                    runpy.run_path(str(REPO / 'dealer.py'), run_name='__main__')
+                except (SystemExit, StopIteration):
+                    pass
+                finally:
+                    sys.settrace(None)
+        finally:
+            builtins.input = real_input
+        text = out.getvalue()
+        if text.count('カードを引きます') == 1 and 'バースト' not in text and '無効' not in text and 'ゲームを終了' in text:
+            return {'seed': seed, 'edges': edges, 'stdout': text, 'answers': shown}
+    raise SystemExit('dealer.py の1ラウンドを流せる種が見つからない')
+
+
 def build() -> pathlib.Path:
     ring = json.loads((HERE / 'ring.json').read_text(encoding='utf-8'))
     src = {f: (REPO / f).read_text(encoding='utf-8') for f in FILES}
@@ -173,7 +224,9 @@ def build() -> pathlib.Path:
         for i, text in enumerate(ls, 1):
             if text.strip() and not text.strip().startswith('#'):
                 roles[f'{f}:{i}'] = role(text)
-    data = {'ring': ring, 'sources': src, 'traces': traces, 'roles': roles, 'roleNames': ROLE_NAMES}
+    dealer = trace_dealer()
+    print(f"  dealer.py 種 {dealer['seed']}: 呼び出し {len(dealer['edges'])} 種類")
+    data = {'ring': ring, 'sources': src, 'traces': traces, 'roles': roles, 'roleNames': ROLE_NAMES, 'dealer': dealer}
     blob = json.dumps(data, ensure_ascii=False).replace('</', '<\\/')
     page = (HERE / 'ring.src.html').read_text(encoding='utf-8')
     assert page.count('/*__DATA__*/{}') == 1, '埋め込む印 /*__DATA__*/{} が1つだけあるはず'
