@@ -10,7 +10,7 @@
   --asphalt: #3b4250; --paint: #e9edf3; --car: #ffcf3f; --car-fg: #2b2100;
   --player: #2a9d8f; --dealer: #4c5bd4; --deck: #c9822b; --calc: #c2457a; --exit: #8a93a3;
   --danger: #cf3a52; --danger-bg: #fde8eb; --ok: #23905e; --ok-bg: #e3f4ea; --attack: #6b3fa0; --attack-bg: #efe7f8; --perf: #2f6f8f; --perf-bg: #e4f0f6;
-  --pre: #3567d4; --branch: #d97a12; --check: #7f48cc; --prep: #7f48cc;
+  --pre: #3567d4; --branch: #d97a12; --check: #7f48cc; --prep: #7f48cc; --prep2: #c0661b;
   --stmt: #2b3448; --stmt-fg: #f2f5fb; --stmt-dim: #9aa6bf; --hit: #3d4a66;
   --display: "M PLUS Rounded 1c", "Hiragino Maru Gothic ProN", system-ui, sans-serif;
   --body: "Zen Kaku Gothic New", "Hiragino Sans", "Yu Gothic", system-ui, sans-serif;
@@ -21,14 +21,14 @@
   --asphalt: #0b0e14; --paint: #4a5262; --car: #ffd75e; --car-fg: #2b2100;
   --player: #4cc3b4; --dealer: #8592f2; --deck: #e6a552; --calc: #e57aa6; --exit: #7c8596;
   --danger: #f07386; --danger-bg: #3a1c22; --ok: #4fc488; --ok-bg: #173325; --attack: #b48ef0; --attack-bg: #2a1f3a; --perf: #6fb3d6; --perf-bg: #17293a;
-  --pre: #6e98f0; --branch: #f0a04b; --check: #ad85ee; --prep: #ad85ee;
+  --pre: #6e98f0; --branch: #f0a04b; --check: #ad85ee; --prep: #ad85ee; --prep2: #ec9a4d;
   --stmt: #0e121a; --stmt-fg: #eef2f9; --stmt-dim: #6f7c96; --hit: #2a3550; color-scheme: dark } }
 :root[data-theme="dark"] {
   --bg: #141820; --panel: #1c222d; --fg: #e6e9f0; --muted: #9aa3b4; --line: #2d3442;
   --asphalt: #0b0e14; --paint: #4a5262; --car: #ffd75e; --car-fg: #2b2100;
   --player: #4cc3b4; --dealer: #8592f2; --deck: #e6a552; --calc: #e57aa6; --exit: #7c8596;
   --danger: #f07386; --danger-bg: #3a1c22; --ok: #4fc488; --ok-bg: #173325; --attack: #b48ef0; --attack-bg: #2a1f3a; --perf: #6fb3d6; --perf-bg: #17293a;
-  --pre: #6e98f0; --branch: #f0a04b; --check: #ad85ee; --prep: #ad85ee;
+  --pre: #6e98f0; --branch: #f0a04b; --check: #ad85ee; --prep: #ad85ee; --prep2: #ec9a4d;
   --stmt: #0e121a; --stmt-fg: #eef2f9; --stmt-dim: #6f7c96; --hit: #2a3550; color-scheme: dark }
 body { background: var(--bg); color: var(--fg); font-family: var(--body); font-size: 15px; line-height: 1.7; }
 .wrap { max-width: 1120px; margin: 0 auto; padding-block: 28px 64px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: grid; gap: 16px; }
@@ -168,6 +168,9 @@ tfoot td { font-weight: 700; }
 @media (max-width: 600px) { .tpanel .ways { grid-template-columns: minmax(0, 1fr); } }
 .map.c4 svg#c4map { min-width: 980px; }
 .c4 .tflow.prep path { stroke: var(--prep); }
+.c4 .tflow.prep2 path { stroke: var(--prep2); }
+.c4 .tbadge.prep2 circle { fill: var(--prep2); }
+.c4 .tahq { fill: var(--prep2); }
 .c4 .tflow.prep path.plink { stroke-width: 2; stroke-dasharray: 4 4; }
 .c4 .tbadge.prep circle { fill: var(--prep); }
 .c4 .tahp { fill: var(--prep); }
@@ -415,7 +418,7 @@ function issueHtml(it) {
 
 function flowLinks(id) { // 2 の図の流れで、同じ駅の手順
   const out = [];
-  for (const [k, T] of Object.entries(TASKS)) if (T.flow) T.c4.forEach((st, i) => { if (st.st === id) out.push(`<button type="button" class="btn" data-goflow="${k}:${i}" style="border-color:${st.p ? "var(--prep)" : T.c}">${esc(T.t)} ${st.p ? "準備 " : ""}${stepTag(T.c4, i, T)}. ${esc(st.label)}</button>`); });
+  for (const [k, T] of Object.entries(TASKS)) if (T.flow) T.c4.forEach((st, i) => { if (st.st === id) out.push(`<button type="button" class="btn" data-goflow="${k}:${i}" style="border-color:${st.p === 2 ? "var(--prep2)" : st.p ? "var(--prep)" : T.c}">${esc(T.t)} ${st.p === 2 ? "1周の準備 " : st.p ? "準備 " : ""}${stepTag(T.c4, i, T)}. ${esc(st.label)}</button>`); });
   return out.length ? `<div class="issue" style="--c:var(--dealer)"><h3>2 の図の流れで、同じ所</h3><p class="flags">${out.join("")}</p></div>` : "";
 }
 function roleCounts(entries) {
@@ -762,19 +765,30 @@ const TASKS = {
         rt: ["dealer.<module>:154 -> player.BlackjackPlayer.notify_result"] },
       { a: ["dealer", 1], b: ["dealer", 4], st: "s21", label: "turn_end() で次の周へ", desc: "round を1増やし、山札が半分を切っていたら作り直す。while True の先頭に戻り、次の掛け金で 0 を打ったので exit() で終わった。",
         code: [["dealer.py", "def turn_end():", 0, ["round += 1"]], ["dealer.py", "if bet_amount == 0:", 3, ["exit()"]]], rt: ["-> dealer.turn_end"] }] },
-  Q: { flow: true, t: "autodealer の1手", c: "var(--perf)", decide: true,
+  Q: { flow: true, t: "autodealer の1手", c: "var(--perf)", decide: true, prepTitles: ["テストの準備（python3 autodealer.py で1回）", "本番の1周の準備（game() の中・ゲームごと／ラウンドごと）"],
     note: "autodealer.game() の中で、プレイヤーのプログラムが hit か stand かを決める1手。キーボードの代わりに、players.player_simple.BlackjackPlayer.input が、前もって渡された手札（self.hand）を見て文字列を返す。値は本物を「ヒットして勝つ」で流したもの（♠5・♣6 → hit → ♠9 で 20 → stand）。",
     ctx: [["x_vscode", "sys", "python3 autodealer.py", "人は何も打たない。players/ のプレイヤーが答える。"],
       ["p_strat", "sys", "input の中身を書く", "1手の決め方は、プレイヤーのファイルの input に書いてある。"]],
     c4: [
       { p: true, a: ["work", 2], b: ["main", -1], label: "作業フォルダで python3 autodealer.py", desc: "simple_blackjack のフォルダで動かす。players/ を今いるフォルダから探すので、別のフォルダからだと FileNotFoundError で止まる。人は何も打たない。",
-        cmd: ["cd ~/work/simple_blackjack", "python3 autodealer.py"], code: [[AD, "directory_path = 'players'", 2, ["directory_path = 'players'", "os.listdir(directory_path)"]]] },
-      { p: true, a: ["pfold", 0], b: ["simple", -1], label: "players/ にプレイヤーを置く", desc: "players/ にある .py が全部、1つずつ import されて game() に渡る。この1手を打つのは players.player_simple.BlackjackPlayer。",
-        code: [[AD, "player_module = import_module(", 1, ["import_module("]], [AD, "result, num_turn = game(", 1, ["game(player_module.BlackjackPlayer)"]]] },
-      { p: true, a: ["prm", 0], b: ["simple", 2], label: "1手を決める値（hit_threshold = 16）", desc: "この1手は hit_threshold だけで決まる。動かす前にファイルの上で決まっていて、ゲームの途中では変わらない（タスク A で変える値）。",
-        code: [[SP, "hit_threshold = 16", 1, ["hit_threshold = 16"]], [SP, "self.hit_threshold = hit_threshold", 1, ["self.hit_threshold = hit_threshold"]]] },
-      { p: true, a: ["boot", 0], b: ["deck", 0], st: "s5", label: "山札（起動のとき1回）", desc: "autodealer.py を読み込んだときに52枚を作って混ぜる。1手で引くカードは、この山札の末尾から来る（今回は ♠9）。",
+        cmd: ["cd ~/work/simple_blackjack", "python3 autodealer.py"], code: [[AD, "directory_path = 'players'", 2, ["directory_path = 'players'"]]] },
+      { p: true, a: ["boot", 0], b: ["deck", 0], st: "s5", label: "山札（起動のとき1回）", desc: "autodealer.py を読み込んだときに52枚を作って混ぜる。テストの間ずっと同じ山札を使い続け、半分を切ったら check_shuffle で作り直す（ゲームごとには作り直さない。緊5）。",
         code: [[AD, "deck = [Card(suit, value)", 3, ["deck = [Card(suit, value)", "shuffle(deck)"], [], 2]] },
+      { p: true, a: ["pfold", 0], b: ["simple", -1], label: "players/ を探して1つずつ import", desc: "os.listdir で players/ の .py を全部探し、import_module で1つずつ読み込む。このとき、ファイルの一番上の stop_balance などの値も決まる。この1手を打つのは players.player_simple.BlackjackPlayer。",
+        code: [[AD, "file_names = os.listdir(directory_path)", 5, ["os.listdir", "py_file_names = "]], [AD, "for module_name in file_names_without_extension:", 2, ["import_module("]]] },
+      { p: true, a: ["prm", 0], b: ["simple", 2], label: "1手を決める値（hit_threshold = 16）", desc: "この1手は hit_threshold だけで決まる。import のときにファイルの上で決まっていて、テストの途中では変わらない（タスク A で変える値）。",
+        code: [[SP, "hit_threshold = 16", 1, ["hit_threshold = 16"]], [SP, "self.hit_threshold = hit_threshold", 1, ["self.hit_threshold = hit_threshold"]]] },
+      { p: true, a: ["main", 3], b: ["game", -1], label: "game(Player) を MAX 回呼ぶ", desc: "1つのプレイヤーのファイルにつき、テスト用のゲームを MAX（4000）回くり返す。渡すのはクラス（player_module.BlackjackPlayer）で、ここから先が本番の1ゲーム。",
+        code: [[AD, "start_time = time.perf_counter()", 3, ["start_time = time.perf_counter()", "while game_round <= MAX:", "game(player_module.BlackjackPlayer)"]]] },
+      { p: 2, a: ["game", 1], b: ["simple", 3], st: "s0", label: "プレイヤーを作る（ゲームごとに新しく）", desc: "game() に入るたびに、残高 1000 のインスタンスを新しく作る。手札・残高・ターン数もここで 0 から。前のゲームの self の中身は持ち越さない（山札は持ち越す）。",
+        code: [[AD, "player_hand = []  # プレイヤーの初期手札", 7, ["initial_balance = 1000", "player = Player(initial_balance)", "player_balance = initial_balance"]], [AD, "turns = 0", 1, ["turns = 0"]], [SP, "def __init__", 0, ["self.balance = balance", "self.hit_threshold = hit_threshold"]]],
+        rt: ["autodealer.game:44 -> players.player_simple.BlackjackPlayer.__init__"] },
+      { p: 2, a: ["game", 2], b: ["dealer", 4], st: "s1", label: "手札を空にして start_turn（ラウンドごと）", desc: "while True の1周の始まり。手札を新しい空のリストにし、プレイヤーに round（シャッフルしてから何ラウンド目か）を知らせる。ここから下は dealer.py と同じ流れ。",
+        code: [[AD, "    while True:\n", 6, ["while True:", "player_hand = []", "dealer_hand = []", "is_burst = False", "player.start_turn(round)"]]], rt: ["autodealer.game:55 -> players.player_simple.BlackjackPlayer.start_turn"] },
+      { p: 2, a: ["dealer", 5], b: ["simple", 4], st: "s3", label: "掛け金を決める（place_bet）", desc: "プレイヤーが掛け金を返す。player_simple は残高 1000 ≤ stop_balance 1100 なので unit_bet の 100。0 なら return でゲームが終わる。",
+        code: [[AD, "bet_amount = player.place_bet(player_balance)", 2, ["bet_amount = player.place_bet(player_balance)", "if 0 < bet_amount <= player_balance"]]], rt: ["autodealer.game:57 -> players.player_simple.BlackjackPlayer.place_bet"] },
+      { p: 2, a: ["game", 3], b: ["deck", 0], st: "s6", label: "check_shuffle して4枚配る", desc: "配る前に山札の残りを確かめ（dealer.py には無い所）、プレイヤー → ディーラー → プレイヤー → ディーラーの順に4枚配る。今回は ♠5・♡10・♣6・♢6。",
+        code: [[AD, "        check_shuffle()", 5, ["check_shuffle()", "deck.pop()"]]], rt: ["autodealer.game:68 -> autodealer.check_shuffle"] },
       { a: ["dealer", 6], b: ["simple", 6], st: "s7", label: "材料を渡す（receive_hand・look_dealer_hand）", desc: "1手を決める前に、手札とディーラーの表のカードをプレイヤーに渡しておく。self.hand は player_hand と同じリスト（コピーではない。悪1）。今回は [♠5, ♣6] と ♡10。",
         code: [[AD, "player.receive_hand(player_hand) # プレイヤーに手札を渡す", 1, ["player.receive_hand"]], [AD, "player.look_dealer_hand(", 1, ["player.look_dealer_hand"]], [SP, "def receive_hand", 0, ["self.hand = hand"]], [SP, "def look_dealer_hand", 0, ["self.dealer_card = card"]]],
         rt: ["autodealer.game:79 -> players.player_simple.BlackjackPlayer.receive_hand", "autodealer.game:83 -> players.player_simple.BlackjackPlayer.look_dealer_hand"] },
@@ -955,9 +969,9 @@ const PREP_C = "var(--prep)";
 function c4Steps() { const T = TASKS[S.task]; return T ? T.c4 : []; }
 function stepTag(steps, i, T = TASKS[S.task]) { // 準備は a・b・c…、実行の流れは 1・2・3…、タスク外は 外1・外2…
   if (T && T.outside) return "外" + (i + 1);
-  let a = 0, n = 0;
-  for (let j = 0; j <= i; j++) { if (steps[j].p) a++; else n++; }
-  return steps[i].p ? String.fromCharCode(96 + a) : String(n);
+  let a = 0, k = 0, n = 0;
+  for (let j = 0; j <= i; j++) { if (steps[j].p === 2) k++; else if (steps[j].p) a++; else n++; }
+  return steps[i].p === 2 ? "アイウエオカキクケコ"[k - 1] : steps[i].p ? String.fromCharCode(96 + a) : String(n);
 }
 function taskBar(lv) {
   const el = document.getElementById(lv + "bar");
@@ -1020,12 +1034,13 @@ function taskPanel(lv) {
   const steps = lv === "ctx" ? T.ctx.map(([a, b, label, desc]) => ({ a, b, label, desc })) : T.c4, k = S.tstep, st = k != null ? steps[k] : null;
   const name = (x) => lv === "ctx" ? CTX.find((b) => b.id === x).title : C4B.find((b) => b.id === x[0]).title + (x[1] >= 0 ? " の " + C4B.find((b) => b.id === x[0]).rows[x[1]][0] : "");
   const tag = (i) => lv === "ctx" ? String(i + 1) : stepTag(steps, i);
-  const item = (x, i) => `<li><button type="button" data-tstep="${i}" aria-pressed="${k === i}" style="--t:${x.p ? PREP_C : T.c}"><b>${tag(i)}</b><span>${esc(x.label)}</span></button></li>`;
+  const item = (x, i) => `<li><button type="button" data-tstep="${i}" aria-pressed="${k === i}" style="--t:${x.p === 2 ? "var(--prep2)" : x.p ? PREP_C : T.c}"><b>${tag(i)}</b><span>${esc(x.label)}</span></button></li>`;
   let body = "";
   if (st) {
     const edges = (T.rtSrc === "dealer" ? DATA.dealer.edges : TR.main.edges) || {};
     const rts = (st.rt || []).flatMap((p) => Object.entries(edges).filter(([key]) => key.includes(p)));
-    body = `<div class="step" style="--t:${st.p ? PREP_C : T.c}"><div class="dh"><span class="kind" style="--c:${st.p ? PREP_C : T.c}">${st.p ? "準備 " : ""}${tag(k)}</span><h3>${esc(st.label)}</h3>
+    const sc = st.p === 2 ? "var(--prep2)" : st.p ? PREP_C : T.c;
+    body = `<div class="step" style="--t:${sc}"><div class="dh"><span class="kind" style="--c:${sc}">${st.p === 2 ? "1周の準備 " : st.p ? "準備 " : ""}${tag(k)}</span><h3>${esc(st.label)}</h3>
       <div class="nav"><button type="button" data-tstep="${k - 1}" ${k ? "" : "disabled"}>← 前</button><button type="button" data-tstep="${k + 1}" ${k < steps.length - 1 ? "" : "disabled"}>次 →</button></div></div>
       <p class="note">${esc(name(st.a))}${st.b ? " → " + esc(name(st.b)) : ""}</p><p>${esc(st.desc)}</p>
       ${st.issue ? `<p><button type="button" class="btn" data-ringissue="${st.issue}">3 環状線で ${st.issue} を見る →</button></p>` : ""}
@@ -1035,9 +1050,10 @@ function taskPanel(lv) {
       ${st.code ? `<h4>コード${st.code.some((c) => (c[4] || []).length) ? "（橙の行が変える所）" : ""}</h4><div class="code">${st.code.map((c, i, all) => codeRange(c, i, all)).join(`<div class="gap">  ⋮</div>`)}</div>` : ""}
       ${st.ex ? `<h4>変更の例（最低限）</h4>${diffHtml(st.ex)}${st.exNote ? `<p class="note">${esc(st.exNote)}</p>` : ""}` : ""}</div>`;
   }
-  const prep = steps.map((x, i) => [x, i]).filter(([x]) => x.p), flow = steps.map((x, i) => [x, i]).filter(([x]) => !x.p);
+  const prep = steps.map((x, i) => [x, i]).filter(([x]) => x.p === true), prep2 = steps.map((x, i) => [x, i]).filter(([x]) => x.p === 2), flow = steps.map((x, i) => [x, i]).filter(([x]) => !x.p);
   el.innerHTML = `<section class="tpanel" style="--t:${T.c}"><div class="dh"><span class="kind" style="--c:${T.c}">${T.flow ? "流れ" : "タスク"}</span><h2>${esc(T.t)}</h2></div><p class="note">${esc(T.note)}</p>
-    <div class="tcols">${prep.length ? `<div><h3 style="color:${PREP_C}">${T.flow ? "実行前の準備（起動するまで）" : "実行前の準備（並列・どれからでもよい）"}</h3><ol>${prep.map(([x, i]) => item(x, i)).join("")}</ol></div>` : ""}
+    <div class="tcols">${prep.length ? `<div><h3 style="color:${PREP_C}">${T.prepTitles ? T.prepTitles[0] : T.flow ? "実行前の準備（起動するまで）" : "実行前の準備（並列・どれからでもよい）"}</h3><ol>${prep.map(([x, i]) => item(x, i)).join("")}</ol></div>` : ""}
+      ${prep2.length ? `<div><h3 style="color:var(--prep2)">${T.prepTitles[1]}</h3><ol>${prep2.map(([x, i]) => item(x, i)).join("")}</ol></div>` : ""}
       <div><h3 style="color:${T.c}">${T.flow ? "流れ（順番）" : T.outside ? "直したい所" : prep.length ? "実行の流れ（順番）" : "流れ（順番）"}</h3><ol>${flow.map(([x, i]) => item(x, i)).join("")}</ol></div></div>${body}
     ${T.related ? `<p class="note">ほかにタスク外で直したい所は、3 環状線の旗にある: ${T.related.map((id) => `<button type="button" class="btn" data-ringissue="${id}">${id} ${esc(R.issues.find((x) => x.id === id).title)}</button>`).join(" ")}</p>` : ""}
     ${T.transcript ? `<h3>画面（ターミナル）</h3><div class="code term"><div class="file">打った答え</div>${DATA.dealer.answers.map((a) => `<div class="ln"><i></i><s></s><span>${esc(a)}</span><span></span></div>`).join("")}<div class="file">print された文字</div>${DATA.dealer.stdout.trim().split("\n").map((a) => `<div class="ln"><i></i><s></s><span>${esc(a)}</span><span></span></div>`).join("")}</div>` : ""}
@@ -1048,9 +1064,10 @@ function taskPanel(lv) {
 }
 let PLACED = [];   // 1枚の図に置いた番号の札（重なったら横にずらす）
 function badge(g, x, y, i, text, prep) {
+  if (prep === undefined && g.classList.contains("prep2")) prep = 2;
   for (let k = 0; k < 12 && PLACED.some(([px, py]) => Math.abs(px - x) < 24 && Math.abs(py - y) < 24); k++) x += 26;
   PLACED.push([x, y]);
-  const b = svgEl("g", { class: "tbadge" + (S.tstep === i ? " cur" : "") + (prep ? " prep" : ""), "data-tstep": i, tabindex: 0, role: "button" }, g);
+  const b = svgEl("g", { class: "tbadge" + (S.tstep === i ? " cur" : "") + (prep === 2 ? " prep2" : prep ? " prep" : ""), "data-tstep": i, tabindex: 0, role: "button" }, g);
   svgEl("circle", { cx: x, cy: y, r: String(text || "").length > 1 ? 14 : 11 }, b);
   svgEl("text", { x, y: y + 4, "text-anchor": "middle" }, b).textContent = text == null ? i + 1 : text;
 }
@@ -1180,19 +1197,19 @@ function drawC4() {
   root.parentElement.classList.toggle("tasking", !!T);
   if (T) {
     root.style.setProperty("--t", T.c); arrowDefs(root, "aht", "tah", 14);
-    arrowDefs(root, "ahp", "tahp", 14);
+    arrowDefs(root, "ahp", "tahp", 14); arrowDefs(root, "ahq", "tahq", 14);
     T.c4.forEach((st, i) => { const { a, b } = st, tag = stepTag(T.c4, i);
       for (const x of [a, b]) if (x) { inflow.add(x[0]); if (x[1] >= 0) trows.add(x[0] + ":" + x[1] + (st.p ? ":p" : "")); }
-      const g = svgEl("g", { class: flowCls(i) + (st.p ? " prep" : "") }, tg);
+      const g = svgEl("g", { class: flowCls(i) + (st.p === 2 ? " prep2" : st.p ? " prep" : "") }, tg);
       if (st.p && b && pos[a[0]].band) { const r = route(a[0], a[1], b[0], b[1], 6 + i * 7);   // 準備の帯から、書き換える行へ
         svgEl("path", { d: `M${pos[a[0]].x + 2} ${rowY(pos[a[0]], a[1]) - 9} V${rowY(pos[a[0]], a[1]) + 9}`, "stroke-width": 6 }, g);
         svgEl("path", { d: r.d, "marker-end": "url(#ahp)", class: "plink" }, g); badge(g, r.bx, r.by, i, tag, true); return; }
-      if (!b || st.p) { const p = pos[a[0]], y = rowY(p, a[1]);   // 準備: 行の右に印（並列なので矢印でつながない）
+      if (!b || st.p === true) { const p = pos[a[0]], y = rowY(p, a[1]);   // 準備: 行の右に印（並列なので矢印でつながない）
         svgEl("path", { d: `M${p.x + p.w - 2} ${y - 10} V${y + 10}`, "stroke-width": 6 }, g);
         if (b) { const q = pos[b[0]]; svgEl("path", { d: `M${p.x + p.w} ${y} H${p.x + p.w + 16} V${rowY(q, b[1])} H${q.x + q.w}`, "marker-end": "url(#ahp)", class: "plink" }, g); }
         badge(g, p.x + p.w + 2, y, i, tag, st.p); return; }
       const r = route(a[0], a[1], b[0], b[1], 6 + (i % 4) * 9);
-      svgEl("path", { d: r.d, "marker-end": "url(#aht)" }, g); badge(g, r.bx, r.by == null ? r.y1 + (r.y2 - r.y1) * (.2 + .3 * (i % 3)) : r.by, i, tag);
+      svgEl("path", { d: r.d, "marker-end": `url(#${st.p === 2 ? "ahq" : "aht"})` }, g); badge(g, r.bx, r.by == null ? r.y1 + (r.y2 - r.y1) * (.2 + .3 * (i % 3)) : r.by, i, tag);
     });
   }
   for (const b of C4B) {
