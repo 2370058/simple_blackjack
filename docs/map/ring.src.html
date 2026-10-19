@@ -10,7 +10,7 @@
   --asphalt: #3b4250; --paint: #e9edf3; --car: #ffcf3f; --car-fg: #2b2100;
   --player: #2a9d8f; --dealer: #4c5bd4; --deck: #c9822b; --calc: #c2457a; --exit: #8a93a3;
   --danger: #cf3a52; --danger-bg: #fde8eb; --ok: #23905e; --ok-bg: #e3f4ea; --attack: #6b3fa0; --attack-bg: #efe7f8; --perf: #2f6f8f; --perf-bg: #e4f0f6;
-  --pre: #3567d4; --branch: #d97a12; --check: #7f48cc;
+  --pre: #3567d4; --branch: #d97a12; --check: #7f48cc; --prep: #7f48cc;
   --stmt: #2b3448; --stmt-fg: #f2f5fb; --stmt-dim: #9aa6bf; --hit: #3d4a66;
   --display: "M PLUS Rounded 1c", "Hiragino Maru Gothic ProN", system-ui, sans-serif;
   --body: "Zen Kaku Gothic New", "Hiragino Sans", "Yu Gothic", system-ui, sans-serif;
@@ -21,14 +21,14 @@
   --asphalt: #0b0e14; --paint: #4a5262; --car: #ffd75e; --car-fg: #2b2100;
   --player: #4cc3b4; --dealer: #8592f2; --deck: #e6a552; --calc: #e57aa6; --exit: #7c8596;
   --danger: #f07386; --danger-bg: #3a1c22; --ok: #4fc488; --ok-bg: #173325; --attack: #b48ef0; --attack-bg: #2a1f3a; --perf: #6fb3d6; --perf-bg: #17293a;
-  --pre: #6e98f0; --branch: #f0a04b; --check: #ad85ee;
+  --pre: #6e98f0; --branch: #f0a04b; --check: #ad85ee; --prep: #ad85ee;
   --stmt: #0e121a; --stmt-fg: #eef2f9; --stmt-dim: #6f7c96; --hit: #2a3550; color-scheme: dark } }
 :root[data-theme="dark"] {
   --bg: #141820; --panel: #1c222d; --fg: #e6e9f0; --muted: #9aa3b4; --line: #2d3442;
   --asphalt: #0b0e14; --paint: #4a5262; --car: #ffd75e; --car-fg: #2b2100;
   --player: #4cc3b4; --dealer: #8592f2; --deck: #e6a552; --calc: #e57aa6; --exit: #7c8596;
   --danger: #f07386; --danger-bg: #3a1c22; --ok: #4fc488; --ok-bg: #173325; --attack: #b48ef0; --attack-bg: #2a1f3a; --perf: #6fb3d6; --perf-bg: #17293a;
-  --pre: #6e98f0; --branch: #f0a04b; --check: #ad85ee;
+  --pre: #6e98f0; --branch: #f0a04b; --check: #ad85ee; --prep: #ad85ee;
   --stmt: #0e121a; --stmt-fg: #eef2f9; --stmt-dim: #6f7c96; --hit: #2a3550; color-scheme: dark }
 body { background: var(--bg); color: var(--fg); font-family: var(--body); font-size: 15px; line-height: 1.7; }
 .wrap { max-width: 1120px; margin: 0 auto; padding-block: 28px 64px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: grid; gap: 16px; }
@@ -166,6 +166,24 @@ tfoot td { font-weight: 700; }
 .tpanel .ways dt { font: 700 .85rem var(--display); color: var(--t); }
 .tpanel .ways dd { margin: 0; }
 @media (max-width: 600px) { .tpanel .ways { grid-template-columns: minmax(0, 1fr); } }
+.map.c4 svg#c4map { min-width: 980px; }
+.c4 .tflow.prep path { stroke: var(--prep); }
+.c4 .tflow.prep path.plink { stroke-width: 2; stroke-dasharray: 4 4; }
+.c4 .tbadge.prep circle { fill: var(--prep); }
+.c4 .tahp { fill: var(--prep); }
+.c4 .box4 .row.prow rect { fill: color-mix(in srgb, var(--prep) 22%, transparent); }
+.tcols { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 8px 24px; }
+.tcols h3 { font-size: .9rem; margin-bottom: 4px; }
+.tpanel h4 { margin: 4px 0 0; font: 800 .85rem var(--display); }
+.tpanel li button b { background: var(--t); }
+.tpanel .rt { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: baseline; font-size: .82rem; }
+.tpanel .rt code { font-family: var(--mono); background: color-mix(in srgb, var(--t) 12%, transparent); border-radius: 4px; padding: 1px 6px; }
+.tpanel .rt small { color: var(--muted); }
+.code .ln.ed { background: color-mix(in srgb, var(--branch) 38%, var(--stmt)); }
+.code .ln .edm { color: var(--car); font-weight: 700; }
+.code.diff .ln.add { background: color-mix(in srgb, var(--ok) 30%, var(--stmt)); }
+.code.diff .ln.del { background: color-mix(in srgb, var(--danger) 30%, var(--stmt)); text-decoration: line-through; text-decoration-color: color-mix(in srgb, var(--stmt-fg) 40%, transparent); }
+.code.diff .ln i { color: var(--stmt-fg); }
 .tpanel .step { border-left: 4px solid var(--t); padding: 4px 0 4px 12px; display: grid; gap: 8px; }
 .hidden-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
@@ -193,7 +211,7 @@ tfoot td { font-weight: 700; }
       いちばん大事な境目は、ディーラーとプレイヤーをつなぐ <b>7つの命令</b>（start_turn・place_bet・receive_hand・look_dealer_hand・input・finish_dealer_hand・notify_result）。この形を変えると、players/ の全部のファイルが動かなくなる。
       同じ1ラウンドの流れが dealer.py と autodealer.py の game() の2か所に書いてあるので、ルールを直すときは両方を直す。行を押すとそのコードが出る。右端に ◯ がある行は環状線に駅があり、「環状線で見る」で3段目に下りられる。</p>
     <div class="taskbar" id="c4bar"></div>
-    <div class="map c4"><svg id="c4map" viewBox="0 0 1150 1000" role="img" aria-label="dealer.py と autodealer.py の2つのプログラムが、card.py と players/ のプレイヤーを import して使い、ターミナルに入出力する構成図"></svg></div>
+    <div class="map c4"><svg id="c4map" viewBox="0 0 1320 1000" role="img" aria-label="dealer.py と autodealer.py の2つのプログラムが、card.py と players/ のプレイヤーを import して使い、ターミナルに入出力する構成図"></svg></div>
     <div id="c4task"></div>
     <div id="c4detail"></div>
   </section>
@@ -529,175 +547,328 @@ const CTX_E = [
   ["e10", "x_vscode", "sys", "python3 で実行・コミット", "実行とデバッグ、ブランチ（学籍番号develop）でのコミット。", 60, 0],
 ];
 
-// コンテナ（大きな点線の枠）とコンポーネント（中の箱）。rows: [左（コード）, 右（説明）, { f, find, st }]
+// コンテナ（大きな点線の枠）とコンポーネント（中の箱）。rows: [左（実行時の名前・コード）, 右（説明）, { f, find, st }]
+// 箱の題名は、実行したときのモジュール名とクラス名（autodealer.py を python3 で動かすと、モジュール名は __main__ になる）
 const C4F = [
-  { id: "f_dealer", x: 10, y: 34, w: 320, title: "dealer.py で遊ぶ", sub: "python3 dealer.py（対話）", c: "var(--dealer)" },
-  { id: "f_lib", x: 420, y: 34, w: 320, title: "import される部品", sub: "card.py・player.py・players/", c: "var(--calc)" },
-  { id: "f_auto", x: 830, y: 34, w: 310, title: "autodealer.py で比べる", sub: "python3 autodealer.py（自動）", c: "var(--dealer)" },
+  { id: "f_dealer", x: 10, y: 34, w: 380, title: "dealer.py で遊ぶ", sub: "python3 dealer.py（対話）", c: "var(--dealer)" },
+  { id: "f_lib", x: 470, y: 34, w: 380, title: "import される部品", sub: "card.py・player.py・players/*.py", c: "var(--calc)" },
+  { id: "f_auto", x: 930, y: 34, w: 380, title: "autodealer.py で比べる", sub: "python3 autodealer.py（自動）", c: "var(--dealer)" },
 ];
 const C4B = [
-  { id: "dealer", f: "f_dealer", c: "var(--dealer)", title: "dealer.py", tag: "1ラウンドの流れ（1つ目）", file: "dealer.py",
-    desc: "ファイルの上から順に動くプログラム。山札を作り、while True で1ラウンドずつ回す。プレイヤーは player.py（人がキーボードで打つ）。autodealer.py の game() と同じ流れが、関数にならずに書いてある。",
-    rows: [["deck = [Card(...)…]", "52枚を作って混ぜる", { f: "dealer.py", find: "deck = [Card(suit, value)", st: "s5" }],
-      ["turn_end()", "次のラウンド・シャッフル", { f: "dealer.py", find: "def turn_end():" }],
-      ["from player import …", "人が打つプレイヤー", { f: "dealer.py", find: "from player import BlackjackPlayer" }],
-      ["while True:", "1ラウンドずつ（環状線）", { f: "dealer.py", find: "while True:", st: "s1" }],
-      ["player.xxx(…)", "7つの命令を呼ぶ", { f: "dealer.py", find: "player.start_turn(round)", st: "s2" }],
-      ["exit()", "掛け金 0・無効で終わる", { f: "dealer.py", find: "exit()", st: "end" }]] },
-  { id: "playerpy", f: "f_dealer", c: "var(--player)", title: "player.py", tag: "人が打つプレイヤー", file: "player.py",
-    desc: "dealer.py で遊ぶときのプレイヤー。place_bet と input が、ターミナルの input() で人に聞く。ほかの命令は記録するだけ。players/ のプレイヤーと同じ7つの命令を持つ。",
-    rows: [["place_bet(balance)", "キーボードで掛け金", { f: "player.py", find: "def place_bet", st: "s3" }],
-      ["input(message)", "hit / stand を打つ", { f: "player.py", find: "def input", st: "s8" }],
-      ["start_turn ほか4つ", "self に記録するだけ", { f: "player.py", find: "def start_turn" }],
-      ["notify_result(…)", "自分の残高のメモ", { f: "player.py", find: "def notify_result", st: "s19" }]] },
-  { id: "card", f: "f_lib", c: "var(--calc)", title: "card.py", tag: "点数の計算所", file: "card.py",
-    desc: "カード1枚の形（Card）と、点数の数え方。両方のプログラムとプレイヤーから使われる。vals はモジュールの辞書なので、どこからでも書き換えられてしまう（悪4）。",
-    rows: [["vals", "2〜10・JQK=10・A=11", { f: "card.py", find: "vals = {" }],
-      ["Card(suit, value)", "1枚のカード", { f: "card.py", find: "class Card:" }],
-      ["Card.sum(cards)", "合計（A を 1 に直す）", { f: "card.py", find: "def sum(cards):", st: "s10" }],
-      ["Card.is_blackjack()", "A と 10 の2枚か", { f: "card.py", find: "def is_blackjack", st: "s18" }],
-      ["Card.is_soft()", "A を 11 と数えているか", { f: "card.py", find: "def is_soft", st: "s14" }]] },
-  { id: "simple", f: "f_lib", c: "var(--player)", title: "players/player_simple.py", tag: "決まった値で打つ", file: "players/player_simple.py",
-    desc: "掛け金は一定（unit_bet）、合計が hit_threshold 未満なら hit、残高が stop_balance を超えたらやめる。タスク A で変えるパラメータは、ファイルの一番上の3つ。",
-    rows: [["stop_balance = 1100", "勝ち逃げ（超えたら 0）", { f: "players/player_simple.py", find: "stop_balance = 1100" }],
+  { id: "dealer", f: "f_dealer", c: "var(--dealer)", title: "dealer.py", tag: "実行時は __main__", file: "dealer.py",
+    desc: "ファイルの上から順に動くプログラム。山札を作り、while True で1ラウンドずつ回す。相手は player.BlackjackPlayer（人がキーボードで打つ）。autodealer.game() と同じ流れが、関数にならずに書いてある。",
+    rows: [["deck = [Card(suit, value) …]", "52枚を混ぜる", { f: "dealer.py", find: "deck = [Card(suit, value)", st: "s5" }],
+      ["turn_end()", "次のラウンド", { f: "dealer.py", find: "def turn_end():" }],
+      ["from player import BlackjackPlayer", "相手のクラス", { f: "dealer.py", find: "from player import BlackjackPlayer" }],
+      ["player = BlackjackPlayer(1000)", "インスタンス", { f: "dealer.py", find: "player = BlackjackPlayer(initial_balance)" }],
+      ["while True:", "1ラウンドずつ", { f: "dealer.py", find: "while True:", st: "s1" }],
+      ["player.place_bet(player_balance)", "掛け金を聞く", { f: "dealer.py", find: "bet_amount = player.place_bet(player_balance)", st: "s3" }],
+      ["player.input(\"hit or stand？: \")", "hit / stand", { f: "dealer.py", find: "player_choice = player.input(", st: "s8" }],
+      ["exit()", "終わる", { f: "dealer.py", find: "exit()", st: "end" }]] },
+  { id: "playerpy", f: "f_dealer", c: "var(--player)", title: "player.BlackjackPlayer", tag: "player.py・人が打つ", file: "player.py",
+    desc: "dealer.py で遊ぶときのプレイヤーのクラス。place_bet と input が、ターミナルの input() で人に聞く。ほかの5つは self に記録するだけ。players/ のプレイヤーも、同じ7つのメソッドを持つ。",
+    rows: [["place_bet(self, balance)", "input() で掛け金", { f: "player.py", find: "def place_bet", st: "s3" }],
+      ["input(self, message)", "hit / stand を打つ", { f: "player.py", find: "def input", st: "s8" }],
+      ["start_turn(self, round)", "round を記録", { f: "player.py", find: "def start_turn" }],
+      ["receive_hand(self, hand)", "手札を記録", { f: "player.py", find: "def receive_hand" }],
+      ["look_dealer_hand(self, card)", "表のカード", { f: "player.py", find: "def look_dealer_hand" }],
+      ["finish_dealer_hand(self, hand)", "開いた手", { f: "player.py", find: "def finish_dealer_hand" }],
+      ["notify_result(self, result, bet_amount)", "残高のメモ", { f: "player.py", find: "def notify_result", st: "s19" }]] },
+  { id: "card", f: "f_lib", c: "var(--calc)", title: "card.Card", tag: "card.py", file: "card.py",
+    desc: "カード1枚のクラスと、点数の数え方（staticmethod なので Card.sum(cards) のようにクラスから呼ぶ）。両方のプログラムとプレイヤーから使われる。card.vals はモジュールの辞書なので、どこからでも書き換えられてしまう（悪4）。",
+    rows: [["card.vals（辞書）", "A=11・JQK=10", { f: "card.py", find: "vals = {" }],
+      ["Card.__init__(self, suit, value)", "1枚のカード", { f: "card.py", find: "def __init__" }],
+      ["Card.__str__(self)", "\"♠10\" にする", { f: "card.py", find: "def __str__" }],
+      ["@staticmethod Card.sum(cards)", "合計", { f: "card.py", find: "def sum(cards):", st: "s10" }],
+      ["@staticmethod Card.is_blackjack(cards)", "A と 10", { f: "card.py", find: "def is_blackjack", st: "s18" }],
+      ["@staticmethod Card.is_soft(cards)", "ソフトか", { f: "card.py", find: "def is_soft", st: "s14" }]] },
+  { id: "simple", f: "f_lib", c: "var(--player)", title: "players.player_simple.BlackjackPlayer", tag: "決まった値", file: "players/player_simple.py",
+    desc: "掛け金は一定（unit_bet）、合計が hit_threshold 未満なら hit、残高が stop_balance を超えたらやめる。上の3つはモジュールの変数で、__init__ の引数の初期値になっている（引数で渡しても変えられる）。",
+    rows: [["stop_balance = 1100", "勝ち逃げ", { f: "players/player_simple.py", find: "stop_balance = 1100" }],
       ["unit_bet = 100", "掛け金の単位", { f: "players/player_simple.py", find: "unit_bet = 100" }],
-      ["hit_threshold = 16", "これ未満なら hit", { f: "players/player_simple.py", find: "hit_threshold = 16" }],
-      ["place_bet(balance)", "0 か unit_bet を返す", { f: "players/player_simple.py", find: "def place_bet", st: "s3" }],
-      ["input(message)", "Card.sum で hit / stand", { f: "players/player_simple.py", find: "def input", st: "s8" }]] },
-  { id: "random", f: "f_lib", c: "var(--player)", title: "players/player_random.py", tag: "比べる基準", file: "players/player_random.py",
+      ["hit_threshold = 16", "hit する点", { f: "players/player_simple.py", find: "hit_threshold = 16" }],
+      ["__init__(self, balance, stop_balance=…)", "引数でも渡せる", { f: "players/player_simple.py", find: "def __init__" }],
+      ["place_bet(self, balance)", "0 か unit_bet", { f: "players/player_simple.py", find: "def place_bet", st: "s3" }],
+      ["input(self, message)", "Card.sum で決める", { f: "players/player_simple.py", find: "def input", st: "s8" }],
+      ["start_turn・receive_hand ほか3つ", "player.py と同じ", { f: "players/player_simple.py", find: "def start_turn" }]] },
+  { id: "random", f: "f_lib", c: "var(--player)", title: "players.player_random.BlackjackPlayer", tag: "比べる基準", file: "players/player_random.py",
     desc: "掛け金も hit / stand も乱数で決める。これより悪い結果になる戦略は悪い戦略、という比べる基準。",
-    rows: [["place_bet(balance)", "1〜残高の乱数", { f: "players/player_random.py", find: "def place_bet" }],
-      ["input(message)", "hit / stand を乱数", { f: "players/player_random.py", find: "def input" }]] },
-  { id: "mine", f: "f_lib", c: "var(--player)", mine: true, title: "players/player_xxx.py", tag: "自分で書く（タスク B）",
-    desc: "player_simple.py をコピーして作る。撤退条件（〇〇円を下回ったらやめる）や、ベーシックストラテジー（自分の合計 × ディーラーの表のカードの表）を書く。7つの命令は消さない。",
-    rows: [["place_bet(balance)", "撤退条件・掛け方"], ["input(message)", "ベーシックストラテジー"], ["self.dealer_card", "ディーラーの表のカード"]] },
-  { id: "main", f: "f_auto", c: "var(--dealer)", title: "__main__（集計）", tag: "if __name__ == \"__main__\"", file: "autodealer.py",
-    desc: "players/ の .py を全部探して、1つずつ import し、game() を MAX 回くり返して平均を出す。結果は1ファイル1行。無効な掛け金の -1 も、そのまま平均に入る（緊1）。",
-    rows: [["os.listdir('players')", ".py を探す", { f: "autodealer.py", find: "file_names = os.listdir(directory_path)" }],
-      ["import_module(…)", "1つずつ読み込む", { f: "autodealer.py", find: "player_module = import_module(" }],
-      ["while game_round <= MAX", "MAX 回くり返す", { f: "autodealer.py", find: "while game_round <= MAX:" }],
-      ["total += result", "残高をたしていく", { f: "autodealer.py", find: "total += result" }],
-      ["print(…)", "名前, ms, ラウンド, 残高", { f: "autodealer.py", find: "print(f\"{module_name}" }]] },
-  { id: "game", f: "f_auto", c: "var(--dealer)", title: "game(Player)", tag: "1ラウンドの流れ（2つ目）", file: "autodealer.py",
-    desc: "dealer.py と同じ流れを関数にしたもの。Player クラスを受け取ってプレイヤーを作り、残高が尽きるかプレイヤーがやめるまでラウンドを回す。中身は「3 環状線」で1行ずつ追える。",
-    rows: [["Player(initial_balance)", "プレイヤーを作る", { f: "autodealer.py", find: "player = Player(initial_balance)", st: "s0" }],
-      ["while True:", "1ラウンド = 環状線1周", { f: "autodealer.py", find: "    while True:\n", st: "s1" }],
-      ["player.xxx(…)", "7つの命令を呼ぶ", { f: "autodealer.py", find: "player.start_turn(round)", st: "s2" }],
-      ["if Card.sum(…) > …", "勝ち負けを決める", { f: "autodealer.py", find: "if Card.sum(player_hand) > Card.sum(dealer_hand):", st: "s18" }],
-      ["return …, turns", "残高とターン数", { f: "autodealer.py", find: "return player_balance, turns", st: "end" }]] },
-  { id: "deck", f: "f_auto", c: "var(--deck)", title: "山札（モジュールの global）", tag: "deck・round", file: "autodealer.py",
+    rows: [["place_bet(self, balance)", "1〜残高の乱数", { f: "players/player_random.py", find: "def place_bet" }],
+      ["input(self, message)", "乱数で選ぶ", { f: "players/player_random.py", find: "def input" }]] },
+  { id: "mine", f: "f_lib", c: "var(--player)", mine: true, title: "players.player_xxx.BlackjackPlayer", tag: "自分で書く",
+    desc: "player_simple.py をコピーして作る。クラス名は BlackjackPlayer のまま（autodealer は player_module.BlackjackPlayer を探す）。7つのメソッドは消さない。",
+    rows: [["retreat_balance = 500", "撤退条件（足す）"], ["place_bet(self, balance)", "撤退条件・掛け方"], ["input(self, message)", "ストラテジー"], ["self.hand・self.dealer_card", "使える材料"]] },
+  { id: "main", f: "f_auto", c: "var(--dealer)", title: "autodealer の集計", tag: "if __name__ == \"__main__\":", file: "autodealer.py",
+    desc: "players/ の .py を全部探して、1つずつ import し、game() を MAX 回くり返して平均を出す。python3 autodealer.py で動かしたときだけ動く部分。",
+    rows: [["MAX = 4000", "ゲームの回数", { f: "autodealer.py", find: "MAX = 4000" }],
+      ["os.listdir('players')", ".py を探す", { f: "autodealer.py", find: "file_names = os.listdir(directory_path)" }],
+      ["import_module(\"players.\" + name)", "読み込む", { f: "autodealer.py", find: "player_module = import_module(" }],
+      ["while game_round <= MAX:", "MAX 回", { f: "autodealer.py", find: "while game_round <= MAX:" }],
+      ["game(player_module.BlackjackPlayer)", "クラスを渡す", { f: "autodealer.py", find: "result, num_turn = game(" }],
+      ["total += result", "残高をたす", { f: "autodealer.py", find: "total += result" }],
+      ["print(f\"{module_name}, …\")", "結果の1行", { f: "autodealer.py", find: "print(f\"{module_name}" }]] },
+  { id: "game", f: "f_auto", c: "var(--dealer)", title: "autodealer.game(Player)", tag: "1ラウンドの流れ", file: "autodealer.py",
+    desc: "dealer.py と同じ流れを関数にしたもの。引数 Player はクラス（players.player_simple.BlackjackPlayer など）で、中でインスタンスを作る。中身は「3 環状線」で1行ずつ追える。",
+    rows: [["initial_balance = 1000", "初期残高", { f: "autodealer.py", find: "initial_balance = 1000" }],
+      ["player = Player(initial_balance)", "インスタンス", { f: "autodealer.py", find: "player = Player(initial_balance)", st: "s0" }],
+      ["while True:", "1ラウンド = 1周", { f: "autodealer.py", find: "    while True:\n", st: "s1" }],
+      ["player.place_bet(player_balance)", "掛け金", { f: "autodealer.py", find: "bet_amount = player.place_bet(player_balance)", st: "s3" }],
+      ["player.input(\"hit or stand？: \")", "hit / stand", { f: "autodealer.py", find: "player_choice = player.input(", st: "s8" }],
+      ["Card.sum(player_hand) …", "点数で勝ち負け", { f: "autodealer.py", find: "if Card.sum(player_hand) > Card.sum(dealer_hand):", st: "s18" }],
+      ["player.notify_result(\"win\", …)", "結果を知らせる", { f: "autodealer.py", find: "player.notify_result(\"win\", bet_amount)", st: "s19" }],
+      ["return player_balance, turns", "残高とターン数", { f: "autodealer.py", find: "return player_balance, turns", st: "end" }]] },
+  { id: "deck", f: "f_auto", c: "var(--deck)", title: "autodealer の global（山札）", tag: "deck・round", file: "autodealer.py",
     desc: "deck と round は関数の外の変数。game() を何回呼んでも、前のゲームの続きの山札から始まる（緊5）。プレイヤーのファイルから __main__.deck を読めば次のカードが分かってしまう（悪3）。",
-    rows: [["deck", "list[Card]・末尾から pop", { f: "autodealer.py", find: "deck = [Card(suit, value)", st: "s6" }],
-      ["penetration = 0.5", "半分を切ったら混ぜ直す", { f: "autodealer.py", find: "penetration=0.5" }],
+    rows: [["deck: list[Card]", "末尾から pop", { f: "autodealer.py", find: "deck = [Card(suit, value)", st: "s6" }],
+      ["penetration = 0.5", "混ぜ直す割合", { f: "autodealer.py", find: "penetration=0.5" }],
       ["check_shuffle()", "26 枚未満で作り直す", { f: "autodealer.py", find: "def check_shuffle", st: "s5" }],
       ["turn_end()", "round + 1", { f: "autodealer.py", find: "def turn_end", st: "s21" }]] },
-  { id: "printx", f: "f_auto", c: "var(--exit)", title: "printx(*args)", tag: "is_print = False", file: "autodealer.py",
+  { id: "printx", f: "f_auto", c: "var(--exit)", title: "autodealer.printx(*args)", tag: "is_print = False", file: "autodealer.py",
     desc: "is_print が True のときだけ print する。False でも、渡す引数（Card.sum やリスト）は先に計算される（速2）。",
     rows: [["is_print: bool = False", "途中を出すか", { f: "autodealer.py", find: "is_print:bool = False" }],
-      ["def printx(*args)", "True のときだけ print", { f: "autodealer.py", find: "def printx" }]] },
+      ["printx(*args)", "True なら print", { f: "autodealer.py", find: "def printx" }]] },
   { id: "term", f: null, c: "var(--exit)", title: "ターミナル（Ubuntu・VS Code）", tag: "標準入力と標準出力", wide: true,
     desc: "人とプログラムの境目。dealer.py ではキーボードで打ち、画面で読む。autodealer.py では、最後の1行（名前, 1ゲームの ms, ラウンド数, 残高の平均）だけが出る。",
-    rows: [["input()  ← キーボード", "掛け金・hit / stand（player.py）"], ["print()  → 画面", "手札・点数・残高（dealer.py）"],
+    rows: [["input()  ← キーボード", "掛け金・hit / stand（player.py）"], ["print()  → 画面", "手札・点数・残高（dealer.py・is_print のとき）"],
       ["player_simple, 0.04, 6.1, 1012.4", "autodealer.py の結果の1行（例）"]] },
 ];
 // [id, from, fromRow, to, toRow, label, desc, style]（row が -1 なら箱の題名の高さ）
 const C4E = [
-  ["k1", "dealer", 4, "playerpy", -1, "7つの命令", "start_turn → place_bet → receive_hand → look_dealer_hand → input（hit のあいだ receive_hand）→ finish_dealer_hand → notify_result の順に呼ぶ。相手は from player import BlackjackPlayer で決まる。自分のプレイヤーを試すときは、この import を from players.player_xxx import BlackjackPlayer に差し替える。", "call"],
-  ["k2", "dealer", 3, "card", 2, "Card.sum など", "点数を数える・バーストか・ブラックジャックか・ソフト 17 か。", "call"],
+  ["k1", "dealer", 5, "playerpy", -1, "7つのメソッド", "player.start_turn → place_bet → receive_hand → look_dealer_hand → input（hit のあいだ receive_hand）→ finish_dealer_hand → notify_result の順に呼ぶ。相手のクラスは from player import BlackjackPlayer で決まる。", "call"],
+  ["k2", "dealer", 4, "card", 3, "Card.sum など", "点数を数える・バーストか・ブラックジャックか・ソフト 17 か。", "call"],
   ["k3", "playerpy", 1, "term", -1, "input()", "掛け金と hit / stand を人が打つ。hit・stand 以外は打ち直し。", "call"],
-  ["k4", "main", 1, "simple", -1, "import_module", "players/ の .py を1つずつ読み込み、その中の BlackjackPlayer クラスを game() に渡す。player_random・player_xxx も同じ。", "imp"],
-  ["k5", "main", 2, "game", -1, "×MAX 回", "1ファイルにつき MAX（4000）回 game() を呼び、戻り値の残高とターン数をたす。", "call"],
-  ["k6", "game", 2, "simple", 3, "7つの命令", "dealer.py と同じ順番で呼ぶ。プレイヤーが返す値は place_bet と input の2つだけ。", "call"],
-  ["k7", "game", 3, "card", 2, "点数・判定", "Card.sum・is_soft・is_blackjack。1ラウンドで 8〜15 回ほど Card.sum を呼ぶ（3 の部品図で数えた）。", "call"],
-  ["k8", "game", 1, "deck", -1, "deck.pop()", "配る・引くのたびに山札の末尾から1枚取る。配る前に check_shuffle()。", "call"],
-  ["k9", "simple", 4, "card", 2, "Card.sum(self.hand)", "プレイヤーも同じ card.py で自分の合計を数える。", "call"],
-  ["k10", "game", 0, "printx", -1, "printx(…)", "途中経過を出す（ふだんは出ない）。", "call"],
-  ["k11", "main", 4, "term", -1, "結果の1行", "print で「名前, 1ゲームの ms, ラウンド数, 残高の平均」。", "call"],
+  ["k4", "main", 2, "simple", -1, "import_module", "players/ の .py を1つずつ読み込み、その中の BlackjackPlayer クラスを game() に渡す。player_random・player_xxx も同じ。", "imp"],
+  ["k5", "main", 4, "game", -1, "×MAX 回", "1ファイルにつき MAX（4000）回 game() を呼び、戻り値の残高とターン数をたす。", "call"],
+  ["k6", "game", 4, "simple", 5, "7つのメソッド", "dealer.py と同じ順番で呼ぶ。プレイヤーが返す値は place_bet と input の2つだけ。", "call"],
+  ["k7", "game", 5, "card", 3, "Card.sum など", "Card.sum・is_soft・is_blackjack。1ラウンドで 8〜15 回ほど Card.sum を呼ぶ（3 の部品図で数えた）。", "call"],
+  ["k8", "game", 2, "deck", -1, "deck.pop()", "配る・引くのたびに山札の末尾から1枚取る。配る前に check_shuffle()。", "call"],
+  ["k9", "simple", 5, "card", 3, "Card.sum(self.hand)", "プレイヤーも同じ card.py で自分の合計を数える。", "call"],
+  ["k10", "game", 2, "printx", -1, "printx(…)", "途中経過を出す（ふだんは出ない）。", "call"],
+  ["k11", "main", 6, "term", -1, "結果の1行", "print で「名前, 1ゲームの ms, ラウンド数, 残高の平均」。", "call"],
 ];
 
-// タスク A・B・C の流れ。ctx: [from, to, label, desc]（to が null なら箱だけ光らせる）
-// c4: [[箱, 行], [箱, 行] か null, label, desc]（行が -1 なら箱の題名）
+// タスク A・B・C の流れ。ctx: [from, to, label, desc]
+// c4: { p（true なら実行前の準備。並列でどれからでもよい）, a・b: [箱, 行]（b が null なら行に印だけ）, label, desc,
+//       code: [[ファイル, 探す文字列, 行数（0 ならかたまり全部）, 光らせる行, 変える行, 前に足す行数]], ex（変更の例。+ は足す・- は消す）, rt（実行時の呼び出し） }
+const SP = "players/player_simple.py", AD = "autodealer.py";
+const EX_RETREAT = `  stop_balance = 1100
++ retreat_balance = 500   # 撤退条件（これを下回ったらやめる）
+  …
+      def place_bet(self, balance):
+          self.balance = balance
+-         if balance > self.stop_balance:
++         if balance > self.stop_balance or balance < retreat_balance:
+              return 0`;
 const TASKS = {
-  A: { t: "A 分析する", c: "var(--pre)", note: "player_simple.py のパラメータ4つ（stop_balance・撤退条件・unit_bet・hit_threshold）と、autodealer.py の2つ（MAX・initial_balance）を変えて、平均を比べる（スライド p.60）。撤退条件以外のコードは基本変えない（変えてもよい）。player_random が比べる基準。",
+  A: { t: "A 分析する", c: "var(--pre)", note: "player_simple.py のパラメータ4つ（stop_balance・撤退条件・unit_bet・hit_threshold）と、autodealer.py の2つ（MAX・initial_balance）を変えて、平均を比べる（スライド p.60）。パラメータはどれからでも変えられる（並列の準備）。変えたら、あとの実行の流れは同じ。",
     ctx: [["p_anal", "x_vscode", "パラメータと撤退条件を書き換える", "player_simple.py をコピーして player_simple_1200_100_16.py のように名前を付け、4つのパラメータを書き換える。autodealer.py の MAX と initial_balance も変えられる。"],
       ["x_vscode", "sys", "python3 autodealer.py", "players/ の .py が全部、1ファイル1行で比べられる。player_random も一緒に流れるので、基準が毎回出る。"],
       ["sys", "p_anal", "平均の1行（ファイルごと）", "名前, 1ゲームの ms, ラウンド数, 残高の平均。同じ設定でも流すたびに少し変わるので、何回か流してばらつきも見る。"],
       ["p_anal", "x_excel", "表・グラフ・統計", "1つずつ変えた折れ線、2つを組み合わせた表、平均と信頼区間。差がばらつきより大きいかを確かめる。"],
       ["x_excel", "p_teacher", "レポート", "どのパラメータが結果を変えるか（重要な要素）と、その結果がどれだけ信頼できるかを書く（p.65）。"]],
-    c4: [[["simple", -1], ["mine", -1], "コピーして名前に数字", "player_simple.py をコピーして player_simple_1200_100_16.py のようにする。ファイル名に数字を入れると、結果の1行でどの設定か分かる。"],
-      [["simple", 0], null, "stop_balance（勝ち逃げ）", "残高がこれを超えたら place_bet が 0 を返してやめる。大きくすると長く遊ぶ（ラウンド数が増える）ぶん、届かずに減っていく回も増える。"],
-      [["mine", 0], null, "撤退条件を足す（全員・p.58）", "今のファイルには無い。place_bet に「残高が〇〇円を下回ったら return 0」を足し、その金額も変えるパラメータにする。stop_balance との幅で、勝ち逃げと損切りの釣り合いが決まる。"],
-      [["simple", 1], null, "unit_bet（掛け金の単位）", "1回の勝ち負けの大きさ。大きいと早く stop_balance か撤退条件に届く（ラウンド数が減る）。奇数だとブラックジャックの 1.5 倍が切り捨てになる（緊4）。"],
-      [["simple", 2], ["card", 2], "hit_threshold（hit する点）", "Card.sum(self.hand) がこれ未満なら hit。12〜20 を1つずつ試すと、バーストと「ディーラーに負ける」の釣り合いが見える。"],
-      [["main", 2], null, "MAX（ゲームの回数）", "autodealer.py 203 行。増やすと平均のぶれが小さくなる（時間も比例して増える）。2000 回だと残高の平均は ±24 ほどぶれるので、それより小さい差は偶然かもしれない。"],
-      [["game", 0], null, "initial_balance（初期残高）", "autodealer.py 41 行。変えたら stop_balance と撤退条件も合わせて変える（比率で考えると比べやすい）。"],
-      [["deck", 1], null, "penetration（スライドには無い）", "山札を何割使ったら混ぜ直すか。スライドの変えるパラメータには入っていないが、「撤退条件以外の変更もしてよい」の範囲。ルール（penetration = 0.5）を変えることになるので、変えたらレポートに書く。"],
-      [["main", 0], ["mine", -1], "players/ から全部見つける", "os.listdir で players/ の .py を全部探して import する。コピーを何個置いても、全部1行ずつ出る。"],
-      [["game", 2], ["mine", 0], "place_bet・input を呼ぶ", "パラメータが効くのはこの2つの命令の中だけ。place_bet で stop_balance・撤退条件・unit_bet、input で hit_threshold を使う。"],
-      [["main", 4], ["term", 2], "結果の1行（3つの数字）", "残高の平均だけでなく、ラウンド数（何ラウンドで終わるか）と ms も見る。無効な掛け金の -1 が混ざっていないか（緊1）も確かめる。"]],
+    c4: [
+      { p: true, a: ["simple", 0], b: null, label: "stop_balance（勝ち逃げ）", desc: "残高がこれを超えたら place_bet が 0 を返してやめる。大きくすると長く遊ぶ（ラウンド数が増える）ぶん、届かずに減っていく回も増える。",
+        code: [[SP, "stop_balance = 1100", 1, [], ["stop_balance = 1100"]], [SP, "def place_bet", 0, ["if balance > self.stop_balance"], []]], ex: "- stop_balance = 1100\n+ stop_balance = 1200   # 勝ち逃げの金額" },
+      { p: true, a: ["mine", 0], b: null, label: "撤退条件を足す（全員・p.58）", desc: "今のファイルには無い。place_bet に「残高が〇〇円を下回ったら return 0」を足し、その金額も変えるパラメータにする。stop_balance との幅で、勝ち逃げと損切りの釣り合いが決まる。",
+        code: [[SP, "def place_bet", 0, [], ["if balance > self.stop_balance"]]], ex: EX_RETREAT },
+      { p: true, a: ["simple", 1], b: null, label: "unit_bet（掛け金の単位）", desc: "1回の勝ち負けの大きさ。大きいと早く stop_balance か撤退条件に届く（ラウンド数が減る）。奇数だとブラックジャックの 1.5 倍が切り捨てになる（緊4）。",
+        code: [[SP, "unit_bet = 100", 1, [], ["unit_bet = 100"]], [SP, "def place_bet", 0, ["bet_amount = self.unit_bet"], []]], ex: "- unit_bet = 100\n+ unit_bet = 50" },
+      { p: true, a: ["simple", 2], b: ["card", 3], label: "hit_threshold（hit する点）", desc: "Card.sum(self.hand) がこれ未満なら hit。12〜20 を1つずつ試すと、バーストと「ディーラーに負ける」の釣り合いが見える。",
+        code: [[SP, "hit_threshold = 16", 1, [], ["hit_threshold = 16"]], [SP, "def input", 0, ["if Card.sum(self.hand) < self.hit_threshold"], []]], ex: "- hit_threshold = 16\n+ hit_threshold = 17" },
+      { p: true, a: ["main", 0], b: null, label: "MAX（ゲームの回数）", desc: "autodealer.py 203 行。増やすと平均のぶれが小さくなる（時間も比例して増える）。2000 回だと残高の平均は ±24 ほどぶれるので、それより小さい差は偶然かもしれない。",
+        code: [[AD, "MAX = 4000", 1, [], ["MAX = 4000"]], [AD, "while game_round <= MAX:", 2, ["while game_round <= MAX:"], []]], ex: "- MAX = 4000 # ゲームの最大回数\n+ MAX = 20000   # 5倍にすると、ぶれは約 1/√5（時間は5倍）" },
+      { p: true, a: ["game", 0], b: null, label: "initial_balance（初期残高）", desc: "autodealer.py 41 行。変えたら stop_balance と撤退条件も合わせて変える（比率で考えると比べやすい）。",
+        code: [[AD, "initial_balance = 1000", 1, [], ["initial_balance = 1000"]]], ex: "  # autodealer.py\n- initial_balance = 1000  # プレイヤーの初期残高\n+ initial_balance = 2000\n  # players/player_simple_xxx.py（比率をそろえる）\n- stop_balance = 1100\n+ stop_balance = 2200" },
+      { p: true, a: ["deck", 1], b: null, label: "penetration（スライドには無い）", desc: "山札を何割使ったら混ぜ直すか。スライドの変えるパラメータには入っていないが、「撤退条件以外の変更もしてよい」の範囲。ルール（penetration = 0.5）を変えることになるので、変えたらレポートに書く。",
+        code: [[AD, "penetration=0.5", 1, [], ["penetration=0.5"]], [AD, "def check_shuffle", 0, ["if len(deck) < 52*penetration"], []]], ex: "- penetration=0.5\n+ penetration=0.25   # ルールが変わる（レポートに書く）" },
+      { a: ["simple", -1], b: ["mine", -1], label: "コピーして名前に数字", desc: "準備の前に、player_simple.py をコピーして player_simple_1200_100_16.py のようにする。ファイル名に数字を入れると、結果の1行でどの設定か分かる。元の player_simple.py は基準として残す。" },
+      { a: ["main", 1], b: ["mine", -1], label: "players/ から全部見つける", desc: "os.listdir で players/ の .py を全部探し、import_module で1つずつ読み込む。コピーを何個置いても、全部1行ずつ出る。",
+        code: [[AD, "directory_path = 'players'", 8, ["os.listdir", "py_file_names = ", "file_names_without_extension = "], []], [AD, "for module_name in file_names_without_extension:", 2, ["import_module("], []]] },
+      { a: ["main", 4], b: ["game", -1], label: "game() を MAX 回", desc: "1つのプレイヤーのファイルにつき、game() を MAX 回呼ぶ。渡すのはインスタンスではなくクラス（player_module.BlackjackPlayer）で、game() の中で毎回新しく作る。",
+        code: [[AD, "while game_round <= MAX:", 2, ["while game_round <= MAX:", "game(player_module.BlackjackPlayer)"], []], [AD, "player = Player(initial_balance)", 1, ["player = Player(initial_balance)"], [], 0]],
+        rt: ["players.player_simple.BlackjackPlayer.__init__"], rtNote: "__main__ から game() を呼ぶ所は、build では流していない（game() を直接呼んでいる）。" },
+      { a: ["game", 3], b: ["simple", 4], label: "place_bet・input を呼ぶ", desc: "パラメータが効くのはこの2つのメソッドの中だけ。place_bet で stop_balance・撤退条件・unit_bet、input で hit_threshold を使う。",
+        code: [[AD, "bet_amount = player.place_bet(player_balance)", 1, ["bet_amount = player.place_bet"], []], [AD, "player_choice = player.input(", 2, ["player_choice = player.input("], [], 1]],
+        rt: ["BlackjackPlayer.place_bet", "BlackjackPlayer.input"] },
+      { a: ["game", 7], b: ["main", 5], label: "残高をたす", desc: "game() が返した (残高, ターン数) を MAX 回たす。無効な掛け金の -1 もここに混ざる（緊1）。",
+        code: [[AD, "result, num_turn = game(", 3, ["total += result", "total_turns += num_turn"], []]] },
+      { a: ["main", 6], b: ["term", 2], label: "結果の1行（3つの数字）", desc: "残高の平均だけでなく、ラウンド数（何ラウンドで終わるか）と ms も見る。",
+        code: [[AD, "end_time = time.perf_counter()", 3, ["print(f\"{module_name}"], []]] }],
     ways: [["1つずつ変える", "ほかを固定して1つだけ動かし、グラフの横軸にする（例: hit_threshold を 12〜20）。どれが効くか（重要な要素）を探す最初の一歩。"],
       ["2つを組み合わせて変える", "stop_balance × 撤退条件、unit_bet × stop_balance のように、効き合いそうな2つを表（ヒートマップ）にする。1つずつでは見えない釣り合いが出る。"],
       ["同じ設定を何回も流す", "平均・標準偏差・95% 信頼区間（平均 ± 1.96 × 標準偏差 ÷ √回数）を出す。2つの設定の差が区間の幅より小さければ、偶然かもしれない（p.65 の「結果の信頼性」）。"],
       ["基準と比べる", "player_random と元の player_simple を毎回一緒に流す。player_random より悪い設定は悪い戦略（p.60）。"],
       ["残高以外の列も見る", "ラウンド数（長く遊べるか）と ms。勝ち逃げできた割合や破産した割合は今は出ないので、出すなら autodealer の集計を少し足す（変えてよい範囲。タスク C に近い）。"],
       ["山札の条件をそろえる", "deck はゲームをまたいで続く（緊5）。設定ごとに random.seed(1) のように種をそろえると、同じカードの列で比べられ、差が見えやすくなる。"],
-      ["コピーを作らずにまとめて流す", "player_simple の BlackjackPlayer は stop_balance・unit_bet・hit_threshold を引数で受け取れる。functools.partial(BlackjackPlayer, hit_threshold=t) を autodealer.game() に渡すと、ファイルを何十個もコピーせずに一気に流せる（変えてよい範囲の小さなスクリプト）。"]] },
-  B: { t: "B 戦略を書く", c: "var(--ok)", note: "player_simple.py をコピーして、place_bet（いくら賭けるか・いつやめるか）と input（hit か stand か）を自分の戦略に書き換える。dealer.py で1手ずつ試してから、autodealer.py で数を回す。",
+      ["コピーを作らずにまとめて流す", "players.player_simple.BlackjackPlayer は stop_balance・unit_bet・hit_threshold を __init__ の引数で受け取れる。functools.partial(BlackjackPlayer, hit_threshold=t) を autodealer.game() に渡すと、ファイルを何十個もコピーせずに一気に流せる（変えてよい範囲の小さなスクリプト）。"]],
+    wayEx: `import functools, random, statistics
+import autodealer
+from players.player_simple import BlackjackPlayer
+
+for t in (12, 14, 16, 18, 20):
+    random.seed(1)                                  # 山札の条件をそろえる
+    Player = functools.partial(BlackjackPlayer, hit_threshold=t)
+    r = [autodealer.game(Player)[0] for _ in range(2000)]
+    m, se = statistics.mean(r), statistics.stdev(r) / len(r) ** 0.5
+    print(t, round(m, 1), "±", round(1.96 * se, 1))   # 平均と 95% 信頼区間` },
+  B: { t: "B 戦略を書く", c: "var(--ok)", note: "player_simple.py をコピーして、place_bet（いくら賭けるか・いつやめるか）と input（hit か stand か）を自分の戦略に書き換える。この2つの書き換えは並列（どちらからでもよい）。dealer.py で1手ずつ試してから、autodealer.py で数を回す。",
     ctx: [["p_strat", "x_vscode", "player_xxx.py を書く", "VS Code でコピーして書き換え、学籍番号develop のブランチにコミットする。"],
       ["x_vscode", "sys", "dealer.py で試す・players/ に置く", "dealer.py の import を差し替えて1手ずつ確かめ、players/ に置いて autodealer.py で回す。"],
       ["sys", "p_strat", "平均の1行", "player_random・player_simple と並んで出るので、良くなったかがすぐ分かる。"],
       ["p_strat", "x_excel", "結果の表・グラフ", "工夫の前と後を並べる。"],
       ["x_excel", "p_teacher", "プログラムとレポート", "戦略の説明と、実際のコード（テキストで貼る）と、結果の表。"]],
-    c4: [[["simple", -1], ["mine", -1], "コピーして作る", "player_simple.py をコピーして player_xxx.py にする。7つの命令は消さない（消すと動かない）。"],
-      [["mine", 0], null, "撤退条件を足す", "place_bet の中で、残高が〇〇円を下回ったら 0 を返してやめる。勝ち逃げ（stop_balance）と組み合わせる。"],
-      [["mine", 1], ["card", 2], "自分の合計を数える", "input の中で Card.sum(self.hand) を使う。ソフトかどうかは Card.is_soft(self.hand)。"],
-      [["mine", 2], null, "ディーラーの表のカード", "self.dealer_card.value（\"2\"〜\"A\"）と自分の合計で、ベーシックストラテジーの表を引く。表はリストのリストか if 文で書く。"],
-      [["dealer", 2], ["mine", -1], "import を差し替えて試す", "dealer.py の from player import BlackjackPlayer を from players.player_xxx import BlackjackPlayer にすると、自分の戦略が1手ずつ画面に出る。"],
-      [["dealer", 4], ["mine", 1], "1手ずつ呼ばれる", "思った所で hit・stand しているかを見る。確かめたら import を元に戻す。"],
-      [["main", 1], ["mine", -1], "autodealer が読み込む", "players/ に置けば、何もしなくても比べる対象に入る。"],
-      [["game", 2], ["mine", 1], "MAX 回 × 何ラウンドも呼ばれる", "input は1ラウンドに何回も呼ばれる。重い計算を書くと、結果の ms が増える。"],
-      [["main", 4], ["term", 2], "結果の1行で比べる", "player_random より悪ければ、悪い戦略。player_simple と並べて、どれだけ良くなったかを見る。"]] },
-  C: { t: "C 改造する", c: "var(--branch)", note: "autodealer.py の game() に、特殊ルール（ダブルダウン・サレンダーなど）や新しい集計を足す。7つの命令の形は変えずに、答えや命令を増やす形にすると、今のプレイヤーも動き続ける。",
+    c4: [
+      { p: true, a: ["mine", 1], b: null, label: "place_bet に撤退条件", desc: "残高が〇〇円を下回ったら 0 を返してやめる。勝ち逃げ（stop_balance）と組み合わせる。コピー元の player_simple.py の、この行を変える。",
+        code: [[SP, "def place_bet", 0, [], ["if balance > self.stop_balance"]]], ex: EX_RETREAT },
+      { p: true, a: ["mine", 2], b: ["card", 3], label: "input にベーシックストラテジー", desc: "自分の合計（Card.sum(self.hand)）と、ディーラーの表のカード（self.dealer_card.value）で、スライドの表を引く。表の値は card.vals で数にする。コピー元の input の中身を入れ替える。",
+        code: [[SP, "from card import Card", 1, [], ["from card import Card"]], [SP, "def input", 0, [], ["if Card.sum(self.hand) < self.hit_threshold", "choice = \"hit\"", "else:", "choice = \"stand\"", "return choice"]]],
+        ex: `- from card import Card
++ from card import Card, vals
+  …
+      def input(self, message):
+-         if Card.sum(self.hand) < self.hit_threshold:
+-             choice = "hit"
+-         else:
+-             choice = "stand"
+-         return choice
++         total = Card.sum(self.hand)
++         up = vals[self.dealer_card.value]   # ディーラーの表のカード（2〜11）
++         if total <= 11:
++             return "hit"
++         if total == 12:
++             return "stand" if 4 <= up <= 6 else "hit"
++         if total <= 16:
++             return "stand" if up <= 6 else "hit"
++         return "stand"`, exNote: "撤退条件（500）と合わせて 2000 ゲーム流すと、残高の平均は player_simple 889 → 955 になった（このページを作るときに試した値）。" },
+      { a: ["simple", -1], b: ["mine", -1], label: "コピーして作る", desc: "player_simple.py をコピーして player_xxx.py にする。クラス名は BlackjackPlayer のまま。7つのメソッドは消さない（消すと AttributeError で止まる）。" },
+      { a: ["dealer", 2], b: ["mine", -1], label: "dealer.py の import を差し替える", desc: "dealer.py の相手のクラスを、自分のプレイヤーにする。確かめたら元に戻す（戻さないと、dealer.py で人が遊べない）。",
+        code: [["dealer.py", "from player import BlackjackPlayer", 1, [], ["from player import BlackjackPlayer"], 1], ["dealer.py", "player = BlackjackPlayer(initial_balance)", 1, ["player = BlackjackPlayer(initial_balance)"], []]],
+        ex: "- from player import BlackjackPlayer\n+ from players.player_xxx import BlackjackPlayer" },
+      { a: ["dealer", 6], b: ["mine", 2], label: "dealer.py で1手ずつ呼ばれる", desc: "dealer.py の 122 行で、自分の input が呼ばれる。画面の手札と、返した hit / stand が思った通りかを見る。",
+        code: [["dealer.py", "player_choice = player.input(", 3, ["player_choice = player.input("], [], 1]] },
+      { a: ["main", 2], b: ["mine", -1], label: "autodealer が読み込む", desc: "players/ に置けば、何もしなくても比べる対象に入る。player_module.BlackjackPlayer という名前で探すので、クラス名を変えると動かない。",
+        code: [[AD, "for module_name in file_names_without_extension:", 2, ["import_module("], []], [AD, "result, num_turn = game(", 1, ["game(player_module.BlackjackPlayer)"], []]] },
+      { a: ["game", 4], b: ["mine", 2], label: "MAX 回 × 何ラウンドも呼ばれる", desc: "input は3重のループの一番内側で呼ばれる。外から、MAX 回のゲーム（213 行）× 残高が尽きるかやめるまでのラウンド（50 行）× hit しているあいだ（86 行）。重い計算を書くと、結果の ms がそのぶん増える。",
+        code: [[AD, "while game_round <= MAX:", 2, ["while game_round <= MAX:", "game(player_module.BlackjackPlayer)"], []], [AD, "def game(Player):", 1, ["def game(Player):"], []], [AD, "    while True:\n", 1, ["while True:"], []], [AD, "player_choice = player.input(", 2, ["while True:", "player_choice = player.input("], [], 1]],
+        rt: ["autodealer.game:87 -> players.player_simple.BlackjackPlayer.input"], rtNote: "「ヒットして勝つ」の1ラウンドで2回（hit と stand）。4000 ゲーム × 平均 20 ラウンドほどなので、1ファイルで十数万回呼ばれる。" },
+      { a: ["main", 6], b: ["term", 2], label: "結果の1行で比べる", desc: "player_random より悪ければ、悪い戦略。player_simple と並べて、どれだけ良くなったかを見る。",
+        code: [[AD, "end_time = time.perf_counter()", 3, ["print(f\"{module_name}"], []]] }] },
+  C: { t: "C 改造する", c: "var(--branch)", note: "例として、ダブルダウン（10・11 のときに掛け金を2倍にして1枚だけ引く）を足す。プレイヤー側・game() 側・dealer.py 側・集計の書き換えは並列（どれからでもよい）。7つのメソッドの形は変えずに、input の答えを増やす形にすると、今のプレイヤーも動き続ける。",
     ctx: [["p_mod", "x_vscode", "autodealer.py を改造", "ブランチを切ってから直す。改造前の結果も残しておく。"],
       ["x_vscode", "sys", "python3 autodealer.py で試す", "is_print = True にすると、1ラウンドずつの流れが画面に出て、改造した所を確かめられる。"],
       ["sys", "p_mod", "新しい結果", "ルールを足す前と後で、player_simple の平均がどう変わるか。"],
       ["p_mod", "x_excel", "改造の前と後を比べる", "同じプレイヤー・同じ MAX で並べる。"],
       ["x_excel", "p_teacher", "プログラムとレポート", "改造した機能の説明と、改造した部分のコード（テキストで貼る）と、結果。"]],
-    c4: [[["game", 1], null, "ルールを足す場所", "1ラウンドの流れ（3 の環状線）のどの駅に足すかを決める。ダブルダウンなら「hit か stand かを聞く」の所、サレンダーなら最初の2枚を配った後。"],
-      [["game", 2], ["simple", 4], "input の答えを増やす", "input が \"double\" や \"surrender\" を返せるようにする。今の player_simple・player_random は返さないので、そのまま動く。新しい命令を足すなら、全部のプレイヤーに足すか、hasattr で確かめてから呼ぶ。"],
-      [["game", 1], ["deck", 0], "1枚だけ引く", "ダブルダウンは、掛け金を2倍にして1枚だけ引き、そこで stand。deck.pop() は今と同じ。"],
-      [["game", 3], ["card", 2], "勝ち負けと精算", "bet_amount を2倍にした分を player_balance に入れる。ブラックジャックの int(bet × 1.5) の切り捨て（緊4）にも注意。"],
-      [["game", 1], ["dealer", 3], "dealer.py にも同じ変更", "同じ流れが dealer.py にも書いてある。対話で遊んで確かめるなら、こちらも直す（直さないと2つのルールが食い違う）。"],
-      [["printx", 1], ["term", 1], "途中を見て確かめる", "is_print = True にすると printx が print になり、改造した所の流れが見える。確かめたら False に戻す（4000 回分出てしまう）。"],
-      [["main", 4], ["term", 2], "新しい集計を出す", "勝率・ブラックジャックの回数・最大残高などを1行に足す。無効な掛け金の -1 を別に数える（緊1 を直す）のもここ。"]] },
+    c4: [
+      { p: true, a: ["game", 4], b: ["deck", 0], label: "game() で double を受ける", desc: "input の答えが \"double\" なら、掛け金を2倍にして1枚だけ引き、そこで stand。2倍にできないときは hit として続ける（そうしないと「無効な入力」で同じ答えを聞き続けて止まらない。緊2）。",
+        code: [[AD, "player_choice = player.input(", 2, ["player_choice = player.input("], ["if player_choice == \"hit\":"], 1, "← この行の前に足す"]],
+        ex: `          while True:
+              player_choice = player.input("hit or stand？: ")
++             if player_choice == "double":
++                 if len(player_hand) == 2 and bet_amount * 2 <= player_balance:
++                     bet_amount *= 2                    # 掛け金を2倍
++                     player_hand.append(deck.pop())     # 1枚だけ引く
++                     player.receive_hand(player_hand)
++                     if Card.sum(player_hand) > 21:     # バーストなら負け
++                         player_balance -= bet_amount
++                         player.notify_result("lose", bet_amount)
++                         is_burst = True
++                     break                              # そこで stand
++                 player_choice = "hit"   # 2倍にできないときは hit として続ける
+              if player_choice == "hit":`, exNote: "このまま autodealer.py に入れて 2000 ゲーム流し、止まらずに動くことを確かめた。" },
+      { p: true, a: ["mine", 2], b: null, label: "プレイヤーが double を返す", desc: "double を使うプレイヤーを作る（player_simple をコピーして input の最初に足す）。返さないプレイヤーは今まで通り動く。",
+        code: [[SP, "def input", 0, [], ["def input"], 0, "← この下に足す"]],
+        ex: `      def input(self, message):
++         if len(self.hand) == 2 and Card.sum(self.hand) in (10, 11):
++             return "double"     # 10・11 なら掛け金を2倍にして1枚だけ
+          if Card.sum(self.hand) < self.hit_threshold:`, exNote: "player_simple 889 → double を足したもの 909（2000 ゲーム・このページを作るときに試した値）。" },
+      { p: true, a: ["game", 6], b: null, label: "精算は変えなくてよい", desc: "bet_amount そのものを2倍にしてあるので、下の勝ち負けの精算（+= bet_amount・-= bet_amount）はそのまま2倍で動く。ブラックジャックは最初の2枚なので double と重ならない。",
+        code: [[AD, "if Card.sum(player_hand) > Card.sum(dealer_hand):", 12, ["player_balance += bet_amount", "player_balance -= bet_amount"], []]] },
+      { p: true, a: ["dealer", 6], b: null, label: "dealer.py と player.py にも", desc: "同じ流れが dealer.py にもある。対話で遊んで確かめるなら、dealer.py の 122 行の下にも同じ塊を足し、人が打つ player.py の input に \"double\" を許す。",
+        code: [["dealer.py", "player_choice = player.input(", 2, ["player_choice = player.input("], ["if player_choice == \"hit\":"], 1, "← この行の前に足す"], ["player.py", "def input", 0, [], ["if choice in [\"hit\", \"stand\"]"]]],
+        ex: `  # player.py（人が打つとき）
+-             if choice in ["hit", "stand"]:
++             if choice in ["hit", "stand", "double"]:
+  # dealer.py は、game() と同じ double の塊を 122 行の下に足す` },
+      { p: true, a: ["main", 5], b: null, label: "集計を足す（任意）", desc: "無効な掛け金の -1 を平均に入れず、別に数える（緊1 を直す）。勝率やブラックジャックの回数を出すのも、この集計の所。",
+        code: [[AD, "total_turns = 0", 1, [], ["total_turns = 0"], 0, "← この下に足す"], [AD, "result, num_turn = game(", 3, [], ["total += result"]], [AD, "end_time = time.perf_counter()", 3, [], ["print(f\"{module_name}"]]],
+        ex: `          total_turns = 0
++         errors = 0
+  …
+-             total += result
++             if result < 0:
++                 errors += 1      # 無効な掛け金は平均に入れない（緊1）
++             else:
++                 total += result
+  …
+-         print(f"{module_name}, {elapsed_time/MAX}, {total_turns/MAX}, {total/MAX}")
++         print(f"{module_name}, {elapsed_time/MAX}, {total_turns/MAX}, {total/max(1, MAX - errors)}, {errors}")` },
+      { a: ["printx", 0], b: ["term", 1], label: "is_print = True で確かめる", desc: "printx が print になり、1ラウンドずつの流れが出る。double の所を通ったかを見る。MAX も小さく（例: 3）しておかないと、4000 ゲーム分が流れる。確かめたら元に戻す。",
+        code: [[AD, "is_print:bool = False", 1, [], ["is_print:bool = False"]], [AD, "def printx", 3, ["if is_print:"], []]],
+        ex: "- is_print:bool = False\n+ is_print:bool = True   # 確かめるときだけ\n  …\n- MAX = 4000 # ゲームの最大回数\n+ MAX = 3" },
+      { a: ["main", 3], b: ["game", -1], label: "python3 autodealer.py で流す", desc: "is_print を False・MAX を 4000 に戻して流す。players/ の全部のプレイヤーが、新しいルールで比べられる。",
+        code: [[AD, "while game_round <= MAX:", 2, ["while game_round <= MAX:", "game(player_module.BlackjackPlayer)"], []]] },
+      { a: ["main", 6], b: ["term", 2], label: "改造の前と後を比べる", desc: "同じプレイヤー・同じ MAX で、改造の前と後の1行を並べる。",
+        code: [[AD, "end_time = time.perf_counter()", 3, ["print(f\"{module_name}"], []]] }] },
 };
+const PREP_C = "var(--prep)";
+function c4Steps() { const T = TASKS[S.task]; return T ? T.c4 : []; }
+function stepTag(steps, i) { // 準備は a・b・c…、実行の流れは 1・2・3…
+  let a = 0, n = 0;
+  for (let j = 0; j <= i; j++) { if (steps[j].p) a++; else n++; }
+  return steps[i].p ? String.fromCharCode(96 + a) : String(n);
+}
 function taskBar(lv) {
   const el = document.getElementById(lv + "bar");
   el.innerHTML = `<span class="levels-label">タスクで見る</span><button type="button" class="none" data-task="" aria-pressed="${!S.task}">なし</button>` +
     Object.entries(TASKS).map(([k, t]) => `<button type="button" data-task="${k}" style="--c:${t.c}" aria-pressed="${S.task === k}">${t.t}</button>`).join("");
 }
+// コードの抜き出し: 探した行から n 行（0 ならかたまり全部）。hl は光らせる行、ed は変える行
+function codeRange([f, find, n, hl = [], ed = [], pre = 0, edl = "← 変える"], idx = 0, all = []) {
+  const L = SRC[f]; if (!L) return "";
+  let i = find.includes("\n") ? L.findIndex((l) => (l + "\n").includes(find)) : L.findIndex((l) => l.includes(find));
+  if (i < 0) return `<p class="note">（${esc(f)} に「${esc(find)}」が見つからない）</p>`;
+  let from = i - pre, to = n ? i + n - 1 : funcLines(f, find).to - 1;
+  if (to - from > 22) to = from + 22;
+  let h = idx && all[idx - 1][0] === f ? "" : `<div class="file">${esc(f)}</div>`;   // 同じファイルが続くときは見出しを1つに
+  for (let k = from; k <= to; k++) { const text = L[k], role = ROLE[`${f}:${k + 1}`];
+    const isEd = ed.some((x) => text.includes(x)), isHl = hl.some((x) => text.includes(x));
+    h += `<div class="ln${isHl ? " x" : ""}${isEd ? " ed" : ""}"><i>${k + 1}</i><s style="--r:${role ? RC[role] : "transparent"}"></s><span>${esc(text)}</span><span>${isEd ? `<em class="edm">${esc(edl)}</em>` : ""}</span></div>`; }
+  return h;
+}
+function diffHtml(ex) {
+  return `<div class="code diff">${ex.split("\n").map((l) => { const c = l[0] === "+" ? "add" : l[0] === "-" ? "del" : "";
+    return `<div class="ln ${c}"><i>${c === "add" ? "+" : c === "del" ? "−" : ""}</i><s></s><span>${esc(l.slice(2))}</span><span></span></div>`; }).join("")}</div>`;
+}
 function taskPanel(lv) {
   const el = document.getElementById(lv + "task"), T = TASKS[S.task];
   if (!T) { el.innerHTML = ""; return; }
-  const steps = T[lv], k = S.tstep, st = k != null ? steps[k] : null;
+  const steps = lv === "ctx" ? T.ctx.map(([a, b, label, desc]) => ({ a, b, label, desc })) : T.c4, k = S.tstep, st = k != null ? steps[k] : null;
   const name = (x) => lv === "ctx" ? CTX.find((b) => b.id === x).title : C4B.find((b) => b.id === x[0]).title + (x[1] >= 0 ? " の " + C4B.find((b) => b.id === x[0]).rows[x[1]][0] : "");
+  const tag = (i) => lv === "ctx" ? String(i + 1) : stepTag(steps, i);
+  const item = (x, i) => `<li><button type="button" data-tstep="${i}" aria-pressed="${k === i}" style="--t:${x.p ? PREP_C : T.c}"><b>${tag(i)}</b><span>${esc(x.label)}</span></button></li>`;
   let body = "";
   if (st) {
-    const [a, b, label, desc] = steps[k];
-    let code = "";
-    if (lv === "c4") { for (const x of [a, b]) { const r = x && x[1] >= 0 && C4B.find((q) => q.id === x[0]).rows[x[1]][2]; if (r && r.f) { code = codeBlock(r.f, r.find, 16); break; } } }
-    body = `<div class="step"><div class="dh"><span class="kind" style="--c:${T.c}">${k + 1}</span><h3>${esc(label)}</h3>
+    const edges = TR.main.edges || {};
+    const rts = (st.rt || []).flatMap((p) => Object.entries(edges).filter(([key]) => key.includes(p)));
+    body = `<div class="step" style="--t:${st.p ? PREP_C : T.c}"><div class="dh"><span class="kind" style="--c:${st.p ? PREP_C : T.c}">${st.p ? "準備 " : ""}${tag(k)}</span><h3>${esc(st.label)}</h3>
       <div class="nav"><button type="button" data-tstep="${k - 1}" ${k ? "" : "disabled"}>← 前</button><button type="button" data-tstep="${k + 1}" ${k < steps.length - 1 ? "" : "disabled"}>次 →</button></div></div>
-      <p class="note">${esc(name(a))}${b ? " → " + esc(name(b)) : "（ここを書き換える）"}</p><p>${esc(desc)}</p>${code}</div>`;
+      <p class="note">${esc(name(st.a))}${st.b ? " → " + esc(name(st.b)) : ""}</p><p>${esc(st.desc)}</p>
+      ${rts.length || st.rtNote ? `<div class="rt"><b>実行時の呼び出し</b>（本物を「ヒットして勝つ」で1ラウンド流して記録）${rts.map(([key, n]) => `<code>${esc(key.replace(" -> ", " → "))}</code><small>×${n}</small>`).join("")}${st.rtNote ? `<small>${esc(st.rtNote)}</small>` : ""}</div>` : ""}
+      ${st.code ? `<h4>コード${st.code.some((c) => (c[4] || []).length) ? "（橙の行が変える所）" : ""}</h4><div class="code">${st.code.map((c, i, all) => codeRange(c, i, all)).join(`<div class="gap">  ⋮</div>`)}</div>` : ""}
+      ${st.ex ? `<h4>変更の例（最低限）</h4>${diffHtml(st.ex)}${st.exNote ? `<p class="note">${esc(st.exNote)}</p>` : ""}` : ""}</div>`;
   }
-  el.innerHTML = `<section class="tpanel" style="--t:${T.c}"><div class="dh"><span class="kind" style="--c:${T.c}">タスク</span><h2>${esc(T.t)}の流れ</h2></div><p class="note">${esc(T.note)}</p>
-    <ol>${steps.map((x, i) => `<li><button type="button" data-tstep="${i}" aria-pressed="${k === i}"><b>${i + 1}</b><span>${esc(x[2])}</span></button></li>`).join("")}</ol>${body}
-    ${T.ways ? `<h3>分析のしかた（アプローチ）</h3><dl class="ways">${T.ways.map(([w, d]) => `<dt>${esc(w)}</dt><dd>${esc(d)}</dd>`).join("")}</dl>` : ""}</section>`;
+  const prep = steps.map((x, i) => [x, i]).filter(([x]) => x.p), flow = steps.map((x, i) => [x, i]).filter(([x]) => !x.p);
+  el.innerHTML = `<section class="tpanel" style="--t:${T.c}"><div class="dh"><span class="kind" style="--c:${T.c}">タスク</span><h2>${esc(T.t)}</h2></div><p class="note">${esc(T.note)}</p>
+    <div class="tcols">${prep.length ? `<div><h3 style="color:${PREP_C}">実行前の準備（並列・どれからでもよい）</h3><ol>${prep.map(([x, i]) => item(x, i)).join("")}</ol></div>` : ""}
+      <div><h3 style="color:${T.c}">${prep.length ? "実行の流れ（順番）" : "流れ（順番）"}</h3><ol>${flow.map(([x, i]) => item(x, i)).join("")}</ol></div></div>${body}
+    ${T.ways && lv === "c4" ? `<h3>分析のしかた（アプローチ）</h3><dl class="ways">${T.ways.map(([w, d]) => `<dt>${esc(w)}</dt><dd>${esc(d)}</dd>`).join("")}</dl>
+      ${T.wayEx ? `<h4>まとめて流す例（コピーを作らない・信頼区間つき）</h4>${diffHtml(T.wayEx.split("\n").map((l) => "  " + l).join("\n"))}<p class="note">このページを作るときに 2000 ゲームずつ流した結果: 12 → 836 ± 24、16 → 863 ± 23、20 → 327 ± 23。12 と 16 の差は区間の幅とほぼ同じで、偶然かもしれない。</p>` : ""}` : ""}</section>`;
 }
-function badge(g, x, y, i) {
-  const b = svgEl("g", { class: "tbadge" + (S.tstep === i ? " cur" : ""), "data-tstep": i, tabindex: 0, role: "button" }, g);
+function badge(g, x, y, i, text, prep) {
+  const b = svgEl("g", { class: "tbadge" + (S.tstep === i ? " cur" : "") + (prep ? " prep" : ""), "data-tstep": i, tabindex: 0, role: "button" }, g);
   svgEl("circle", { cx: x, cy: y, r: 11 }, b);
-  svgEl("text", { x, y: y + 4, "text-anchor": "middle" }, b).textContent = i + 1;
+  svgEl("text", { x, y: y + 4, "text-anchor": "middle" }, b).textContent = text == null ? i + 1 : text;
 }
 function flowCls(i) { return "tflow" + (S.tstep == null ? "" : S.tstep === i ? " cur" : " dim"); }
 
@@ -768,13 +939,13 @@ function c4Layout() { // 箱の高さを行の数から決め、コンテナご�
     const f = C4F.find((x) => x.id === b.f), h = HEAD + b.rows.length * RH + 10;
     pos[b.id] = { x: f.x + 14, y: colY[f.id], w: f.w - 28, h }; colY[f.id] += h + 22; bottom = Math.max(bottom, colY[f.id]); }
   const fb = {}; for (const f of C4F) fb[f.id] = { ...f, h: bottom - f.y + 4 };
-  const t = C4B.find((b) => b.wide); pos[t.id] = { x: 10, y: bottom + 70, w: 1130, h: HEAD + t.rows.length * RH + 10 };
+  const t = C4B.find((b) => b.wide); pos[t.id] = { x: 10, y: bottom + 70, w: 1300, h: HEAD + t.rows.length * RH + 10 };
   return { pos, fb, H: pos[t.id].y + pos[t.id].h + 16 };
 }
 function rowY(p, r) { return r < 0 ? p.y + 22 : p.y + HEAD + r * RH + RH / 2 - 2; }
 function drawC4() {
   const root = document.getElementById("c4map"); root.innerHTML = ""; arrowDefs(root, "ahk", "ahd", 10);
-  const { pos, fb, H } = c4Layout(); root.setAttribute("viewBox", `0 0 1150 ${H}`);
+  const { pos, fb, H } = c4Layout(); root.setAttribute("viewBox", `0 0 1320 ${H}`);
   const fg = svgEl("g", {}, root), eg = svgEl("g", {}, root), bg = svgEl("g", {}, root);
   for (const f of Object.values(fb)) {
     svgEl("rect", { class: "frame", x: f.x, y: f.y, width: f.w, height: f.h, rx: 12, style: `--c:${f.c}` }, fg);
@@ -793,7 +964,7 @@ function drawC4() {
       const yb = fb.f_lib.y + fb.f_lib.h + 26 + shift / 2, sx = A.x > Z.x ? A.x : A.x + A.w, ex = A.x > Z.x ? Z.x + Z.w : Z.x, o = A.x > Z.x ? -1 : 1;
       d = `M${sx} ${y1} H${sx + o * 10} V${yb} H${ex - o * 10} V${y2} H${ex}`; lx = (sx + ex) / 2; ly = yb - 6; bx = (sx + ex) / 2; by = yb;
     } else if (Math.abs(A.x - Z.x) < 5 && shift) { // タスクの線で同じ列: 左の溝を回る（右はふだんの線で埋まっている）
-      const gx = A.x - 4 - shift / 2; d = `M${A.x} ${y1} H${gx} V${y2} H${Z.x}`; lx = gx; ly = y2; bx = gx; by = null;
+      const gx = A.x - 4 - shift / 2; d = `M${A.x} ${y1} H${gx} V${y2} H${Z.x}`; lx = gx; ly = y2; bx = gx - 8; by = null;
     } else if (Math.abs(A.x - Z.x) < 5) { // 同じ列: 右の溝を回る
       const k = (side[A.x] = (side[A.x] || 0) + 1), gx = A.x + A.w + 6 + k * 9;
       const lo = A.y > Z.y ? A : Z; d = `M${A.x + A.w} ${y1} H${gx} V${y2} H${Z.x + Z.w}`; lx = lo.x + lo.w - 8; ly = lo.y - 7; anchor = "end"; bx = gx; by = (y1 + y2) / 2;
@@ -811,12 +982,16 @@ function drawC4() {
   root.parentElement.classList.toggle("tasking", !!T);
   if (T) {
     root.style.setProperty("--t", T.c); arrowDefs(root, "aht", "tah", 14);
-    T.c4.forEach(([a, b], i) => {
-      for (const x of [a, b]) if (x) { inflow.add(x[0]); if (x[1] >= 0) trows.add(x[0] + ":" + x[1]); }
-      const g = svgEl("g", { class: flowCls(i) }, tg);
-      if (!b) { const p = pos[a[0]]; svgEl("path", { d: `M${p.x + p.w - 2} ${rowY(p, a[1]) - 10} V${rowY(p, a[1]) + 10}`, "stroke-width": 6 }, g); badge(g, p.x + p.w + 2, rowY(p, a[1]), i); return; }
+    arrowDefs(root, "ahp", "tahp", 14);
+    T.c4.forEach((st, i) => { const { a, b } = st, tag = stepTag(T.c4, i);
+      for (const x of [a, b]) if (x) { inflow.add(x[0]); if (x[1] >= 0) trows.add(x[0] + ":" + x[1] + (st.p ? ":p" : "")); }
+      const g = svgEl("g", { class: flowCls(i) + (st.p ? " prep" : "") }, tg);
+      if (!b || st.p) { const p = pos[a[0]], y = rowY(p, a[1]);   // 準備: 行の右に印（並列なので矢印でつながない）
+        svgEl("path", { d: `M${p.x + p.w - 2} ${y - 10} V${y + 10}`, "stroke-width": 6 }, g);
+        if (b) { const q = pos[b[0]]; svgEl("path", { d: `M${p.x + p.w} ${y} H${p.x + p.w + 16} V${rowY(q, b[1])} H${q.x + q.w}`, "marker-end": "url(#ahp)", class: "plink" }, g); }
+        badge(g, p.x + p.w + 2, y, i, tag, st.p); return; }
       const r = route(a[0], a[1], b[0], b[1], 7 + (i % 3) * 5);
-      svgEl("path", { d: r.d, "marker-end": "url(#aht)" }, g); badge(g, r.bx, r.by == null ? r.y1 + (r.y2 - r.y1) * (.2 + .3 * (i % 3)) : r.by + ((i % 3) - 1) * 14, i);
+      svgEl("path", { d: r.d, "marker-end": "url(#aht)" }, g); badge(g, r.bx, r.by == null ? r.y1 + (r.y2 - r.y1) * (.2 + .3 * (i % 3)) : r.by + ((i % 3) - 1) * 14, i, tag);
     });
   }
   for (const b of C4B) {
@@ -825,7 +1000,7 @@ function drawC4() {
     svgEl("text", { class: "tm", x: p.x + 12, y: p.y + 22 }, g).textContent = b.title;
     svgEl("text", { class: "tag", x: p.x + p.w - 12, y: p.y + 22, "text-anchor": "end" }, g).textContent = b.tag;
     b.rows.forEach(([l, r, ln], i) => {
-      const y = p.y + HEAD + i * RH, rg = svgEl("g", { class: "row" + (S.c4pick === b.id && S.c4row === i ? " on" : "") + (trows.has(b.id + ":" + i) ? " trow" : ""), "data-c4": b.id, "data-row": i, style: T ? `--t:${T.c}` : "" }, g);
+      const y = p.y + HEAD + i * RH, rg = svgEl("g", { class: "row" + (S.c4pick === b.id && S.c4row === i ? " on" : "") + (trows.has(b.id + ":" + i) ? " trow" : "") + (trows.has(b.id + ":" + i + ":p") ? " trow prow" : ""), "data-c4": b.id, "data-row": i, style: T ? `--t:${T.c}` : "" }, g);
       svgEl("rect", { x: p.x + 4, y: y - 4, width: p.w - 8, height: RH }, rg);
       svgEl("text", { class: "l", x: p.x + 12, y: y + 11 }, rg).textContent = l;
       svgEl("text", { class: "r", x: p.x + p.w - (ln && ln.st ? 30 : 12), y: y + 11, "text-anchor": "end" }, rg).textContent = r;

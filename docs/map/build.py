@@ -41,6 +41,11 @@ def role(text: str) -> str:
     return 'その他'
 
 
+def modname(f: str) -> str:
+    """ファイルの名前から、実行時のモジュール名（players/player_simple.py → players.player_simple）"""
+    return f[:-3].replace('/', '.')
+
+
 def run_route(ad, simple, card_mod, route, stations):
     """1つのルートを本物の game() で1ラウンド流し、駅ごとの行と荷物を返す。"""
     begin = {}
@@ -66,6 +71,7 @@ def run_route(ad, simple, card_mod, route, stations):
             return super().place_bet(balance)
 
     files = {str(REPO / f): f for f in FILES}
+    edges = {}
     path, cur, done = [], None, False
     calls = {}
     keep = ('player_hand', 'dealer_hand', 'bet_amount', 'player_balance', 'is_burst', 'turns', 'player_choice')
@@ -109,6 +115,13 @@ def run_route(ad, simple, card_mod, route, stations):
         f = files.get(fr.f_code.co_filename)
         if not f:
             return None
+        if ev == 'call':   # 実行時の呼び出し: 呼んだ所（リポジトリのファイルの中で一番近い枠）→ 呼ばれたクラス.メソッド
+            up = fr.f_back
+            while up is not None and up.f_code.co_filename not in files:
+                up = up.f_back
+            if up is not None:
+                key = f"{modname(files[up.f_code.co_filename])}.{up.f_code.co_qualname}:{up.f_lineno} -> {modname(f)}.{fr.f_code.co_qualname}"
+                edges[key] = edges.get(key, 0) + 1
         if ev == 'call' and f == 'card.py' and fr.f_code.co_name in ('sum', 'is_soft', 'is_blackjack'):
             name = 'Card.' + fr.f_code.co_name
             calls[name] = calls.get(name, 0) + 1
@@ -123,7 +136,7 @@ def run_route(ad, simple, card_mod, route, stations):
         result = ad.game(P)
     finally:
         sys.settrace(None)
-    return {'path': path, 'calls': calls, 'result': list(result)}
+    return {'path': path, 'calls': calls, 'result': list(result), 'edges': edges}
 
 
 def build() -> pathlib.Path:
