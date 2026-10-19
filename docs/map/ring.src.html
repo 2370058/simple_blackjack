@@ -107,6 +107,10 @@ h5.mg { margin: 8px 0 4px; font: 800 .8rem var(--display); color: var(--muted); 
 @media (max-width: 600px) { .mcards { grid-template-columns: 1fr; } .mcard dl { grid-template-columns: 1fr; } }
 .ivars { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0; } .iv div { display: flex; flex-direction: column; } .iv small b { color: var(--fg); margin-right: 4px; } .iv { display: inline-flex; gap: 8px; align-items: center; border: 1px dashed var(--t); border-radius: 8px; padding: 2px 4px 2px 8px; } .iv code { font: 700 .78rem var(--mono); } .iv small { color: var(--muted); }
 .ivadd { display: flex; flex-wrap: wrap; gap: 6px; } .ivadd input { flex: 1 1 180px; min-width: 0; font: .84rem var(--body); border: 1px solid var(--line); border-radius: 8px; padding: 5px 8px; background: var(--bg); color: var(--fg); }
+.mmemos { display: grid; gap: 6px; margin: 4px 0; } .mm { display: grid; grid-template-columns: minmax(150px, 230px) 1fr; gap: 8px; align-items: center; font-size: .82rem; } .mm span { display: flex; flex-direction: column; } .mm code { font: 700 .78rem var(--mono); } .mm small { color: var(--muted); }
+.mm input { min-width: 0; font: .84rem var(--body); border: 1px solid var(--line); border-radius: 8px; padding: 5px 8px; background: var(--bg); color: var(--fg); } .mm.empty input { border-color: var(--perf); }
+@media (max-width: 600px) { .mm { grid-template-columns: 1fr; } }
+.ftab td div small { color: var(--muted); }
 .chapters { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 10px; margin: 8px 0; }
 .cg { border: 1px solid var(--line); border-radius: 10px; padding: 6px 10px; background: var(--panel); min-width: 0; } .cg > b { font: 800 .82rem var(--display); margin-right: 8px; }
 .cbtns { float: right; display: inline-flex; gap: 4px; } .chk { display: flex; flex-wrap: wrap; gap: 2px 6px; align-items: baseline; font-size: .82rem; margin: 3px 0; cursor: pointer; clear: both; } .chk input { margin-right: 2px; } .chk small { color: var(--muted); margin-left: auto; }
@@ -415,7 +419,7 @@ const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&l
 
 const store = { get(k, d) { try { const v = localStorage.getItem("bjmap:" + k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } },
   set(k, v) { try { localStorage.setItem("bjmap:" + k, JSON.stringify(v)); } catch (e) { /* 保存できなくても動く */ } } };
-const S = { kopen: new Set(), fnview: null, ofv: null, showOrig: store.get("showOrig", false), showRef: store.get("showRef", false), showMat: store.get("showMat", false), pcode: store.get("pcode", "paste") === "upload" ? "pick" : store.get("pcode", "paste"), pfiles: store.get("pfiles", {}), psec: store.get("psec", {}), route: store.get("route", "main"), pos: 0, mode: store.get("mode", "drive"),
+const S = { kopen: new Set(), fnview: null, ofv: null, showOrig: store.get("showOrig", false), showRef: store.get("showRef", false), showMat: store.get("showMat", false), pcode: store.get("pcode", "paste") === "upload" ? "pick" : store.get("pcode", "paste"), pfiles: store.get("pfiles", {}), psec: store.get("psec", {}), mmemo: store.get("matMemo", {}), route: store.get("route", "main"), pos: 0, mode: store.get("mode", "drive"),
   rtask: store.get("rtask", null), find: store.get("find", {}), layers: store.get("layers", { "緊急": true, "悪意": true, "速さ": false }), issue: null, role: null, timer: null };
 S.ring = store.get("ring", "r01");
 
@@ -1203,8 +1207,10 @@ function methodStations(m) {
 // 例（参考実装を、このアイデアの流れで読み込む）
 const FIND_EX = [
   { t: "例: weak_threshold（B）", ref: "weak_threshold", memo: "ディーラーの表が 2〜6（弱い）ときは、手札が 12 以上なら stand する（ベーシックストラテジーの一部）", task: "B", when: "hit", mats: ["self.hand", "self.dealer_card"],
+    mm: { "self.hand": "手札の合計 Card.sum(self.hand) を weak_threshold と比べて、以上なら stand にする", "self.dealer_card": "Card.sum([self.dealer_card]) <= 6 で、ディーラーの表が弱い（2〜6）かを判定する" },
     vars: [{ n: "weak_threshold", init: "12（players/player_simple.py の上の行。import のときに1回）", logic: "input の最初で、表（Card.sum([self.dealer_card])）が 6 以下で、Card.sum(self.hand) がこれ以上なら return \"stand\"" }] },
   { t: "例: MIN_BET・MAX_BET（C）", ref: "MIN_BET・MAX_BET", memo: "テーブルの最低・最高掛け金を決めて、外れた掛け金は無効にする", task: "C", when: "bet", mats: ["bet_amount", "player_balance"],
+    mm: { "bet_amount": "place_bet が返した掛け金が MIN_BET 以上・MAX_BET 以下かを確かめる", "player_balance": "掛け金が残高を超えないように、上限を min(player_balance, MAX_BET) にする" },
     vars: [{ n: "MIN_BET・MAX_BET", init: "10, 500（autodealer.py の上の行。どのプレイヤーにも同じ決まり）", logic: "駅 4 の if を MIN_BET <= bet_amount <= min(player_balance, MAX_BET) にする。外れたら今の else（0 なら終了、それ以外は無効）" }] }];
 const ivars = () => { try { return store.get("ideaVars", []).map((v) => v.init != null || v.logic != null ? v : { n: v.n, init: "", logic: v.note || "" }); } catch (e) { return []; } };
 const matOf = (task, n) => (MATS[task] || []).find((x) => x.n === n) || (METHODS[task] || []).find((x) => x.n === n);
@@ -1269,17 +1275,17 @@ function promptParts() {
     add("premise", "前提（タスク・いつ動くか・置き場所・環状線の流れ）", o); }
   if (side) { const i = L.findIndex((l) => l.includes(side.at)), r = i >= 0 ? enclosing(f, i + 1) : null;
     if (r) { const o = [`# ${side.fn}() の今のコード（${f} ${r.from}〜${r.to} 行）`, "```python"]; for (let n = r.from; n <= r.to; n++) o.push(`${String(n).padStart(3)}  ${L[n - 1]}`); o.push("```"); add("func", `置き場所の関数の今のコード（${side.fn}）`, o); } }
-  { const o = ["# 選んだ材料（今のコード）"]; if (!sel.length) o.push("（まだ選んでいない）");
+  { const o = ["# 選んだ材料（使う予定。使いたいこと・今のコード）"]; if (!sel.length) o.push("（まだ選んでいない）");
     for (const n of sel) { const m = matOf(F.task, n); if (!m || m.now) continue; const ok = matOk(m, side);
       o.push(`## ${m.n}（駅 ${idx[m.st]} から${ok === false ? "・この駅ではまだ無い" : ""}）`, `- 今どこにあるか: ${m.def}`, `- 今の使われ方: ${m.use}`);
       for (const u of matUses(F.task, m)) o.push(`  - ${u.kind}: ${u.f}:${u.ln} \`${u.t}\`${u.st ? `（駅 ${idx[u.st]}）` : ""}`);
-      o.push(`- 置き換え: ${m.alt}`, `- 併せて使う: ${m.combo}`, `- 変えると: ${m.change}`); }
-    add("mats", "選んだ材料（今の使われ方）", o);
-    add("others", "ほかに使える材料（名前・手に入る駅）", ["# ほかに使える材料（名前・手に入る駅）", ...mats.filter((m) => !sel.includes(m.n)).map((m) => `- ${m.n}（駅 ${idx[m.st]} から）: ${m.d}`)]); }
+      o.push(`- 使いたいこと: ${((S.mmemo || {})[m.n] || "").trim() || "（未記入）"}`, `- 置き換え: ${m.alt}`, `- 併せて使う: ${m.combo}`, `- 変えると: ${m.change}`); }
+    add("mats", "選んだ材料（使う予定。使いたいこと・今の使われ方）", o);
+    add("others", "選ばなかった材料（今回は使わない予定。名前・手に入る駅）", ["# 選ばなかった材料（今回は使わない予定。名前・手に入る駅）", ...mats.filter((m) => !sel.includes(m.n)).map((m) => `- ${m.n}（駅 ${idx[m.st]} から）: ${m.d}`)]); }
   { const o = ["# メソッド（駅で呼ばれる入れ物。今していること・改造の余地）"];
     for (const m of METHODS[F.task]) { const sts = methodStations(m), on = sel.includes(m.n);
       o.push(`- ${m.f} ${m.n}${sts.length ? `（駅 ${sts.map((x) => idx[x]).join("・")} で呼ばれる）` : "（今のルートでは呼ばれない）"}${on ? " ← 選んだ" : ""}: 今は ${m.now}`);
-      if (on) o.push(`  - 使っていない・余地: ${m.room}`, `  - できること: ${m.can}`, `  - 別ファイル・別の駅: ${m.cross}`, `  - 注意: ${m.caution}`); }
+      if (on) o.push(`  - 使いたいこと: ${((S.mmemo || {})[m.n] || "").trim() || "（未記入）"}`, `  - 使っていない・余地: ${m.room}`, `  - できること: ${m.can}`, `  - 別ファイル・別の駅: ${m.cross}`, `  - 注意: ${m.caution}`); }
     add("methods", "メソッド（呼ばれる駅・今していること・余地）", o); }
   add("vars", "メモした変数（初期値・ロジック）", ["# メモした変数（まだコードに無い。こういう変数があればいいかも）", ...(vars.length ? vars.map((v) => `- ${v.n}\n  - 初期値: ${v.init || "（未定）"}\n  - ロジック: ${v.logic || "（未定）"}`) : ["（なし）"])]);
   if (side) { const refs = REFIMPL[side.st] || []; if (refs.length) { const o = ["# この駅の参考実装（似た変更の例）"];
@@ -1294,6 +1300,7 @@ function promptParts() {
   const both = [ups.length ? "アップロードした" : "", pastes.length ? "貼った" : ""].filter(Boolean).join("・");
   const asks = [
     { id: "q0", t: "コードと説明が合っているか", text: mode === "none" ? "コードの全体が無いときは、推測で書かずに、必要なファイル（" + files.join("、") + "）を見せてほしいと言ってください。" : `${both}コードの全体を読んで、上の説明（駅・行番号・材料の今の使われ方・インポート）と合っているか確かめてから考えてください。合っていない所があれば先に教えてください。` },
+    { id: "qm", t: "選んだ材料ごとに、使いたいことが成り立つか", text: "「選んだ材料」「選んだメソッド」を使う前提で設計してください。それぞれの「使いたいこと」が、置き場所の駅で手に入る形（今の値・引数・メソッドが呼ばれる駅）で成り立つかを、1つずつ確かめてください。成り立たなければ、どの駅のどのメソッドで覚えておくか（B）、いつ動くかをどこにずらすかを示してください。選ばなかった材料を使う必要が出たら、その理由と、選んだものでは足りない点を先に示してください。" },
     { id: "q1", t: "既存の材料・メソッドだけで叶えられるか", text: "まず、上の材料・メソッド（今は少ししか使っていないもの）・今のステートメント（代入）・判定（if）だけで、やりたいことが叶えられるか検討してください。メモした変数の中に、既にある材料やメソッドで代わりになるものが無いかも確かめてください。" },
     { id: "q2", t: "足りない変数をどこで定義・更新・判定するか", text: "足りなければ、メモした変数のうち必要なものについて、どこで定義するか（ファイルの上・__init__）、どの駅のどのメソッドで更新するか、どこで判定に使うかを決めてください。" },
     { id: "q3", t: "変更を順番に（行番号・前後のコード）", text: "変更を、加える順番に、ファイル・関数・行番号・変更前と変更後のコードで示してください。" },
@@ -1339,8 +1346,12 @@ function findPanel(bar) {
   const methBtns = F.task ? `<h5 class="mg">メソッド（材料の入れ物。駅で呼ばれるが、今は少ししか使っていない・別の使い方ができるもの）</h5><div class="mats">${meths.map((m) => { const on = (F.mats || []).includes(m.n), ok = matOk(m, side), sts = methodStations(m);
     return `<button type="button" class="mat meth${ok === true ? " ok" : ""}" data-fset="mat:${esc(m.n)}" aria-pressed="${on}"><code>${esc(m.n)}</code><small>${!sts.length ? "呼ばれない" : sts.length > 6 ? `${sts.length} 駅（駅 ${idx[sts[0]]}〜${idx[sts[sts.length - 1]]}）` : "駅 " + sts.map((x) => idx[x]).join("・")}・${esc(m.d)}</small>${ok === "other" ? "<em class=\"oth\">別の駅</em>" : ""}</button>`; }).join("")}</div>` : "";
   const infoTog = F.task ? `<button type="button" class="btn otog" data-mattog aria-pressed="${!!S.showMat}">材料の説明: ${S.showMat ? "オン" : "オフ"}</button>` : "";
+  const mm = S.mmemo || {};
+  const selNames = (F.mats || []).filter((n) => matOf(F.task, n));
+  const selMemoBlock = selNames.length ? `<h5 class="mg">選んだ材料と、使いたいこと（「この材料で何をしたいか」を書く。プロンプトの「選んだ材料」に入り、AI は選んだものを使う前提で考える）</h5><div class="mmemos">${selNames.map((n) => { const m = matOf(F.task, n), ok = matOk(m, side);
+    return `<label class="mm${(mm[n] || "").trim() ? "" : " empty"}"><span><code>${esc(n)}</code><small>${m.now ? "メソッド" : "値"}・駅 ${idx[m.st != null ? m.st : (methodStations(m)[0] || "s0")]}${ok === false ? "・この駅ではまだ無い" : ok === "other" ? "・別の駅で呼ばれる" : ""}</small></span><input data-mmemo="${esc(n)}" value="${esc(mm[n] || "")}" placeholder="この材料で何をしたい？（例: 手札の合計と比べて、以上なら stand）"></label>`; }).join("")}</div>` : "";
   const step3 = F.task ? `<div class="fstep"><div class="h3row"><b>3. 何を材料に判断する？</b>${infoTog}</div><small>（いくつでも。説明をオンにすると、下に詳しいカードが出る）</small><h5 class="mg">値（変数・引数）</h5><div class="mats">${mats.map((m) => { const on = (F.mats || []).includes(m.n), ok = matOk(m, side);
-    return `<button type="button" class="mat${ok === false ? " ng" : ok ? " ok" : ""}" data-fset="mat:${esc(m.n)}" aria-pressed="${on}"><code>${esc(m.n)}</code><small>駅 ${idx[m.st]} から・${esc(m.d)}</small>${ok === false ? `<em>この駅ではまだ無い${m.arg ? "（引数なので駅 " + idx[m.st] + " の中だけ）" : ""}</em>` : ""}</button>`; }).join("")}</div>${methBtns}</div>` : "";
+    return `<button type="button" class="mat${ok === false ? " ng" : ok ? " ok" : ""}" data-fset="mat:${esc(m.n)}" aria-pressed="${on}"><code>${esc(m.n)}</code><small>駅 ${idx[m.st]} から・${esc(m.d)}</small>${ok === false ? `<em>この駅ではまだ無い${m.arg ? "（引数なので駅 " + idx[m.st] + " の中だけ）" : ""}</em>` : ""}</button>`; }).join("")}</div>${methBtns}${selMemoBlock}</div>` : "";
   const step4 = F.task ? `<div class="fstep"><b>4. メモ: こういう変数があればいいかも</b>（まだコードに無いもの。プロンプトでは、まず既存の材料で代わりにならないかを検討させる）
     <div class="ivars">${vars.map((v, i) => `<div class="iv"><code>${esc(v.n)}</code><div><small><b>初期値</b> ${esc(v.init || "—")}</small><small><b>ロジック</b> ${esc(v.logic || "—")}</small></div><button type="button" class="btn sb" data-ivdel="${i}" aria-label="${esc(v.n)} を消す">×</button></div>`).join("") || "<small>（まだ無い）</small>"}</div>
     <div class="ivadd"><input data-ivn placeholder="変数の名前（例: lose_streak）"><input data-ivinit placeholder="初期値（例: 0。__init__ で）"><input data-ivlogic placeholder="ロジック（例: notify_result で lose なら +1・win なら 0、place_bet で 3 以上なら掛け金を半分）"><button type="button" class="btn" data-ivadd>足す</button></div></div>` : "";
@@ -1357,7 +1368,7 @@ function findPanel(bar) {
       <tr><th>関数</th><td><code>${esc(side.fn)}</code> <small>${esc(side.how)}</small></td></tr>
       <tr><th>入れる行</th><td>${i < 0 ? "（見つからない）" : `${srcLink("f", f, i + 1)} <code>${esc(L[i].trim())}</code> <small>の前後（行番号を押すと関数の全体）</small>`}</td></tr>
       <tr><th>材料</th><td>${(F.mats || []).length ? (F.mats || []).map((m) => { const o = matOf(F.task, m), other = o && o.now && matOk(o, side) === "other";
-        return `<span class="${bad.includes(m) ? "ng" : other ? "oth" : "ok"}">${bad.includes(m) ? "✗" : other ? "↪" : "✓"} ${esc(m)}${other ? "（別の駅で呼ばれる）" : ""}</span>`; }).join(" ") : "<small>（3 で選ぶと、この駅で使えるかを確かめる）</small>"}${bad.length ? `<p class="note">✗ はこの駅ではまだ手に入らない。前の駅で self.… に覚えておくか（B）、いつ動くかを後ろにずらす。</p>` : ""}</td></tr>
+        return `<div class="${bad.includes(m) ? "ng" : other ? "oth" : "ok"}">${bad.includes(m) ? "✗" : other ? "↪" : "✓"} ${esc(m)}${other ? "（別の駅で呼ばれる）" : ""}<small> — ${esc(((S.mmemo || {})[m] || "").trim() || "使いたいこと: 未記入")}</small></div>`; }).join("") : "<small>（3 で選ぶと、この駅で使えるかを確かめる）</small>"}${bad.length ? `<p class="note">✗ はこの駅ではまだ手に入らない。前の駅で self.… に覚えておくか（B）、いつ動くかを後ろにずらす。</p>` : ""}</td></tr>
       <tr><th>この駅が使うファイル</th><td>${Object.entries(used).map(([uf, fns]) => `<code>${esc(uf)}</code> <small>${esc([...fns].join("・"))}</small>`).join("<br>") || "<small>—</small>"}</td></tr>
       ${refs.length ? `<tr><th>この駅の参考実装</th><td>${refs.map((x) => `<button type="button" class="btn rfb" data-refgo="${esc(x.n)}" data-tst="${side.st}">${esc(x.n)}</button>`).join(" ")}</td></tr>` : ""}
       ${rel.length ? `<tr><th>タスク ${F.task} の手順</th><td>${rel.map((x) => `<button type="button" class="btn" data-goflow="${F.task}:${x.i}">${stepTag(TASKS[F.task].c4, x.i, TASKS[F.task])}. ${esc(TASKS[F.task].c4[x.i].label)}</button>`).join(" ")}</td></tr>` : ""}
@@ -1451,7 +1462,7 @@ document.addEventListener("click", (ev) => {
   const ov = ev.target.closest("[data-ofv]");
   if (ov) { const id = ov.dataset.ofv; S.ofv = !id || S.ofv === id ? null : id; const y = window.scrollY; render(); window.scrollTo({ top: y }); scrollFnBoxes(); return; }
   const fx = ev.target.closest("[data-fex]");
-  if (fx) { const x = FIND_EX[+fx.dataset.fex]; S.find = { task: x.task, when: x.when, mats: [...x.mats], ex: +fx.dataset.fex }; store.set("find", S.find); store.set("ideaMemo", x.memo);
+  if (fx) { const x = FIND_EX[+fx.dataset.fex]; S.find = { task: x.task, when: x.when, mats: [...x.mats], ex: +fx.dataset.fex }; store.set("find", S.find); store.set("ideaMemo", x.memo); S.mmemo = { ...(S.mmemo || {}), ...(x.mm || {}) }; store.set("matMemo", S.mmemo);
     const vs = ivars().filter((y) => !x.vars.some((v) => v.n === y.n)); vs.push(...x.vars); store.set("ideaVars", vs);
     const { side } = findPick(); if (side) { if (!path().some((e) => e.id === side.st)) { const r = R.routes.find((q) => TR[q.id].path.some((e) => e.id === side.st)); if (r) { S.route = r.id; S.pos = 0; } } goStation(side.st); } else render(); return; }
   const pa = ev.target.closest("[data-psecall]");
@@ -1501,7 +1512,9 @@ document.addEventListener("click", (ev) => {
 });
 document.addEventListener("change", (ev) => { const c = ev.target.closest && ev.target.closest("[data-psec]"); if (!c) return;
   S.psec = { ...(S.psec || {}), [c.dataset.psec]: c.checked }; store.set("psec", S.psec); const y = window.scrollY; render(); window.scrollTo({ top: y }); });
-document.addEventListener("input", (ev) => { if (ev.target.matches && ev.target.matches("[data-memo]")) { store.set("ideaMemo", ev.target.value); const ta = document.querySelector("textarea.prompt"); if (ta) ta.value = buildPrompt(); } });
+document.addEventListener("input", (ev) => { const mi = ev.target.closest && ev.target.closest("[data-mmemo]");
+  if (mi) { S.mmemo = { ...(S.mmemo || {}), [mi.dataset.mmemo]: mi.value }; store.set("matMemo", S.mmemo); mi.closest(".mm").classList.toggle("empty", !mi.value.trim()); const ta = document.querySelector("textarea.prompt"); if (ta) ta.value = buildPrompt(); return; }
+  if (ev.target.matches && ev.target.matches("[data-memo]")) { store.set("ideaMemo", ev.target.value); const ta = document.querySelector("textarea.prompt"); if (ta) ta.value = buildPrompt(); } });
 document.addEventListener("toggle", (ev) => { if (ev.target.id === "pdet") store.set("paramsOpen", ev.target.open); }, true);
 document.addEventListener("keydown", (ev) => {
   if (S.level !== "ring" || (ev.target.closest && ev.target.closest("input,textarea"))) return;
