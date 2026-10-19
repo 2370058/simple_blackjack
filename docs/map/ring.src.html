@@ -113,6 +113,7 @@ h5.mg { margin: 8px 0 4px; font: 800 .8rem var(--display); color: var(--muted); 
 .lsw { flex: 1 1 100%; display: flex; flex-wrap: wrap; gap: 3px 8px; align-items: baseline; } .lsw small { color: var(--muted); } .lc { font-size: .78rem; font-weight: 700; } .lc small { font-weight: 400; margin-left: 4px; } .lc.ok { color: var(--player); } .lc.oth { color: var(--perf); } .lc.ng { color: var(--danger); }
 .pal { position: sticky; bottom: 6px; z-index: 5; margin: 10px 0; border: 2px solid var(--t); border-radius: 12px; padding: 6px 10px; background: var(--panel); box-shadow: 0 -4px 14px rgb(0 0 0 / .12); max-height: 42vh; overflow: auto; } .fbox textarea { width: 100%; box-sizing: border-box; font: .8rem/1.4 var(--mono); border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px; background: var(--bg); color: var(--fg); margin: 4px 0; }
 .fm { border: 1px solid var(--line); border-radius: 10px; padding: 6px 8px; margin: 6px 0; background: var(--bg); } .fmh { display: flex; flex-wrap: wrap; gap: 4px 8px; align-items: baseline; } .fmh b { font: 800 .8rem var(--mono); } .fmh small { color: var(--muted); }
+.gsearch { margin: 8px 0; } .gsearch .gs-row { display: flex; gap: 6px; } .gsearch input { flex: 1; min-width: 0; } .gres { font-size: .8rem; margin-top: 4px; } .gres details { margin-top: 4px; } .gres table { width: 100%; border-collapse: collapse; } .gres td:last-child { min-width: 14em; } .gres td { vertical-align: top; padding: 2px 4px; border-top: 1px solid var(--line, #8883); word-break: break-word; }
 .fmcode { max-width: 100%; overflow-x: auto; margin: 4px 0; font-size: .74rem; } .fmst, .fmmat { display: flex; flex-wrap: wrap; gap: 4px 6px; align-items: center; font-size: .78rem; margin: 3px 0; } .fmst .est { color: var(--perf); }
 .mchip { border: 1px solid var(--line); border-radius: 999px; padding: 0 8px; font: 700 .74rem var(--mono); } .mchip small { color: var(--muted); font-weight: 400; margin-left: 4px; } .mchip.memo { border-style: dashed; }
 .pmarks { font-size: .8rem; font-weight: 700; margin: 2px 0 6px; } .pmarks small { color: var(--muted); font-weight: 400; }
@@ -486,7 +487,11 @@ const END = [92, 70];
 const BOX = { player: { x: 470, y: 178, w: 260, h: 64 }, calc: { x: 330, y: 400, w: 230, h: 64 }, deck: { x: 640, y: 400, w: 230, h: 64 } };
 const posOf = (id) => id === "end" ? END : pt(idx[id]);
 
+function hitMark(x, y, n, r, box) {   // 検索に当たった駅: 点線の輪と、当たった行数
+  return (box ? `<rect x="${x - 74}" y="${y - 34}" width="148" height="68" rx="14"` : `<circle cx="${x}" cy="${y}" r="${r}"`) + ` fill="none" stroke="var(--car)" stroke-width="4" stroke-dasharray="5 4"/><g transform="translate(${x + (box ? 66 : 17)},${y - (box ? 30 : 20)})"><circle r="11" fill="var(--car)"/><text y="4" text-anchor="middle" font-size="11" font-weight="900" fill="var(--car-fg)">${n}</text></g>`;
+}
 function svgMap() {
+  const GP = S.ring === "r02" ? "r02:" : "", GH = S.snip ? globalHits().count : null, GHany = !!GH && Object.keys(GH).some((k) => (GP ? k.startsWith("r02:") : !k.startsWith("r02:")));
   const P = path(), here = cur(), visited = new Set(P.map((p) => p.id)), TREL = S.rtask ? taskRel(S.rtask) : null;
   let s = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="1ラウンドの環状線。駅を押すと詳しい所が出る">`;
   s += `<defs><marker id="ah" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0 10 5 0 10z" fill="var(--exit)"/></marker>
@@ -533,6 +538,7 @@ function svgMap() {
   // 終了の駅
   { const on = visited.has("end"), isCur = here.id === "end";
     const tl = TREL && TREL.st.end;
+    if (GH && GH[GP + "end"]) s += hitMark(END[0], END[1], GH[GP + "end"], 0, true);
     s += `<g class="st" data-st="end" tabindex="0">${tl ? `<rect x="${END[0] - 66}" y="${END[1] - 26}" width="132" height="52" rx="11" fill="none" stroke="${TREL.T.c}" stroke-width="5"/><text x="${END[0]}" y="${END[1] + 44}" text-anchor="middle" font-size="12" font-weight="800" fill="${TREL.T.c}">${esc(relTags(TREL, tl))}</text>` : ""}<rect x="${END[0] - 60}" y="${END[1] - 20}" width="120" height="40" rx="8" fill="${isCur ? "var(--car)" : "var(--panel)"}" stroke="var(--exit)" stroke-width="2" ${on && !(TREL && !tl) ? "" : 'opacity=".4"'}/>
       <text x="${END[0]}" y="${END[1] + 5}" text-anchor="middle" font-size="13" font-weight="800" fill="${isCur ? "var(--car-fg)" : "var(--fg)"}">${esc(ST.end ? ST.end.title : "ゲーム終了")}</text></g>`; }
   // 駅
@@ -544,7 +550,8 @@ function svgMap() {
     const col = st.kind === "分岐" ? "var(--branch)" : st.kind === "入口" ? "var(--exit)" : "var(--dealer)";
     const shape = st.kind === "分岐" ? `<rect class="dot" x="-13" y="-13" width="26" height="26" rx="3" transform="rotate(45)" fill="${isCur ? "var(--car)" : "var(--panel)"}" stroke="${col}" stroke-width="2.5"/>`
       : `<circle class="dot" r="15" fill="${isCur ? "var(--car)" : "var(--panel)"}" stroke="${col}" stroke-width="2.5"/>`;
-    const tl = TREL && TREL.st[st.id], op = TREL ? (tl ? 1 : .16) : on ? 1 : .32;
+    const hn = GH && GH[GP + st.id], tl = TREL && TREL.st[st.id], op = TREL ? (tl ? 1 : .16) : GHany ? (hn ? 1 : .2) : on ? 1 : .32;
+    if (hn) s += hitMark(x, y, hn, 22);
     s += `<g class="st" data-st="${st.id}" tabindex="0" role="button" aria-label="${esc(st.title)}${tl ? `（${esc(TREL.T.t)} ${relTags(TREL, tl)}）` : ""}" opacity="${op}"><g transform="translate(${x},${y})">${tl ? `<circle r="23" fill="none" stroke="${TREL.T.c}" stroke-width="5"/>` : ""}${shape}
       <text y="4.5" text-anchor="middle" font-size="12" font-weight="800" fill="${isCur ? "var(--car-fg)" : "var(--fg)"}">${i}</text></g>
       <text x="${lx}" y="${ly + 4}" text-anchor="${anchor}" font-size="12.5" font-weight="${isCur || tl ? 800 : 500}" fill="var(--fg)">${esc(st.title)}${tl && anchor === "middle" ? `<tspan dx="6" fill="${TREL.T.c}" font-weight="900">${esc(relTags(TREL, tl))}</tspan>` : ""}</text>
@@ -562,7 +569,7 @@ function svgMap() {
     s += `<g transform="translate(${x},${y - 22})" pointer-events="none"><path d="M0 0 V-26" stroke="var(--fg)" stroke-width="2"/><path d="M0 -26 L18 -20 0 -14z" fill="var(--car)" stroke="var(--fg)" stroke-width="1"/></g>`; }
   return s + `</svg><div class="legend"><span><i style="--c:var(--dealer)"></i>本線の駅（ディーラー）</span><span><i style="--c:var(--branch)"></i>◇ 分岐（if）</span>
     <span><i style="--c:var(--player)"></i>プレイヤーへのランプ</span><span><i style="--c:var(--deck)"></i>山札へのランプ</span><span><i style="--c:var(--calc)"></i>card.py へのランプ</span>
-    <span><i style="--c:var(--exit)"></i>点線 = 近道・出口・戻り</span>${TREL ? `<span><i style="--c:${TREL.T.c}"></i>色の輪 = ${esc(TREL.T.t)} が関係する駅（駅名に添えた字は${TREL.k === "REF" ? "参考実装の名前" : TREL.k === "FIND" ? "入れる所と材料" : "手順の番号"}）</span>` : ""}<span><i style="--c:var(--car)"></i>旗 = 今データがいる駅（← → で動く）</span></div>`;
+    <span><i style="--c:var(--exit)"></i>点線 = 近道・出口・戻り</span>${GHany ? `<span><i style="--c:var(--car)"></i>黄色の点線の輪 = 検索に当たった駅（数字は当たった行数）</span>` : ""}${TREL ? `<span><i style="--c:${TREL.T.c}"></i>色の輪 = ${esc(TREL.T.t)} が関係する駅（駅名に添えた字は${TREL.k === "REF" ? "参考実装の名前" : TREL.k === "FIND" ? "入れる所と材料" : "手順の番号"}）</span>` : ""}<span><i style="--c:var(--car)"></i>旗 = 今データがいる駅（← → で動く）</span></div>`;
 }
 
 // ---- 荷物（その駅に着いたときの game() の変数） ----
@@ -1507,68 +1514,192 @@ function wholeUnit() {
   return { id: "all", t: `全体のロジック（ステップ ${steps.length} つをつなげて）`, lines: o, whole: true };
 }
 // ---- コードの一部を貼ると、どのファイルの何行目か・どの関数か・どの駅かを探す ----
+// ---- コード・値の検索: 全ファイルの全行（コード・コメント・説明の文）を探し、駅を環状線の図でも光らせ、その行が何をしているか・駅のどの部分かを説明する ----
+const PYF = () => Object.keys(SRC).filter((f) => /\.py$/.test(f));
+const LOF = (f) => SRC[f] || [];
+const codeOf = (t) => t.split("#")[0];
+const normCode = (t) => codeOf(t).replace(/\s+/g, "");   // コードだけ（コメントと空白を除く）
+const normFull = (t) => t.replace(/\s+/g, "");           // コメントも含める（空白だけ除く）
+const DOCC = {};
+function docLines(f) {   // 説明の文（''' ... '''）の行
+  if (DOCC[f]) return DOCC[f]; const set = new Set(); let doc = false;
+  LOF(f).forEach((t, i) => { const q = (t.match(/'''|"""/g) || []).length; if (doc) set.add(i + 1); if (q) { set.add(i + 1); if (q === 1) doc = !doc; } });
+  return (DOCC[f] = set);
+}
 let LINE_ST2 = null;
-function lineStationsAll(f, ln) {   // 環状線 01 の駅と、環状線 02 の駅（r02:…）の両方
+function lineStationsAll(f, ln) {   // 実行記録: 環状線 01 の駅と、環状線 02 の駅（r02:…）
   if (!LINE_ST2) { LINE_ST2 = {}; for (const [pre, rg] of [["", DATA.rings.r01], ["r02:", DATA.rings.r02]]) for (const t of Object.values(rg.traces)) for (const e of t.path) for (const k of Object.keys(e.lines)) (LINE_ST2[k] = LINE_ST2[k] || new Set()).add(pre + e.id); }
   return [...(LINE_ST2[`${f}:${ln}`] || [])].sort((a, b) => UI[a] - UI[b]);
 }
-const normCode = (t) => t.replace(/#.*$/, "").replace(/\s+/g, "");   // コメントと空白を除く（空白の違いに強くする）
+function fnOfLine(f, ln) {
+  const r = enclosing(f, ln), L = LOF(f); if (!r) return null;
+  const hd = L[r.top - 1] || ""; const m = hd.match(/^\s*def\s+(\w+)/); return m ? { name: m[1], from: r.from, to: r.to } : { name: null, from: r.from, to: r.to, head: hd.trim() };
+}
+// 行 → 駅（どの行でも: 実行記録 → 関数が呼ばれる駅 → 駅の始まりの行 → dealer.py は autodealer.py の同じ行 → コメントは次のコードの行）
+let DMAP = null;
+function dealerMap() {
+  if (DMAP) return DMAP; const A = LOF("autodealer.py"), D = LOF("dealer.py"), aList = [];
+  for (let i = 36; i < 187; i++) { const n = normCode(A[i]).replace(/printx\(/g, "print("); if (n) aList.push({ ln: i + 1, n }); }
+  let ptr = 0, prev = null; DMAP = {};
+  D.forEach((t, i) => { const n = normCode(t); let hit = null;
+    if (n) for (let j = ptr; j < Math.min(aList.length, ptr + 40); j++) if (aList[j].n === n || aList[j].n === n.replace(/exit\(\)/, "returnplayer_balance,turns")) { hit = aList[j]; ptr = j + 1; break; }
+    if (hit) { prev = hit; DMAP[i + 1] = { from: hit.ln, carry: false }; } else DMAP[i + 1] = prev ? { from: prev.ln, carry: true } : null; });
+  return DMAP;
+}
+function derivedStations(f, ln) {
+  const tr = lineStationsAll(f, ln); if (tr.length) return { sts: tr, how: "実行記録（このページの全ルートで通った行）" };
+  const fn = fnOfLine(f, ln), player = f.startsWith("players/") || f === "player.py";
+  if (f === "dealer.py") { const d = dealerMap()[ln]; if (d) { const a = derivedStations("autodealer.py", d.from); return { sts: a.sts, how: `dealer.py は autodealer.py の game() と同じ流れ（autodealer.py の ${d.from} 行に対応${d.carry ? "。この行の対応は無いので、前の対応行から続き" : ""}）` }; } return { sts: ["s0"], how: "dealer.py の始まりの行（import・山札作り。autodealer.py の game() の最初の準備に当たる）" }; }
+  if (f === "autodealer.py") {
+    if (ln >= 189) { let best = null; for (const x of R2L) { const b = x.begin[0]; if (b <= ln && (!best || b > best[1])) best = ["r02:" + x.id, b]; } return best ? { sts: [best[0]], how: "今のルートでは通らない行。環状線 02 の駅の始まりの行から推した" } : { sts: ["r02:t0"], how: "環状線 02（__main__）の始め" }; }
+    if (fn && fn.name === "game") { let best = null; for (const x of R1L) for (const b of x.begin) if (b <= ln && (!best || b > best[1])) best = [x.id, b]; return { sts: [best ? best[0] : "s0"], how: "今のルートでは通らない行。駅の始まりの行から推した" }; }
+    if (fn && fn.name) { const m = METHODS.C.find((x) => x.f === f && x.fn === fn.name); if (m) { const ss = methodStations(m); if (ss.length) return { sts: ss, how: `${fn.name}() が呼ばれる駅（実行記録から）` }; } }
+    return { sts: ["r02:tb"], how: "import のとき（環状線 02 の起動の準備）に動く行" };
+  }
+  if (f === "card.py") { const m = fn && fn.name && METHODS.C.find((x) => x.f === f && x.fn === fn.name); if (m) { const ss = methodStations(m); if (ss.length) return { sts: ss, how: `${fn.name}() が呼ばれる駅（実行記録から）` }; } return { sts: ["r02:tb"], how: "import のとき・山札を作るときに動く行（Card を作る）" }; }
+  if (player) { const m = fn && fn.name && METHODS.B.find((x) => x.fn === fn.name); if (m) { const ss = methodStations(m); if (ss.length) return { sts: ss, how: f.includes("player_simple") ? `${fn.name}() が呼ばれる駅（実行記録から）` : `${f} は記録に無い。同じ名前のメソッド ${fn.name}() が呼ばれる駅（players/player_simple.py の記録）` }; }
+    return f.startsWith("players/") ? { sts: ["r02:t1"], how: "import_module で読み込むときに動く行（ファイルの上の定数・クラスの定義）" } : { sts: ["r02:t1"], how: "player.py は人が打つ版の土台（BlackjackPlayer）で、環状線の記録には無い。同じ形の players/ の定義が読み込まれる駅 02-2 に寄せた" }; }
+  return { sts: [], how: "駅が決まらない" };
+}
+const SOC = {};
+function stationsOfLine(f, ln) {
+  const key = f + ":" + ln; if (SOC[key]) return SOC[key];
+  const L = LOF(f), isCodeLine = (n) => n >= 1 && n <= L.length && codeOf(L[n - 1]).trim() && !docLines(f).has(n);
+  let r = derivedStations(f, ln);
+  if (!r.sts.length || (!isCodeLine(ln) && !docLines(f).has(ln))) {   // 空行・コメントだけの行: 次のコードの行（なければ前の行）の駅
+    let found = null; for (let d = 1; d <= 8 && !found; d++) if (isCodeLine(ln + d)) { const x = derivedStations(f, ln + d); if (x.sts.length) found = { ...x, how: `次のコードの行（${ln + d} 行）の駅。${x.how}` }; }
+    for (let d = 1; d <= 8 && !found; d++) if (isCodeLine(ln - d)) { const x = derivedStations(f, ln - d); if (x.sts.length) found = { ...x, how: `前のコードの行（${ln - d} 行）の駅。${x.how}` }; }
+    if (found) r = found; }
+  return (SOC[key] = r);
+}
+// 検索: 1行でも数行でも、値（変数名・数）だけでも。コメントも、説明の文も探す
 function snipLines(text) {
   let ls = text.split("\n"); const ne = ls.filter((x) => x.trim());
   if (ne.length && ne.every((x) => /^\s*\d+[ \t]/.test(x))) ls = ls.map((x) => x.replace(/^\s*\d+[ \t]?/, ""));   // このページのコードの行番号つきで貼ったとき
   ls = ls.map((x) => x.replace(/\s*←.*$/, ""));   // 「← この行」などの印
-  return ls.map((x) => ({ raw: x.trim(), n: normCode(x) })).filter((x) => x.n);
+  return ls.map((x) => ({ raw: x.trim(), n: normCode(x), full: normFull(x) })).filter((x) => x.full);
 }
+const lineIdx = {};
+function fileLines(f) { return lineIdx[f] || (lineIdx[f] = LOF(f).map((t, i) => ({ ln: i + 1, n: normCode(t), full: normFull(t), t })).filter((x) => x.full)); }
 function findSnippet(text) {
-  const S0 = snipLines(text); if (!S0.length) return null;
-  const matches = [], files = Object.keys(SRC).filter((f) => /\.py$/.test(f));
-  for (const f of files) { const nf = []; (SRC[f] || []).forEach((t, i) => { const n = normCode(t); if (n) nf.push({ ln: i + 1, n }); });
-    for (let i = 0; i + S0.length <= nf.length; i++) { let ok = true; for (let j = 0; j < S0.length; j++) if (nf[i + j].n !== S0[j].n) { ok = false; break; }
+  const S0 = snipLines(text || ""); if (!S0.length) return null;
+  const files = PYF(), matches = [], tokenHits = []; let partial = [];
+  const single = S0.length === 1 && !/\s/.test(S0[0].raw) && S0[0].raw.length >= 2;   // 値・名前だけ（stop_balance・1.5・self.hand …）
+  if (single) {
+    const tok = S0[0].raw, re = /^[\w]+$/.test(tok) ? new RegExp(`(?<![\\w])${escRe(tok)}(?![\\w])`) : null;
+    for (const f of files) for (const x of fileLines(f)) if (re ? re.test(x.t) : x.t.includes(tok)) tokenHits.push({ f, from: x.ln, to: x.ln });
+    return { S0, mode: "token", matches: [], tokenHits, partial: [], hits: tokenHits.slice(0, 200) };
+  }
+  for (const f of files) { const nf = fileLines(f);
+    for (let i = 0; i + S0.length <= nf.length; i++) { let ok = true; for (let j = 0; j < S0.length; j++) { const a = nf[i + j], b = S0[j]; if (!((b.n && a.n && a.n === b.n) || a.full === b.full)) { ok = false; break; } }
       if (ok) matches.push({ f, from: nf[i].ln, to: nf[i + S0.length - 1].ln, exact: true }); } }
-  let partial = [];
-  if (!matches.length) {   // 全体は見つからない: 1行ずつ、含まれる行を探す
-    S0.forEach((q, j) => { if (q.n.length < 5) return; for (const f of files) (SRC[f] || []).forEach((t, i) => { const n = normCode(t); if (n && (n === q.n || n.includes(q.n) || (q.n.length > 14 && q.n.includes(n) && n.length > 14))) partial.push({ f, from: i + 1, to: i + 1, line: j + 1, raw: q.raw }); }); });
-    partial = partial.slice(0, 14); }
-  return { S0, matches: matches.slice(0, 12), more: Math.max(0, matches.length - 12), partial };
+  if (!matches.length) S0.forEach((q, j) => { if (q.full.length < 5) return; for (const f of files) for (const x of fileLines(f)) if (x.n === q.n && q.n || x.full.includes(q.full) || (q.full.length > 14 && x.full.length > 14 && q.full.includes(x.full))) partial.push({ f, from: x.ln, to: x.ln, line: j + 1, raw: q.raw, exact: false }); });
+  partial = partial.slice(0, 14);
+  return { S0, mode: matches.length ? "line" : partial.length ? "partial" : "none", matches: matches.slice(0, 12), more: Math.max(0, matches.length - 12), tokenHits: [], partial, hits: (matches.length ? matches : partial).slice(0, 200) };
 }
-function fnOfLine(f, ln) {
-  const r = enclosing(f, ln), L = SRC[f] || []; if (!r) return null;
-  const hd = L[r.top - 1] || ""; const m = hd.match(/^\s*def\s+(\w+)/); return m ? { name: m[1], from: r.from, to: r.to } : { name: null, from: r.from, to: r.to, head: hd.trim() };
+// 環状線の図で光らせる駅: 検索の結果の全部の行から
+let GHIT = { key: null, v: null };
+function globalHits() {
+  const key = S.snip || ""; if (GHIT.key === key) return GHIT.v;
+  const R = findSnippet(key), count = {}, lines = {};
+  if (R) for (const h of R.hits) for (let ln = h.from; ln <= h.to; ln++) for (const st of stationsOfLine(h.f, ln).sts) { count[st] = (count[st] || 0) + 1; (lines[st] = lines[st] || []).push(`${h.f}:${ln}`); }
+  GHIT = { key, v: { R, count, lines } }; return GHIT.v;
 }
-function stationsFor(f, from, to) {
-  const set = new Set(); for (let ln = from; ln <= to; ln++) for (const x of lineStationsAll(f, ln)) set.add(x);
-  if (set.size) return { sts: [...set].sort((a, b) => UI[a] - UI[b]), est: false };
-  // 今のルートでは通らない行: 近い駅から推す
-  if (f === "autodealer.py") { const pool = ln0 => ln0 >= 189 ? R2L.map((x) => ["r02:" + x.id, x.begin[0]]) : R1L.flatMap((x) => x.begin.map((b) => [x.id, b])); let best = null;
-    for (const [id, b] of pool(from)) if (b <= from && (!best || b > best[1])) best = [id, b]; return { sts: best ? [best[0]] : [], est: true, why: "今のルートでは通らない行。一番近い駅の始まりから推した" }; }
-  const fn = fnOfLine(f, from), player = f.startsWith("players/") || f === "player.py";
-  const m = fn && fn.name && (METHODS.B.find((x) => x.fn === fn.name && (player || x.f === f)) || METHODS.C.find((x) => x.f === f && x.fn === fn.name));
-  if (m) { const ss = methodStations(m); if (ss.length) return { sts: ss, est: true, why: player && f !== m.f ? `${f} は環状線の記録に無い（記録は players/player_simple.py）。同じ名前のメソッド ${fn.name}() が呼ばれる駅` : `今のルートでは通らない行。${fn.name}() が呼ばれる駅` }; }
-  if (f === "dealer.py") return { sts: [], est: true, why: "dealer.py は人が打つ版で、環状線の記録に無い。同じ流れの行が autodealer.py の game() にあれば、そちらの駅が当てはまる" };
-  return { sts: [], est: true, why: "この行は、どのルートでも通らない（駅が決まらない）" };
+// 行の説明: 何をしているか・駅のどの部分か・次にどこへ
+let SUCC = null;
+function succMap() {
+  if (SUCC) return SUCC; SUCC = {};
+  for (const [pre, rg] of [["", DATA.rings.r01], ["r02:", DATA.rings.r02]]) for (const t of Object.values(rg.traces)) { const P = t.path; for (let i = 0; i + 1 < P.length; i++) { const a = pre + P[i].id, b = pre + P[i + 1].id; if (a !== b) (SUCC[a] = SUCC[a] || new Set()).add(b); } }
+  return SUCC;
 }
+function stRanges(st) {
+  const x = US[st]; if (!x || !x.begin || !x.begin.length) return [];
+  const r2 = st.startsWith("r02:"), all = (r2 ? R2L : R1L).flatMap((y) => y.begin).sort((a, b) => a - b), last = r2 ? LOF("autodealer.py").length : 187;
+  return x.begin.map((b) => { const nx = all.find((y) => y > b); return [b, nx ? nx - 1 : last]; });
+}
+const ROLEEX = { "表示": "画面に出す行（printx は is_print が True のときだけ。ふだんは何も出ない）", "入力": "プレイヤーに掛け金や hit/stand を聞く・入力を受ける行", "判定": "条件で道を分ける行（if・while）", "流れ": "return・break・continue など、流れを変える行", "データ": "山札・手札などのデータを作る・変える行", "つなぐ": "プレイヤー（player.…）やほかの関数を呼んで、情報を渡す行", "計算": "点数や残高を計算する行", "状態": "変数に値を入れる（状態を覚える）行", "定義": "関数・クラスの定義（呼ばれたときに動く）" };
+function explainLine(f, ln) {
+  const L = LOF(f), t = L[ln - 1] || "", code = codeOf(t).trim(), role = ROLE[`${f}:${ln}`], fn = fnOfLine(f, ln), where = stationsOfLine(f, ln), out = { what: [], part: [], next: [] };
+  const known = [...(MATS.B || []), ...(MATS.C || []), ...(METHODS.B || []), ...(METHODS.C || [])].filter((m, i, a) => a.findIndex((z) => z.n === m.n) === i && tokensOf(m.n).some((tk) => code.includes(tk))).slice(0, 4);
+  // 何をしているか
+  let w;
+  if (docLines(f).has(ln)) w = `説明の文（docstring）。動作はしない。${fn && fn.name ? `${fn.name}() の説明` : "ファイル・クラスの説明"}。`;
+  else if (!code) w = /^\s*#/.test(t) ? "コメント（説明の文）。動作はしない。下のコードの説明として書かれているが、コードと違うことがある（古いコメントなど）。" : "空行。";
+  else if (/^(import|from)\s/.test(code)) w = "ほかのファイル・ライブラリの部品を読み込む（import）。";
+  else if (/^def\s+(\w+)/.test(code)) { const nm = code.match(/^def\s+(\w+)/)[1], m = [...METHODS.B, ...METHODS.C].find((x) => x.fn === nm); w = `関数 ${nm}() の定義。呼ばれたときに動く。${m ? "今していること: " + m.now : ""}`; }
+  else if (/^class\s/.test(code)) w = "クラスの定義（プレイヤーなどの部品の設計図）。";
+  else if (/^(if|elif|while)\b/.test(code)) w = `判定: ${code.replace(/:$/, "")}。真か偽かで、次に進む行が変わる。`;
+  else if (/^else\s*:/.test(code)) w = "else: 上の if・elif がどれも偽だったときの道。";
+  else if (/^(try|except|finally)\b/.test(code)) w = "例外の処理（エラーが出たときの道）。";
+  else if (/^return\b/.test(code)) w = `return: ${code.replace(/^return\s*/, "") || "値なし"} を返して、この関数を終える（呼んだ側へ戻る）。`;
+  else if (/^(break|continue|pass)\b/.test(code)) w = { break: "break: くり返し（while）を抜ける。", continue: "continue: くり返しの先頭へ戻る（残りを飛ばす）。", pass: "pass: 何もしない。" }[code.match(/^(break|continue|pass)/)[1]];
+  else if (/^(\w[\w.]*)\s*(\+|-|\*|\/)=/.test(code)) { const mm = code.match(/^([\w.]+)\s*(\+|-|\*|\/)=\s*(.*)$/); w = `更新: ${mm[1]} に ${mm[3]} を${{ "+": "足す", "-": "引く", "*": "かける", "/": "割る" }[mm[2]]}。`; }
+  else if (/^[\w.,\s]+=(?!=)/.test(code) && !/^[\w.]+\(/.test(code)) { const mm = code.match(/^([\w.,\s]+?)\s*=\s*(.*)$/); w = `代入: ${mm[1]} に ${mm[2]} の結果を入れる。${/\w+\(.*\)/.test(mm[2]) ? "（右は関数・メソッドの呼び出しの結果）" : ""}`; }
+  else if (/\w+\(.*\)/.test(code)) w = `呼び出し: ${code}。関数・メソッドを呼んで、何かをさせる（戻り値は使っていない）。`;
+  else w = "コードの行。";
+  out.what.push(w);
+  if (role && ROLEEX[role]) out.what.push(`部品図の役割: ${role} — ${ROLEEX[role]}`);
+  for (const m of known) out.what.push(`${m.n.split(/[（(]/)[0]}: ${m.now ? m.now : m.d}`);
+  // 駅のどの部分か
+  if (!where.sts.length) out.part.push(`駅: 決まらない（${where.how}）`);
+  for (const st of where.sts.slice(0, 4)) { const x = US[st], rg = stRanges(st).find(([a, b]) => f === "autodealer.py" && ln >= a && ln <= b);
+    const ring = st.startsWith("r02:") ? "環状線 02" : "環状線 01", idxn = UI[st], prev = !st.startsWith("r02:") && st !== "end" && idxn > 0 ? R1L[idxn - 1] : null, nx = [...((succMap()[st]) || [])];
+    out.part.push(`${ring} の駅 ${dn(st)}「${stTitle(st)}」${rg ? `（autodealer.py ${rg[0]}〜${rg[1]} 行）の ${ln - rg[0] + 1} 行目／全 ${rg[1] - rg[0] + 1} 行` : `の中で動く行（${f} ${fn && fn.name ? fn.name + "() " : ""}の中）`}。${x && x.in ? `この駅は「${x.in}」を受けて、「${x.out}」にする。` : ""}`);
+    out.part.push(`  駅の前後: ${prev ? `駅 ${dn(prev.id)}「${prev.title}」 → ` : ""}この駅${nx.length ? " → " + nx.map((n) => `駅 ${dn(n)}「${stTitle(n)}」`).join(" / ") : ""}`); }
+  out.part.push(`駅を決めた方法: ${where.how}`);
+  return out;
+}
+function explainHtml(f, ln) { const e = explainLine(f, ln); return `<div class="fmex"><div><b>何をしている行か</b>${e.what.map((x) => `<p>${esc(x)}</p>`).join("")}</div><div><b>どの駅の、どの部分か</b>${e.part.map((x) => `<p>${esc(x)}</p>`).join("")}</div></div>`; }
 function kindOfSnippet(raw) { return /^(if|elif|while)\b/.test(raw) ? "judge" : /^return\b/.test(raw) ? "ret" : /(\+|-)?=(?!=)/.test(raw.replace(/==|<=|>=|!=/g, "")) && !/^\w+\(/.test(raw) ? "update" : "call"; }
 function snippetCard(r, S0) {
-  const f = r.f, L = SRC[f] || [], st = stationsFor(f, r.from, r.to), fn = fnOfLine(f, r.from), F = findPick().F, task = F.task || "B";
+  const f = r.f, L = LOF(f), where = stationsOfLine(f, r.from), fn = fnOfLine(f, r.from), F = findPick().F, task = F.task || "B";
   const from = Math.max(1, r.from - 1), to = Math.min(L.length, r.to + 1);
   const code = []; for (let n = from; n <= to; n++) code.push(`<div class="ln${n >= r.from && n <= r.to ? " x" : ""}"><i>${n}</i><s></s><span>${esc(L[n - 1])}</span><span></span></div>`);
   const { mats, memos } = mentionedMats(task, S0.map((x) => x.raw).join(" "));
-  const where = `${f}:${r.from}${r.to > r.from ? "〜" + r.to : ""}`, fname = fn && fn.name ? `${fn.name}()` : fn ? "（関数の外・ファイルの一番外）" : "（関数の外）";
-  const kind = kindOfSnippet(S0[0].raw), text = `${fname} の「${S0[0].raw.slice(0, 36)}」の所で、`;
-  const stBtns = st.sts.map((x) => `<button type="button" class="btn sb" data-tst="${x}">駅 ${esc(dn(x))}. ${esc(stTitle(x))}</button><button type="button" class="btn sb" data-fmstep="${esc(x)}|${kind}|${encodeURIComponent(text)}">ここでステップを足す</button><button type="button" class="chip" data-ins="${esc(`駅 ${dn(x)}「${stTitle(x)}」の ${fname}（${where}）`)}"><b>場所を欄に入れる</b></button>`).join(" ");
-  return `<div class="fm"><div class="fmh"><b>${esc(where)}</b> <small>${esc(fname)}${r.exact === false || r.line ? "・一部一致" : "・一致"}</small>${srcLink("q", f, r.from)}</div>
+  const loc = `${f}:${r.from}${r.to > r.from ? "〜" + r.to : ""}`, fname = fn && fn.name ? `${fn.name}()` : "関数の外", kind = kindOfSnippet(codeOf(L[r.from - 1]).trim() || S0[0].raw), text = `${fname} の「${(codeOf(L[r.from - 1]).trim() || S0[0].raw).slice(0, 36)}」の所で、`;
+  const stBtns = where.sts.map((x) => `<button type="button" class="btn sb" data-tst="${esc(x)}">駅 ${esc(dn(x))}. ${esc(stTitle(x))}</button><button type="button" class="btn sb" data-fmstep="${esc(x)}|${kind}|${encodeURIComponent(text)}">ここでステップを足す</button><button type="button" class="chip" data-ins="${esc(`駅 ${dn(x)}「${stTitle(x)}」の ${fname}（${loc}）`)}"><b>場所を欄に入れる</b></button>`).join(" ");
+  return `<div class="fm"><div class="fmh"><b>${esc(loc)}</b> <small>${esc(fname)}${r.exact === false ? "・一部一致" : "・一致"}</small>${srcLink("q", f, r.from)}</div>
     <div class="code fmcode">${code.join("")}</div>
-    <div class="fmst">${st.sts.length ? `<b>駅:</b> ${stBtns}` : `<b>駅:</b> <small>決まらない</small>`}${st.est ? `<small class="est">${esc(st.why || "")}</small>` : ""}</div>
+    <div class="fmst">${where.sts.length ? `<b>駅:</b> ${stBtns}` : `<b>駅:</b> <small>決まらない</small>`}${/実行記録/.test(where.how) ? "" : `<small class="est">${esc(where.how)}</small>`}</div>
+    ${explainHtml(f, r.from)}
     ${mats.length || memos.length ? `<div class="fmmat"><b>この行に出てくる材料:</b> ${mats.map((m) => `<span class="mchip">${esc(m.n.split(/[（(]/)[0])}<small>${m.now ? "メソッド" : "値・駅 " + esc(dn(m.st)) + " から"}</small></span>`).join("")}${memos.map(({ v }) => `<span class="mchip memo">${esc(v.n)}<small>メモ</small></span>`).join("")}</div>` : ""}</div>`;
+}
+function tokenRows(R) {
+  const tok = R.S0[0].raw, by = {}; for (const h of R.tokenHits) { const ss = stationsOfLine(h.f, h.from).sts; for (const s2 of ss) by[s2] = (by[s2] || 0) + 1; }
+  const sum = Object.entries(by).sort((a, b) => UI[a[0]] - UI[b[0]]).map(([s2, n]) => `<button type="button" class="btn sb" data-tst="${esc(s2)}">駅 ${esc(dn(s2))} ${esc(stTitle(s2))}（${n} 行）</button>`).join(" ");
+  const rows = R.tokenHits.slice(0, 60).map((h) => { const st = stationsOfLine(h.f, h.from), fn = fnOfLine(h.f, h.from), t = LOF(h.f)[h.from - 1];
+    return `<tr><td>${srcLink("q", h.f, h.from)}</td><td><code>${esc(t.trim())}</code></td><td><small>${fn && fn.name ? esc(fn.name) + "()" : "関数の外"}</small></td><td>${st.sts.slice(0, 3).map((x) => `<button type="button" class="btn sb" data-tst="${esc(x)}">駅 ${esc(dn(x))}</button>`).join("") || "<small>—</small>"}</td><td class="why"><div class="whyl"><small>${esc(explainLine(h.f, h.from).what[0])}</small></div></td></tr>`; }).join("");
+  return `<p class="note"><b>${esc(tok)}</b> は <b>${R.tokenHits.length} 行</b>に出てくる（コメント・説明の文も含む）。駅ごと: ${sum || "（駅が決まらない）"}</p>
+    <div class="tw"><table class="ftab tokt"><thead><tr><th>行</th><th>コード</th><th>関数</th><th>駅</th><th>何をしている行か</th></tr></thead><tbody>${rows}</tbody></table></div>${R.tokenHits.length > 60 ? `<small>ほか ${R.tokenHits.length - 60} 行（もっと絞って貼る）</small>` : ""}`;
 }
 function findResults(text) {
   const R = findSnippet(text || "");
-  if (!R) return "<small>コードの一部（1行でも、数行でも）を貼ると、どのファイルの何行目か・どの関数か・どの駅かを出す。このページのコードを行番号つきでコピーしたものでも、空白やコメントが違っても探せる。</small>";
-  if (R.matches.length) return `<p class="note"><b>${R.matches.length}${R.more ? "+" : ""} か所</b>で見つかった（貼った ${R.S0.length} 行）。</p>${R.matches.map((r) => snippetCard(r, R.S0)).join("")}${R.more ? `<small>ほか ${R.more} か所</small>` : ""}`;
-  if (R.partial.length) return `<p class="note">全体と同じ行の並びは無かった。1行ずつ、近い行:</p>${R.partial.map((r) => `<div class="note">貼った ${r.line} 行目「${esc(r.raw.slice(0, 40))}」に近い:</div>${snippetCard(r, [{ raw: r.raw, n: "" }])}`).join("")}`;
-  return `<p class="note">見つからなかった。このページのコード（${Object.keys(SRC).filter((f) => /\.py$/.test(f)).join("・")}）にある行を貼ってください。変更後のコード（まだ無い行）は探せません。</p>`;
+  if (!R) return "<small>コードの一部（1行でも、数行でも）や、変数名・値（stop_balance・1.5 など）を貼る・打つと、どのファイルの何行目か・どの関数か・どの駅かを出し、環状線の図でその駅を光らせる。コメントも、説明の文も探せる。このページのコードを行番号つきでコピーしたものでも、空白が違っても探せる。</small>";
+  if (R.mode === "token") return R.tokenHits.length ? tokenRows(R) : `<p class="note"><b>${esc(R.S0[0].raw)}</b> は、どのファイルにも出てこなかった。</p>`;
+  if (R.mode === "line") return `<p class="note"><b>${R.matches.length}${R.more ? "+" : ""} か所</b>で見つかった（貼った ${R.S0.length} 行）。</p>${R.matches.map((r) => snippetCard(r, R.S0)).join("")}${R.more ? `<small>ほか ${R.more} か所</small>` : ""}`;
+  if (R.mode === "partial") return `<p class="note">全体と同じ行の並びは無かった。1行ずつ、近い行:</p>${R.partial.map((r) => `<div class="note">貼った ${r.line} 行目「${esc(r.raw.slice(0, 40))}」に近い:</div>${snippetCard(r, [{ raw: r.raw, n: "" }])}`).join("")}`;
+  return `<p class="note">見つからなかった。このページのコード（${PYF().join("・")}）にある行を貼ってください。変更後のコード（まだ無い行）は探せません。</p>`;
 }
-const findBox = () => `<div class="fbox"><textarea data-snip rows="4" placeholder="コードの一部を貼る（例: if Card.sum(self.hand) < self.hit_threshold:）">${esc(S.snip || "")}</textarea><div class="findres">${findResults(S.snip)}</div>${originView("q")}</div>`;
+const findBox = () => `<div class="fbox"><textarea data-snip rows="4" placeholder="コードの一部・コメント・変数名・値（例: if Card.sum(self.hand) < self.hit_threshold:　／　stop_balance　／　1.5）">${esc(S.snip || "")}</textarea><div class="findres">${findResults(S.snip)}</div>${originView("q")}</div>`;
+// 環状線のページの一番上の検索欄（どのタブでも使える）。図の駅が光る
+function searchBar() {
+  const G = globalHits(), n = G.R ? G.R.hits.length : 0, sts = Object.keys(G.count).sort((a, b) => UI[a] - UI[b]);
+  return `<div class="gsearch"><label class="fld wide"><span>コード・コメント・変数名・値で検索（全ファイルの全行。当たった駅が図で光る）</span><span class="gs-row"><input data-gsearch value="${esc(S.snip || "")}" placeholder="例: stop_balance　／　if Card.sum(self.hand) < self.hit_threshold:　／　1.5"><button type="button" class="btn" data-gclear ${S.snip ? "" : "disabled"}>消す</button></span></label>
+    <div class="gres">${gresInner(G)}</div></div>`;
+}
+function gresInner(G) {
+  if (!S.snip) return ""; const sts = Object.keys(G.count).sort((a, b) => UI[a] - UI[b]);
+  return G.R ? `<small>${G.R.mode === "token" ? `${G.R.tokenHits.length} 行に出てくる` : G.R.mode === "line" ? `${G.R.matches.length} か所で一致` : G.R.mode === "partial" ? "近い行" : "見つからない"}。光っている駅: ${sts.length ? sts.map((x) => `<button type="button" class="btn sb" data-tst="${esc(x)}">駅 ${esc(dn(x))}・${esc(stTitle(x))}（${G.count[x]} 行）</button>`).join(" ") : "なし"}</small><details class="fall" data-dkey="gsres"><summary>結果（行・説明）</summary><div class="findres">${findResults(S.snip)}</div>${originView("q")}</details>` : "";
+}
+window.__find = { get SRC() { return SRC; }, stationsOfLine: (f, n) => stationsOfLine(f, n), findSnippet: (q) => findSnippet(q), explainLine: (f, n) => explainLine(f, n) };   // 検証用
+function onSearchInput(v) {   // 打つたびに、図・結果・もう1つの入力欄をそろえる
+  S.snip = v; GHIT = { key: null, v: null };
+  const m = document.getElementById("map"); if (m && S.level === "ring") m.innerHTML = svgMap();
+  const g = document.querySelector(".gres"); if (g) g.innerHTML = gresInner(globalHits());
+  for (const sel of ["[data-snip]", "[data-gsearch]"]) { const e = document.querySelector(sel); if (e && e.value !== v) e.value = v; }
+  const r = document.querySelector(".fbox .findres"); if (r) r.innerHTML = findResults(v);
+  const c = document.querySelector("[data-gclear]"); if (c) c.disabled = !v;
+}
 // ---- パレットの「ファイル」: ファイルと関数の一覧。今の位置（旗・置き場所・入力欄の駅）に印 ----
 function fileMarks() {
   const { side } = findPick(), FS = stationFiles(), marks = {}, labels = [];
@@ -1846,7 +1977,7 @@ function renderRing() {
     .map(([k, t]) => `<button type="button" data-mode="${k}" aria-pressed="${S.mode === k}">${t}</button>`).join("");
   document.getElementById("layers").innerHTML = Object.keys(IK).map((k) => `<button type="button" data-layer="${k}" style="--c:${IK[k].c}" aria-pressed="${!!S.layers[k]}">${k}</button>`).join("");
   const trel = S.rtask ? taskRel(S.rtask) : null;
-  document.getElementById("tfilter").innerHTML = rtaskPanel();
+  document.getElementById("tfilter").innerHTML = searchBar() + rtaskPanel();
   document.getElementById("routes").innerHTML = R.routes.map((r) => `<button type="button" data-route="${r.id}" aria-pressed="${S.route === r.id}"${trel && trel.routes.has(r.id) ? ` class="trel" style="--c:${trel.T.c}"` : ""}>${esc(r.title)}</button>`).join("");
   const r = routeOf(S.route), t = TR[S.route], dealt = r.cards.length;
   const delta = t.result[0] < 0 ? "エラー（-1 を返す）" : `${t.result[0] - 1000 >= 0 ? "+" : ""}${t.result[0] - 1000}`;
@@ -1963,7 +2094,8 @@ document.addEventListener("change", (ev) => { if (ev.target.matches && ev.target
 document.addEventListener("mousedown", (ev) => { if (ev.target.closest && ev.target.closest(".chip[data-ins]")) ev.preventDefault(); });   // 押しても、書いている欄のカーソルを外さない
 document.addEventListener("focusin", (ev) => { const el = ev.target; if (!el.matches || !el.matches(INS_SEL) || el.closest(".pal")) return;
   S.lastInput = el; S.lastSel = lastSelOf(el); S.lastLabel = el.dataset.lst != null ? `自分の設計 ${+el.dataset.lst + 1} の内容` : el.dataset.mmemo ? `使いたいこと（${el.dataset.mmemo.split(/[（(]/)[0]}）` : el.hasAttribute("data-memo") ? "アイデア" : (el.getAttribute("aria-label") || "メモ"); updatePalette(); });
-document.addEventListener("input", (ev) => { if (ev.target.matches && ev.target.matches("[data-snip]")) { S.snip = ev.target.value; const r = document.querySelector(".findres"); if (r) r.innerHTML = findResults(S.snip); return; }
+document.addEventListener("click", (ev) => { if (ev.target.closest && ev.target.closest("[data-gclear]")) { onSearchInput(""); const e = document.querySelector("[data-gsearch]"); if (e) e.focus(); } });
+document.addEventListener("input", (ev) => { if (ev.target.matches && ev.target.matches("[data-snip],[data-gsearch]")) { onSearchInput(ev.target.value); return; }
   if (ev.target.matches && ev.target.matches("[data-palq]")) { S.palQ = ev.target.value; const b = document.querySelector(".palbody"); if (b) b.innerHTML = palChips(findPick().F); return; }
   const li = ev.target.closest && ev.target.closest("[data-lst]");
   if (li) { const ls = lsteps(), i = +li.dataset.lst; if (ls[i]) { ls[i].t = li.value; tset("logicSteps", ls); const { F } = findPick();
