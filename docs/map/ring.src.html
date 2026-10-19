@@ -208,8 +208,13 @@ tfoot td { font-weight: 700; }
 .trace .tl em { font-style: normal; color: var(--car); font-size: .75rem; }
 .trace .tl em b { display: inline-block; min-width: 1.4em; padding: 0 4px; border-radius: 999px; background: var(--perf); color: #fff; text-align: center; margin-right: 4px; }
 .tpanel tr.cur td { background: color-mix(in srgb, var(--car) 25%, transparent); }
+.tpanel .finale { border-left: 4px solid var(--perf); padding-left: 10px; }
+.tpanel details details { margin-left: 12px; }
 .tpanel details summary { cursor: pointer; font: 700 .88rem var(--display); margin: 6px 0; }
 .tpanel table { margin: 4px 0; }
+.tpanel, .tpanel > *, .tpanel .step > *, .tpanel details, .tpanel details > *, .tcols > *, .d4 > *, .detail > * { min-width: 0; }
+.tpanel .code, .tpanel details, .tpanel .kstrip { max-width: 100%; }
+.tpanel table, .d4 table { display: block; max-width: 100%; overflow-x: auto; }
 .tpanel .where { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; font-size: .85rem; }
 .tpanel .where b { font: 800 .82rem var(--display); margin-right: 4px; }
 .tpanel .wsum td { vertical-align: top; } .tpanel .wsum td:last-child { display: flex; flex-wrap: wrap; gap: 4px; }
@@ -1115,8 +1120,12 @@ function decidePanel() {
       const pb = log.find((x) => x.round === rd && x.m === "place_bet"), ins = log.filter((x) => x.round === rd && x.m === "input");
       const lastRd = rd === rounds[rounds.length - 1];
       return `<tr${(pb && pb.ret === 0) || (lastRd && !(last.m === "place_bet" && last.ret === 0)) ? ' class="cur"' : ""}><td>${rd}</td><td>${pb ? pb.balance : ""}</td><td>${pb ? pb.ret : ""}</td><td>${ins.map((x) => `${x.sum} → "${esc(x.ret)}"`).join("、") || (pb && pb.ret === 0 ? "（遊ばない）" : "")}</td></tr>`; }).join("")}</tbody></table>`;
-    body = `<p class="note">山札を種 ${R0.seed} でふつうに混ぜ、ゲームが終わるまで流した${sc.find ? "（残高 0 で終わる種を build.py が探した。プレイヤーのコードは変えていない）" : ""}。ゲームの終わり方は2つだけ: place_bet が 0 を返す（勝ち逃げ・撤退）か、残高が 0 以下になる。このゲームは <b>${esc(why)}</b> で終わり、game() は (${R0.result.join(", ")}) を返した。</p>${table}
-      ${rounds.map((rd, k) => `<details${k === rounds.length - 1 || k === 0 ? " open" : ""}><summary>ラウンド ${rd} の判断${k === rounds.length - 1 ? "（最後の一手）" : k === 0 ? "（最初）" : ""}</summary>${log.filter((x) => x.round === rd).map(one).join("")}</details>`).join("")}`;
+    const fin = rounds[rounds.length - 1];
+    body = `<p class="note">山札を種 ${R0.seed} でふつうに混ぜ、ゲームが終わるまで流した（${sc.id === "gamelose" ? "残高 0 で終わる" : "勝ち逃げで終わる"}種を build.py が探した。プレイヤーのコードは変えていない）。ゲームの終わり方は2つだけ: place_bet が 0 を返す（勝ち逃げ・撤退）か、残高が 0 以下になる。2つの場面で違うのは<b>最後の処理だけ</b>なので、それ以外は折りたたんである。</p>
+      <div class="finale"><h4>最後の処理: ${esc(why)}。game() は (${R0.result.join(", ")}) を返した</h4>
+        <details open><summary>ラウンド ${fin} の判断（最後の一手）</summary>${log.filter((x) => x.round === fin).map(one).join("")}</details></div>
+      <details><summary>それまでの ${rounds.length - 1} ラウンドの表（残高・掛け金・答え）</summary>${table}</details>
+      <details><summary>それまでの ${rounds.length - 1} ラウンドの判断（コード）</summary>${rounds.slice(0, -1).map((rd) => `<details><summary>ラウンド ${rd}</summary>${log.filter((x) => x.round === rd).map(one).join("")}</details>`).join("")}</details>`;
   } else {
     body = `<p class="note">同じカードの並びを配り、1ラウンドだけ本物の autodealer.game() を流した（乱数の種 ${R0.seed}。乱数で決めるプレイヤーは、本当に${sc.id === "lose" ? "負ける" : "勝つ"}種を build.py が探した）。このラウンドの残高は ${R0.result[0]}。</p>${log.map(one).join("")}`;
   }
