@@ -270,8 +270,9 @@ tfoot td { font-weight: 700; }
 .taskbar button { border: 1.5px solid var(--c, var(--line)); background: var(--panel); color: var(--fg); border-radius: 999px; padding: 4px 12px; font: 700 .85rem var(--display); cursor: pointer; }
 .taskbar button[aria-pressed="true"] { background: var(--c, var(--fg)); color: #fff; border-color: var(--c, var(--fg)); }
 .taskbar button.none[aria-pressed="true"] { background: var(--fg); color: var(--bg); }
-.c4.tasking .box4:not(.inflow) { opacity: .32; }
-.c4.tasking .edge { opacity: .14; pointer-events: none; }
+.c4.tasking:not(.nodim) .box4:not(.inflow) { opacity: .32; }
+.c4.tasking:not(.nodim) .edge { opacity: .14; pointer-events: none; }
+.levels .dimtog, .dimtog { margin-left: 14px; border-style: dashed; } .dimtog[aria-pressed="false"] { opacity: .75; }
 .c4 .box4 .row.trow rect { fill: color-mix(in srgb, var(--t) 22%, transparent); }
 .c4 .tflow path { fill: none; stroke: var(--t); stroke-width: 3; stroke-linejoin: round; }
 .c4 .tflow.dim path { stroke-opacity: .35; }
@@ -280,9 +281,9 @@ tfoot td { font-weight: 700; }
 .scr .code.term .ln.past span { opacity: .5; } .scr .code.term .ln.now { background: color-mix(in srgb, var(--t) 30%, transparent); } .scr .code.term .ln.now span { font-weight: 700; }
 .scr .code.term .typed { text-decoration: underline; text-underline-offset: 3px; margin-left: 2px; } .scr .code.term .snote span { font-style: italic; opacity: .8; }
 /* 手順を選んでいる間: 今アクティブなフロー（矢印・箱・行）以外は、全部グレーにする */
-.c4.stepping .box4:not(.curflow) { opacity: .3; filter: grayscale(1); }
-.c4.stepping .tflow.dim { opacity: .3; filter: grayscale(1); }
-.c4.stepping .frame, .c4.stepping .ft { filter: grayscale(1); opacity: .55; }
+.c4.stepping:not(.nodim) .box4:not(.curflow) { opacity: .3; filter: grayscale(1); }
+.c4.stepping:not(.nodim) .tflow.dim { opacity: .3; filter: grayscale(1); }
+.c4.stepping:not(.nodim) .frame, .c4.stepping:not(.nodim) .ft { filter: grayscale(1); opacity: .55; }
 .c4 .box4 .row.orow rect { fill: color-mix(in srgb, var(--muted) 16%, transparent); }
 .c4 .tbadge { cursor: pointer; }
 .c4 .tbadge circle { fill: var(--t); stroke: var(--panel); stroke-width: 2.5; }
@@ -465,7 +466,7 @@ const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&l
 const store = { get(k, d) { try { const v = localStorage.getItem("bjmap:" + k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } },
   set(k, v) { try { localStorage.setItem("bjmap:" + k, JSON.stringify(v)); } catch (e) { /* 保存できなくても動く */ } } };
 const S = { kopen: new Set(), fnview: null, ofv: null, showOrig: store.get("showOrig", false), showRef: store.get("showRef", false), showMat: store.get("showMat", false), pcode: store.get("pcode", "paste") === "upload" ? "pick" : store.get("pcode", "paste"), pfiles: store.get("pfiles", {}), psec: store.get("psec", {}), mmemo: store.get("matMemo", {}), airole: store.get("airole", null), cu: store.get("cu", {}), cuCode: store.get("cuCode", false), route: store.get("route", "main"), pos: 0, mode: store.get("mode", "drive"),
-  rtask: store.get("rtask", null), find: store.get("find", {}), layers: store.get("layers2", { "緊急": false, "悪意": false, "速さ": false }), issue: null, role: null, timer: null };
+  rtask: store.get("rtask", null), find: store.get("find", {}), layers: store.get("layers2", { "緊急": false, "悪意": false, "速さ": false }), c4dim: store.get("c4dim", true), issue: null, role: null, timer: null };
 S.ring = store.get("ring", "r01");
 
 // 駅ごとに、そのルートで寄った拠点（ファイルと山札）を、実行した行から出す
@@ -1011,8 +1012,11 @@ function stepFlowLines(steps) {
   return o;
 }
 const FIND_C = "var(--perf)";
-const FTASK = { B: { t: "B 戦略（プレイヤーの判断を変える）", f: "players/player_simple.py", note: "プレイヤーのファイル（players/ の .py）だけを変える。game() から呼ばれるメソッドの中に書く" },
+const FTASK = { B: { t: "B 戦略（プレイヤーの判断を変える）", f: "players/player_simple.py", copy: "players/player_xxx.py", note: "プレイヤーのファイル（players/ の .py）だけを変える。game() から呼ばれるメソッドの中に書く" },
   C: { t: "C 改造（ゲームのルールを変える）", f: "autodealer.py", note: "autodealer.py の game() など、ディーラー側を変える。dealer.py と player.py にも同じ変更がいる（タスク C）" } };
+// 書き換えるファイルの名前（タスク B は player_simple.py をコピーしたもの。原本は残す。コードを読むのは、コピー元の f）
+const editName = (task) => (FTASK[task] && (FTASK[task].copy || FTASK[task].f)) || "";
+const editNote = (task) => (FTASK[task] && FTASK[task].copy ? `${FTASK[task].copy}（${FTASK[task].f} をコピーして作る。原本の ${FTASK[task].f} は変えずに残す）` : editName(task));
 const TIMINGS = [
   { id: "start", t: "ゲームの始め（1回だけ）",
     B: { st: "s0", fn: "__init__", at: "self.hand = []", how: "__init__ の最後に self.… を足して、ゲームの間ずっと覚えておく値（連敗の数・出たカードの数など）を 0 にしておく" },
@@ -1440,7 +1444,7 @@ function pickExplain(P) {   // パレットで選んだ材料の説明（目的�
   else if (k === "v") { const v = ivars()[+a]; if (v) { goal = v.logic ? `こう使いたい: ${v.logic}` : "（メモの「ロジック」に、何に使うかを書くと、ここに出る）"; what = `メモした材料（${mkLabel(v.kind)}）${v.init ? "・初期値 " + v.init : ""}`; } }
   else if (k === "c") { const m = [...(MATS[findPick().F.task] || []), ...(METHODS[findPick().F.task] || [])].find((x) => tokensOf(x.n).includes(c));
     goal = m ? goalOf(m) : ""; what = `${d}（${a}:${b}）。${(LOF(a)[+b - 1] || "").trim().slice(0, 70)}`; }
-  else if (k === "f") { what = `ファイル ${a}（${(SRC[a] || []).length} 行）`; goal = a === FTASK[findPick().F.task].f ? "このタスクで書き換えるファイル。" : "読むだけのファイル（このタスクでは変えない）。"; }
+  else if (k === "f") { what = `ファイル ${a}（${(SRC[a] || []).length} 行）`; const ft = FTASK[findPick().F.task]; goal = a === ft.f ? (ft.copy ? `コピー元。これをコピーした ${ft.copy} を書き換える（原本は残す）。` : "このタスクで書き換えるファイル。") : "読むだけのファイル（このタスクでは変えない）。"; }
   if (!goal && !what) return "";
   return `<div class="pexp">${goal ? `<div><b>目的</b> ${esc(goal)}</div>` : ""}${what ? `<div><b>何か</b> ${esc(what)}</div>` : ""}${more ? `<div class="pmore">${esc(more)}</div>` : ""}</div>`;
 }
@@ -1568,8 +1572,8 @@ function stepChecks(task, step, all) {
 }
 function stepWhere(task, step) {
   const f = FTASK[task].f, FSall = stationFiles()[step.st] || {}, mine = [...(FSall[f] || [])];
-  const fnTxt = (file, fn) => fn === "（関数の外）" ? `${file} の ファイルの一番外（${step.st.startsWith("r02:") ? "if __name__ == \"__main__\": の中" : "import のときに動く行"}）` : `${file} の ${fn}()`;
-  if (step.st === "s0" && step.k === "init") return `${f} のファイルの上の行、または __init__（ゲームごとの値）`;
+  const fnTxt = (file0, fn) => { const file = file0 === FTASK[task].f ? editName(task) : file0; return fn === "（関数の外）" ? `${file} の ファイルの一番外（${step.st.startsWith("r02:") ? "if __name__ == \"__main__\": の中" : "import のときに動く行"}）` : `${file} の ${fn}()`; };
+  if (step.st === "s0" && step.k === "init") return `${editName(task)} のファイルの上の行、または __init__（ゲームごとの値）`;
   if (mine.length) return mine.map((fn) => fnTxt(f, fn)).join("・");
   // タスクのファイルには、この駅の行が無い: 駅が実際に使うファイルを出す
   const others = Object.entries(FSall).flatMap(([file, fns]) => [...fns].map((fn) => fnTxt(file, fn)));
@@ -1993,7 +1997,7 @@ function consultHead() {
   const { F, tm, side } = findPick(); let memo = ""; try { memo = tget("ideaMemo", ""); } catch (e) {}
   return ["# 相談（軽く聞きたい）", "設計や変更後のコードは、まだ頼みません。「この変数・メソッドは、こういう処理に使えるか」を、詳しい情報から一緒に考えてください。", "",
     "# 前提", "- simple_blackjack（ブラックジャックの自動プレイ）。autodealer.py の game() の while True の1周が1ラウンド（環状線の駅 0〜21）。players/ の各プレイヤーが place_bet・input などで判断する。",
-    `- タスク ${F.task}: ${FTASK[F.task].t}（変えてよいファイル: ${FTASK[F.task].f}）`, ...(tm ? [`- いつ動くか: ${tm.t}${side ? `（駅 ${dn(side.st)}「${US[side.st].title}」）` : ""}`] : []),
+    `- タスク ${F.task}: ${FTASK[F.task].t}（変えてよいファイル: ${editNote(F.task)}）`, ...(tm ? [`- いつ動くか: ${tm.t}${side ? `（駅 ${dn(side.st)}「${US[side.st].title}」）` : ""}`] : []),
     ...(memo.trim() ? ["", "# やりたいこと（アイデア）", memo.trim()] : []), "", ...stationMapLines(lsteps()), ""];
 }
 function consultText(onlyId) {
@@ -2013,7 +2017,7 @@ function consultInner() {
   const txt = consultText();
   return `<p class="note">設計は頼まず、「この変数・メソッドは、こういう処理に使えるか」を軽く聞くためのプロンプト。自分のロジックのステップごと（使っている材料の詳しい情報つき）と、まだステップに入れていない選んだ材料・メモした材料ごとに並ぶ。各ステップ・材料・メモの横の「相談をコピー」で、その単位だけのプロンプトも作れる。</p>
     <div class="cunits">${us.length ? us.map((u) => `<label class="chk"><input type="checkbox" data-cu="${esc(u.id)}" ${cuOn(u.id) ? "checked" : ""}> <span>${esc(u.t)}</span><small>${u.lines.join("\n").length.toLocaleString()} 字</small></label><button type="button" class="btn sb" data-cucopy="${esc(u.id)}">この単位だけコピー</button>`).join("") : "<small>（まだ無い。「5. 自分のロジックを組む」にステップを足すか、材料を選ぶか、「4. メモ」を足す）</small>"}</div>
-    <label class="chk"><input type="checkbox" data-cucode ${S.cuCode ? "checked" : ""}> <span>コードの全体も付ける（${esc(FTASK[F.task].f)}）</span></label>
+    <label class="chk"><input type="checkbox" data-cucode ${S.cuCode ? "checked" : ""}> <span>コードの全体も付ける（${esc(FTASK[F.task].f)}${FTASK[F.task].copy ? "。コピー元" : ""}）</span></label>
     <div class="ptot">相談プロンプト全体 ${txt.length.toLocaleString()} 字</div><textarea class="prompt consult" readonly rows="12">${esc(txt)}</textarea><button type="button" class="btn" data-cucopy="">全部コピー</button> <small class="copied" hidden>コピーした</small>`;
 }
 const consultBlock = () => `<details class="fall pr" data-dkey="consult"><summary>相談プロンプト（軽く聞く。ステップ・材料・メモの単位で）</summary><div class="consult-wrap">${consultInner()}</div></details>`;
@@ -2028,7 +2032,7 @@ function promptParts() {
   add("idea", "やりたいこと（アイデア）", ["# やりたいこと（アイデア）", memo || "（ここにアイデアを書く）"]);
   { const o = ["# 前提（今のコードの状態）",
       "- simple_blackjack。autodealer.py の game() の while True の1周が1ラウンド（環状線 01）。__main__ が players/ の各プレイヤーで game() を MAX 回呼んで平均を出す（環状線 02）",
-      `- タスク ${F.task}: ${FTASK[F.task].t}。変えてよいファイル: ${f}${F.task === "C" ? "（dealer.py・player.py にも同じ変更）" : ""}`];
+      `- タスク ${F.task}: ${FTASK[F.task].t}。変えてよいファイル: ${editNote(F.task)}${F.task === "C" ? "（dealer.py・player.py にも同じ変更）" : ""}`, ...(FTASK[F.task].copy ? [`- 下に付けるコードは、コピー元の ${f}（今の中身）。変更は、コピーした ${FTASK[F.task].copy} に書く`] : [])];
     if (tm) o.push(`- いつ動くか: ${tm.t}`);
     if (none) o.push(`- 注意: ${none.none}`);
     if (side) { const i = L.findIndex((l) => l.includes(side.at)), k = UI[side.st];
@@ -2111,7 +2115,7 @@ function findPanel(bar) {
   let memo = ""; try { memo = tget("ideaMemo", ""); } catch (e) {}
   const vars = ivars();
   const ex = `<div class="fstep"><b>例を読み込む</b>（参考実装を、このアイデアの流れで入れたもの）<div class="routes">${FIND_EX.map((x, i) => `<button type="button" data-fex="${i}">${esc(x.t)}</button>`).join("")}<button type="button" data-clearall>${F.task ? `タスク ${F.task} の入力を全部消す` : "入力を全部消す"}</button></div><small>アイデア・メモ・自分の設計は、タスク B と C で別々に持つ。例を読み込むと、そのタスクの入力を置き換える。</small></div>`;
-  const step1 = `<div class="fstep"><b>1. どのタスク？</b><div class="seg">${["B", "C"].map((k) => btn("task", k, F.task === k, FTASK[k].t)).join("")}</div>${F.task ? `<p class="note">${esc(FTASK[F.task].note)}（ファイル: <code>${esc(FTASK[F.task].f)}</code>）</p>` : ""}</div>`;
+  const step1 = `<div class="fstep"><b>1. どのタスク？</b><div class="seg">${["B", "C"].map((k) => btn("task", k, F.task === k, FTASK[k].t)).join("")}</div>${F.task ? `<p class="note">${esc(FTASK[F.task].note)}（ファイル: <code>${esc(editName(F.task))}</code>${FTASK[F.task].copy ? `。<code>${esc(FTASK[F.task].f)}</code> をコピーして作る。原本は変えずに残す` : ""}）</p>` : ""}</div>`;
   const step2 = F.task ? `<div class="fstep"><b>2. アイデアは、いつ動けばいい？</b><div class="routes">${TIMINGS.map((x) => { const s2 = x[F.task];
     return btn("when", x.id, F.when === x.id, `${esc(x.t)}${s2.none ? "（B では無理）" : `<small> 駅 ${dn(s2.st)}</small>`}`); }).join("")}</div></div>` : "";
   const mats = F.task ? MATS[F.task] : [];
@@ -2843,6 +2847,7 @@ const SCR = {
     "dealer.py で1手ずつ呼ばれる": { note: "前の手順の画面の「プレイヤーの手」「プレイヤーの点数」のあとで、input が呼ばれて hit / stand を返す。" },
     "autodealer が読み込む": { add: [["cmd", "python3 autodealer.py"]] }, "MAX 回 × 何ラウンドも呼ばれる": { note: QUIET },
     "結果の1行で比べる": { add: [["auto"], ["note", "（player_xxx の行が、ここに並ぶ。player_random より悪ければ、悪い戦略）"]] } },
+  X: { "*": { note: EDITNOTE }, "無効な掛け金の -1 を平均に入れない": { add: [["cmd", "python3 autodealer.py"], ["auto"], ["note", "（無効な掛け金があると、game() が返す -1 も残高の平均に入る。直すと、この数字が変わることがある。直すなら、タスクとは別のブランチで）"]] } },
   C: { "*": { note: EDITNOTE }, "ブランチを切る（全員）": { add: [GITCMD] },
     "is_print = True で確かめる": { add: [["note", "autodealer.py の is_print = True にして流すと（MAX は小さくしておく）:"], ["cmd", "python3 autodealer.py"], ["printx"], ["note", "…（1ラウンドずつ続く）"]] },
     "python3 autodealer.py で流す": { add: [["note", "is_print = False に戻して:"], ["cmd", "python3 autodealer.py"]] },
@@ -2896,7 +2901,8 @@ function taskBar(lv) {
   const btn = ([k, t]) => `${t.outside ? '<span class="levels-label" style="margin-left:10px">｜</span>' : ""}<button type="button" data-task="${k}" style="--c:${t.c}" class="${t.outside ? "outside" : ""}" aria-pressed="${S.task === k}">${t.t}</button>`;
   el.innerHTML = `<span class="levels-label">流れで見る</span><button type="button" class="none" data-task="" aria-pressed="${!S.task}">なし</button>` +
     Object.entries(TASKS).filter(([, t]) => t.flow).map(btn).join("") + `<span class="levels-label" style="margin-left:14px">タスクで見る</span>` +
-    Object.entries(TASKS).filter(([, t]) => !t.flow).map(([k, t]) => `${t.outside ? '<span class="levels-label" style="margin-left:10px">｜</span>' : ""}<button type="button" data-task="${k}" style="--c:${t.c}" class="${t.outside ? "outside" : ""}" aria-pressed="${S.task === k}">${t.t}</button>`).join("");
+    Object.entries(TASKS).filter(([, t]) => !t.flow).map(([k, t]) => `${t.outside ? '<span class="levels-label" style="margin-left:10px">｜</span>' : ""}<button type="button" data-task="${k}" style="--c:${t.c}" class="${t.outside ? "outside" : ""}" aria-pressed="${S.task === k}">${t.t}</button>`).join("") +
+    (S.task ? `<button type="button" class="dimtog" data-dimtog aria-pressed="${S.c4dim !== false}" title="オフにすると、選んだ流れ・手順の印はそのままで、ほかの箱や線も普通の色の強さに戻る">ほかをグレーにする: ${S.c4dim !== false ? "オン" : "オフ"}</button>` : "");
 }
 // コードの抜き出し: 探した行から n 行（0 ならかたまり全部）。hl は光らせる行、ed は変える行
 function nthIndex(L, find) { // "…#2" なら2つ目に見つかった行
@@ -3251,7 +3257,7 @@ function drawCtx() {
   }
   const T = TASKS[S.task], inflow = new Set(), cbox = new Set(), tg = svgEl("g", {}, root);
   const cur = T && S.tstep != null ? T.ctx[S.tstep] : null;   // 今アクティブなフロー（手順）。ほかは全部グレーにする
-  root.parentElement.classList.toggle("tasking", !!T); root.parentElement.classList.toggle("stepping", !!cur);
+  root.parentElement.classList.toggle("tasking", !!T); root.parentElement.classList.toggle("stepping", !!cur); root.parentElement.classList.toggle("nodim", S.c4dim === false);
   if (T) {
     root.style.setProperty("--t", T.c); arrowDefs(root, "aht", "tah", 14);
     T.ctx.forEach(([a, b], i) => { inflow.add(a); if (b) inflow.add(b); if (T.ctx[i] === cur) { cbox.add(a); if (b) cbox.add(b); }
@@ -3333,7 +3339,7 @@ function drawC4() {
   }
   const T = TASKS[S.task], inflow = new Set(), trows = new Set(), orows = new Set(), cbox = new Set(), tg = svgEl("g", {}, root);
   const cur = T && S.tstep != null ? T.c4[S.tstep] : null;   // 今アクティブなフロー（手順）。ほかは全部グレーにする
-  root.parentElement.classList.toggle("tasking", !!T); root.parentElement.classList.toggle("stepping", !!cur);
+  root.parentElement.classList.toggle("tasking", !!T); root.parentElement.classList.toggle("stepping", !!cur); root.parentElement.classList.toggle("nodim", S.c4dim === false);
   const srows = cur ? screenRows(S.task, S.tstep) : new Set();   // この手順で画面（ターミナル）に出る行
   if (srows.size) { cbox.add("term"); inflow.add("term"); for (const r of srows) trows.add("term:" + r); }
   if (T) {
@@ -3445,6 +3451,8 @@ document.addEventListener("click", (ev) => {
   if (kt) { const id = kt.dataset.ktog; S.kopen.has(id) ? S.kopen.delete(id) : S.kopen.add(id); const y = window.scrollY; redrawC4(); window.scrollTo({ top: y }); return; }
   const ds = ev.target.closest("[data-dscen]");
   if (ds) { S.dscen = ds.dataset.dscen; redrawC4(); return; }
+  const dt = ev.target.closest("[data-dimtog]");
+  if (dt) { S.c4dim = S.c4dim === false; store.set("c4dim", S.c4dim); redrawC4(); return; }
   const tk = ev.target.closest("[data-task]");
   if (tk) { S.task = tk.dataset.task || null; S.tstep = S.task ? 0 : null; S.fnview = null; store.set("task", S.task); redrawC4(); return; }
   const ts = ev.target.closest("[data-tstep]");
