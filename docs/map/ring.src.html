@@ -221,7 +221,8 @@ details.fold > summary { cursor: pointer; } details.fold > summary .fsum { color
 .code .file { color: var(--stmt-dim); padding: 6px 12px 2px; font-weight: 600; }
 .code .gap { color: var(--stmt-dim); padding: 0 12px; }
 .code .ln { display: grid; grid-template-columns: 3.2em 4px auto 1fr; gap: 0 8px; white-space: pre; padding-right: 12px; }
-.code .ln i { font-style: normal; color: var(--stmt-dim); text-align: right; }
+.code .ln i { font-style: normal; color: var(--stmt-dim); text-align: right; user-select: none; -webkit-user-select: none; }   /* 行番号・+ − は、選んでコピーしても入らない */
+.dcopy { display: flex; flex-wrap: wrap; gap: 4px; margin: 4px 0; }
 .code .ln s { text-decoration: none; background: var(--r, transparent); }
 .code .ln.x { background: var(--hit); }
 .code .ln.dim { opacity: .45; }
@@ -2340,6 +2341,10 @@ document.addEventListener("click", (ev) => {
   const fm = ev.target.closest("[data-fmstep]");
   if (fm) { const [st, k, t, sj] = fm.dataset.fmstep.split("|"), ls = lsteps(); let src = null; try { src = sj ? JSON.parse(decodeURIComponent(sj)) : null; } catch (e) {}
     const rec = src && src.rec ? src.rec : []; if (src) delete src.rec; ls.push({ k, st, t: decodeURIComponent(t), ...(src ? { src, rec, want: "" } : {}) }); tset("logicSteps", ls); const y = window.scrollY; render(); window.scrollTo({ top: y }); return; }
+  const ct = ev.target.closest("[data-copytext]");
+  if (ct) { const txt = decodeURIComponent(ct.dataset.copytext), t0 = ct.textContent, done = () => { ct.textContent = "コピーした"; setTimeout(() => { ct.textContent = t0; }, 1500); };
+    const fallback = () => { const ta = document.createElement("textarea"); ta.value = txt; ta.style.position = "fixed"; ta.style.opacity = "0"; document.body.appendChild(ta); ta.select(); try { document.execCommand("copy"); done(); } catch (e) {} ta.remove(); };
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(txt).then(done, fallback); else fallback(); return; }
   const cc = ev.target.closest("[data-cucopy]");
   if (cc) { const id = cc.dataset.cucopy, txt = consultText(id || undefined), done = () => { const t0 = cc.textContent; cc.textContent = "コピーした"; setTimeout(() => { cc.textContent = t0; }, 1500); };
     if (txt && navigator.clipboard) navigator.clipboard.writeText(txt).then(done, () => {}); return; }
@@ -3007,8 +3012,10 @@ function codeRange([f, find, n, hl = [], ed = [], pre = 0, edl = "← 変える"
     h += `<div class="ln${isHl ? " x" : ""}${isEd ? " ed" : ""}"><i>${k + 1}</i><s style="--r:${role ? RC[role] : "transparent"}"></s><span>${esc(text)}</span><span>${isEd ? `<em class="edm">${esc(edl)}</em>` : ""}</span></div>`; }
   return h;
 }
-function diffHtml(ex) {
-  return `<div class="code diff">${ex.split("\n").map((l) => { const c = l[0] === "+" ? "add" : l[0] === "-" ? "del" : "";
+function diffHtml(ex) {   // 変更の例。上のボタンで、行頭の + − を除いたコードだけをコピーできる
+  const ls = ex.split("\n"), keep = (x) => (/^\s*[…⋮]\s*$/.test(x) ? x.replace(/[…⋮]/, "# …（省略）") : x);   // 省略の印は、貼っても動くようにコメントにする
+  const after = ls.filter((l) => l[0] !== "-").map((l) => keep(l.slice(2))).join("\n"), adds = ls.filter((l) => l[0] === "+").map((l) => l.slice(2)).join("\n");
+  return `<div class="dcopy"><button type="button" class="btn sb" data-copytext="${encodeURIComponent(after)}" title="消す行（−）を除き、行頭の + も付けずに、変更後のコードをコピーする">コードだけコピー（変更後）</button>${adds && adds !== after ? `<button type="button" class="btn sb" data-copytext="${encodeURIComponent(adds)}" title="足す行（+）だけを、+ を付けずにコピーする">足す行だけコピー</button>` : ""}</div><div class="code diff">${ex.split("\n").map((l) => { const c = l[0] === "+" ? "add" : l[0] === "-" ? "del" : "";
     return `<div class="ln ${c}"><i>${c === "add" ? "+" : c === "del" ? "−" : ""}</i><s></s><span>${esc(l.slice(2))}</span><span></span></div>`; }).join("")}</div>`;
 }
 // 判断の部分: 今の players/ にいるプレイヤーごとに、place_bet と input のソースを、通った順に矢印でつなぎ、その行の値を出す
