@@ -116,6 +116,8 @@ h5.mg { margin: 8px 0 4px; font: 800 .8rem var(--display); color: var(--muted); 
 .cargo .srch { outline: 2px solid var(--srch); border-radius: 6px; padding: 1px 4px; } .cargo .srch code { color: var(--srch); font-weight: 800; } .ptab tr.srch td { background: color-mix(in srgb, var(--srch) 14%, transparent); }
 .scargo { border: 2px solid var(--srch); border-radius: 10px; padding: 8px 10px; margin: 8px 0; font-size: .82rem; } .scargo h4 { margin: 0 0 4px; color: var(--srch); font-size: .88rem; } .scargo td, .scargo th { padding: 3px 6px; border-top: 1px solid var(--line); text-align: left; vertical-align: top; word-break: break-word; } .scargo th { font-size: .74rem; color: var(--muted); font-weight: 600; } .scargo td.d { background: color-mix(in srgb, var(--srch) 20%, transparent); font-weight: 800; } .scargo .hl { display: flex; flex-wrap: wrap; gap: 2px 8px; margin-top: 4px; }
 .lsrc { flex-basis: 100%; display: grid; gap: 4px; border-left: 3px solid var(--srch); padding: 2px 0 2px 8px; margin: 2px 0; font-size: .8rem; } .lsrc input { width: 100%; box-sizing: border-box; } .lsrecs, .lsrec { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; } .lsrecs [aria-pressed="true"], .lsrec [aria-pressed="true"] { outline: 2px solid var(--srch); }
+.palpick { margin: 4px 0 6px; font-size: .78rem; position: sticky; top: -6px; z-index: 2; background: var(--panel); padding: 4px 0; border-bottom: 1px solid var(--line); } .palpick .pph { display: flex; flex-wrap: wrap; gap: 4px 8px; align-items: center; } .palpick .pk1 { color: var(--player); font-weight: 800; } .palpick .pk3 { color: var(--perf); font-weight: 700; }
+.pstrip { display: flex; flex-wrap: wrap; gap: 3px; align-items: center; margin-top: 3px; } .pstrip small { width: 1.8em; color: var(--muted); } .pst { display: inline-grid; place-items: center; min-width: 22px; height: 22px; padding: 0 3px; border-radius: 11px; border: 1.5px solid var(--line); font: 700 .7rem var(--mono); color: var(--muted); box-sizing: border-box; } .pst.main { background: var(--player); border-color: var(--player); color: #fff; } .pst.use { border: 2px dashed var(--player); color: var(--fg); } .pst.ctx { outline: 2px solid var(--perf); outline-offset: 1px; } .chip.picked { outline: 3px solid var(--player); outline-offset: 1px; }
 .gsearch { margin: 8px 0; flex: 1 1 100%; min-width: 0; max-width: 100%; } .gsearch .fld { width: 100%; } .gres .btn { white-space: normal; text-align: left; max-width: 100%; } .gsearch .gs-row { display: flex; gap: 6px; } .gsearch input { flex: 1; min-width: 0; } .gres { font-size: .8rem; margin-top: 4px; } .gres details { margin-top: 4px; } .gres table { width: 100%; border-collapse: collapse; } .gres td:last-child { min-width: 14em; } .gres td { vertical-align: top; padding: 2px 4px; border-top: 1px solid var(--line, #8883); word-break: break-word; }
 .fmcode { max-width: 100%; overflow-x: auto; margin: 4px 0; font-size: .74rem; } .fmst, .fmmat { display: flex; flex-wrap: wrap; gap: 4px 6px; align-items: center; font-size: .78rem; margin: 3px 0; } .fmst .est { color: var(--perf); }
 .mchip { border: 1px solid var(--line); border-radius: 999px; padding: 0 8px; font: 700 .74rem var(--mono); } .mchip small { color: var(--muted); font-weight: 400; margin-left: 4px; } .mchip.memo { border-style: dashed; }
@@ -493,8 +495,12 @@ const posOf = (id) => id === "end" ? END : pt(idx[id]);
 function hitMark(x, y, n, r, box) {   // 検索に当たった駅: 点線の輪と、当たった行数
   return (box ? `<rect x="${x - 74}" y="${y - 34}" width="148" height="68" rx="14"` : `<circle cx="${x}" cy="${y}" r="${r}"`) + ` fill="none" stroke="var(--srch)" stroke-width="4" stroke-dasharray="5 4"/><g transform="translate(${x + (box ? 66 : 17)},${y - (box ? 30 : 20)})"><circle r="11" fill="var(--srch)"/><text y="4" text-anchor="middle" font-size="11" font-weight="900" fill="#fff">${n}</text></g>`;
 }
+function pickMark(x, y, k, box) {   // パレットで選んだ材料の駅: 緑の輪（太い = 手に入る・呼ばれる駅、細い点線 = 名前が出てくる駅）
+  const w = k === "main" ? 5 : 2.5, da = k === "main" ? "" : ` stroke-dasharray="3 3"`;
+  return box ? `<rect x="${x - 80}" y="${y - 40}" width="160" height="80" rx="16" fill="none" stroke="var(--player)" stroke-width="${w}"${da}/>` : `<circle cx="${x}" cy="${y}" r="27" fill="none" stroke="var(--player)" stroke-width="${w}"${da}/>`;
+}
 function svgMap() {
-  const GP = S.ring === "r02" ? "r02:" : "", GH = S.snip ? globalHits().count : null, GHany = !!GH && Object.keys(GH).some((k) => (GP ? k.startsWith("r02:") : !k.startsWith("r02:")));
+  const GP = S.ring === "r02" ? "r02:" : "", GH = S.snip ? globalHits().count : null, PK = S.palPick && S.level === "ring" ? pickData(S.palPick) : null, inPK = (id) => (!PK ? null : PK.main.includes(GP + id) ? "main" : PK.use.includes(GP + id) ? "use" : null), PKany = !!PK && [...PK.main, ...PK.use].some((k) => (GP ? k.startsWith("r02:") : !k.startsWith("r02:"))), GHany = !!GH && Object.keys(GH).some((k) => (GP ? k.startsWith("r02:") : !k.startsWith("r02:")));
   const P = path(), here = cur(), visited = new Set(P.map((p) => p.id)), TREL = S.rtask ? taskRel(S.rtask) : null;
   let s = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="1ラウンドの環状線。駅を押すと詳しい所が出る">`;
   s += `<defs><marker id="ah" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0 10 5 0 10z" fill="var(--exit)"/></marker>
@@ -542,6 +548,7 @@ function svgMap() {
   { const on = visited.has("end"), isCur = here.id === "end";
     const tl = TREL && TREL.st.end;
     if (GH && GH[GP + "end"]) s += hitMark(END[0], END[1], GH[GP + "end"], 0, true);
+    if (inPK("end")) s += pickMark(END[0], END[1], inPK("end"), true);
     s += `<g class="st" data-st="end" tabindex="0">${tl ? `<rect x="${END[0] - 66}" y="${END[1] - 26}" width="132" height="52" rx="11" fill="none" stroke="${TREL.T.c}" stroke-width="5"/><text x="${END[0]}" y="${END[1] + 44}" text-anchor="middle" font-size="12" font-weight="800" fill="${TREL.T.c}">${esc(relTags(TREL, tl))}</text>` : ""}<rect x="${END[0] - 60}" y="${END[1] - 20}" width="120" height="40" rx="8" fill="${isCur ? "var(--car)" : "var(--panel)"}" stroke="var(--exit)" stroke-width="2" ${on && !(TREL && !tl) ? "" : 'opacity=".4"'}/>
       <text x="${END[0]}" y="${END[1] + 5}" text-anchor="middle" font-size="13" font-weight="800" fill="${isCur ? "var(--car-fg)" : "var(--fg)"}">${esc(ST.end ? ST.end.title : "ゲーム終了")}</text></g>`; }
   // 駅
@@ -553,7 +560,8 @@ function svgMap() {
     const col = st.kind === "分岐" ? "var(--branch)" : st.kind === "入口" ? "var(--exit)" : "var(--dealer)";
     const shape = st.kind === "分岐" ? `<rect class="dot" x="-13" y="-13" width="26" height="26" rx="3" transform="rotate(45)" fill="${isCur ? "var(--car)" : "var(--panel)"}" stroke="${col}" stroke-width="2.5"/>`
       : `<circle class="dot" r="15" fill="${isCur ? "var(--car)" : "var(--panel)"}" stroke="${col}" stroke-width="2.5"/>`;
-    const hn = GH && GH[GP + st.id], tl = TREL && TREL.st[st.id], op = TREL ? (tl ? 1 : .16) : GHany ? (hn ? 1 : .2) : on ? 1 : .32;
+    const hn = GH && GH[GP + st.id], tl = TREL && TREL.st[st.id], pk = inPK(st.id), op = TREL ? (tl || pk || hn ? 1 : .16) : GHany || PKany ? (hn || pk ? 1 : .2) : on ? 1 : .32;
+    if (pk) s += pickMark(x, y, pk);
     if (hn) s += hitMark(x, y, hn, 22);
     s += `<g class="st" data-st="${st.id}" tabindex="0" role="button" aria-label="${esc(st.title)}${tl ? `（${esc(TREL.T.t)} ${relTags(TREL, tl)}）` : ""}" opacity="${op}"><g transform="translate(${x},${y})">${tl ? `<circle r="23" fill="none" stroke="${TREL.T.c}" stroke-width="5"/>` : ""}${shape}
       <text y="4.5" text-anchor="middle" font-size="12" font-weight="800" fill="${isCur ? "var(--car-fg)" : "var(--fg)"}">${i}</text></g>
@@ -572,7 +580,7 @@ function svgMap() {
     s += `<g transform="translate(${x},${y - 22})" pointer-events="none"><path d="M0 0 V-26" stroke="var(--fg)" stroke-width="2"/><path d="M0 -26 L18 -20 0 -14z" fill="var(--car)" stroke="var(--fg)" stroke-width="1"/></g>`; }
   return s + `</svg><div class="legend"><span><i style="--c:var(--dealer)"></i>本線の駅（ディーラー）</span><span><i style="--c:var(--branch)"></i>◇ 分岐（if）</span>
     <span><i style="--c:var(--player)"></i>プレイヤーへのランプ</span><span><i style="--c:var(--deck)"></i>山札へのランプ</span><span><i style="--c:var(--calc)"></i>card.py へのランプ</span>
-    <span><i style="--c:var(--exit)"></i>点線 = 近道・出口・戻り</span>${GHany ? `<span><i style="--c:var(--srch)"></i>青の点線の輪 = 検索に当たった駅（数字は当たった行数）</span>` : ""}${TREL ? `<span><i style="--c:${TREL.T.c}"></i>色の輪 = ${esc(TREL.T.t)} が関係する駅（駅名に添えた字は${TREL.k === "REF" ? "参考実装の名前" : TREL.k === "FIND" ? "入れる所と材料" : "手順の番号"}）</span>` : ""}<span><i style="--c:var(--car)"></i>旗 = 今データがいる駅（← → で動く）</span></div>`;
+    <span><i style="--c:var(--exit)"></i>点線 = 近道・出口・戻り</span>${PKany ? `<span><i style="--c:var(--player)"></i>緑の輪 = パレットで選んだ「${esc(PK.label)}」（太い = ${esc(PK.mainT)}・点線 = 名前が出てくる駅）</span>` : ""}${GHany ? `<span><i style="--c:var(--srch)"></i>青の点線の輪 = 検索に当たった駅（数字は当たった行数）</span>` : ""}${TREL ? `<span><i style="--c:${TREL.T.c}"></i>色の輪 = ${esc(TREL.T.t)} が関係する駅（駅名に添えた字は${TREL.k === "REF" ? "参考実装の名前" : TREL.k === "FIND" ? "入れる所と材料" : "手順の番号"}）</span>` : ""}<span><i style="--c:var(--car)"></i>旗 = 今データがいる駅（← → で動く）</span></div>`;
 }
 
 // ---- 荷物（その駅に着いたときの game() の変数） ----
@@ -1314,22 +1322,58 @@ function palCtxStation() {
   if (el && el.dataset.ivn !== undefined) { const s3 = document.querySelector("[data-ivst]"); if (s3 && s3.value) return s3.value; }
   return side ? side.st : null;
 }
+// ---- パレットで選んだ材料の駅: パレットの中の駅の帯と、環状線の図で光らせる ----
+const codePk = (c) => `c|${c.f}|${c.ln}|${c.n}|${c.kind}`;
+const pkOn = (pk) => (pk && S.palPick === pk ? " picked" : "");
+const PKC = {};
+function nameSts(tok) {   // コードの中（コメントを除く）で、この名前が出てくる行の駅
+  const re = /^[A-Za-z_]\w*$/.test(tok) ? new RegExp(`(?<![\\w.])${escRe(tok)}(?!\\w)`) : new RegExp(`${escRe(tok)}(?!\\w)`), set = new Set(); let n = 0;
+  for (const f of PYF()) LOF(f).forEach((x, i) => { if (re.test(codeOf(x))) { n++; for (const s2 of stationsOfLine(f, i + 1).sts) set.add(s2); } });
+  return { sts: [...set], n };
+}
+function pickData(pk) {
+  if (PKC[pk]) return PKC[pk];
+  const [k, a, b, c, d] = pk.split("|"); let main = [], mainT = "", tok = "", label = "";
+  if (k === "m") { const m = matOf(findPick().F.task, a); tok = b; label = a.split(/[（(]/)[0];
+    if (m && m.now) { main = methodStations(m); mainT = "呼ばれる駅"; } else if (m) { main = [m.st]; mainT = m.arg ? "引数として来る駅" : "手に入る駅（ここから先で使える）"; } }
+  else if (k === "v") { const v = ivars()[+a]; tok = b; label = `${b}（メモ）`; if (v && v.st && US[v.st]) { main = [v.st]; mainT = "使う駅（メモで決めた）"; } else mainT = "使う駅（メモで未定）"; }
+  else if (k === "c") { const f = a, ln = +b; tok = c; label = `${c}（${f.replace("players/", "")}:${ln}）`;
+    if (d === "メソッド・関数") { const r = fnOfLine(f, ln + 1), set = new Set(); if (r) for (let x = r.from; x <= r.to; x++) for (const s2 of lineStationsAll(f, x)) set.add(s2);
+      main = set.size ? [...set] : stationsOfLine(f, ln).sts; mainT = set.size ? "中の行が動く駅" : "定義の行の駅"; }
+    else { main = stationsOfLine(f, ln).sts; mainT = "値が入る行の駅"; } }
+  else if (k === "f") { const FS = stationFiles(); label = a; main = Object.keys(FS).filter((s2) => FS[s2][a]); mainT = "このファイルの行が動く駅"; }
+  const use = tok ? nameSts(tok) : { sts: [], n: 0 }, sort = (xs) => [...new Set(xs)].filter((x) => US[x]).sort((p2, q) => UI[p2] - UI[q]);
+  return (PKC[pk] = { pk, label, tok, main: sort(main), mainT, use: sort(use.sts.filter((s2) => !main.includes(s2))), useN: use.n });
+}
+function palPickHtml() {
+  if (!S.palPick) return `<div class="palpick"><small>材料を押すと、その駅が光る（ここの駅の帯と、環状線の図）</small></div>`;
+  const P = pickData(S.palPick), ctx = palCtxStation();
+  const dot = (id) => { const c = P.main.includes(id) ? "main" : P.use.includes(id) ? "use" : "";
+    return `<span class="pst ${c}${id === ctx ? " ctx" : ""}" title="駅 ${esc(dn(id))}「${esc(stTitle(id))}」${c === "main" ? "・" + esc(P.mainT) : c === "use" ? "・名前が出てくる" : ""}${id === ctx ? "・入れる欄の駅" : ""}">${esc(id === "end" || id === "r02:end" ? "終" : dn(id).replace("02-", ""))}</span>`; };
+  return `<div class="palpick"><div class="pph"><b>${esc(P.label)}</b><span class="pk1">● ${esc(P.mainT || "—")}: ${P.main.map((x) => "駅 " + esc(dn(x))).join("・") || "なし"}</span><span>○ 名前が出てくる駅: ${P.use.length ? P.use.map((x) => esc(dn(x))).join("・") : P.tok ? "ほかに無い" : "—"}</span>${ctx ? `<span class="pk3">◆ 入れる欄の駅 ${esc(dn(ctx))}${P.main.includes(ctx) ? "（●に入っている）" : ""}</span>` : ""}<button type="button" class="btn sb" data-pickmap>図で見る</button><button type="button" class="btn sb" data-pickclear>× 外す</button></div>
+    <div class="pstrip"><small>01</small>${R1L.map((x) => dot(x.id)).join("")}${dot("end")}</div><div class="pstrip"><small>02</small>${R2L.map((x) => dot("r02:" + x.id)).join("")}${dot("r02:end")}</div></div>`;
+}
+function refreshPick() {
+  const pp = document.querySelector(".palpick"); if (pp) pp.outerHTML = palPickHtml();
+  document.querySelectorAll("[data-pk]").forEach((c) => c.classList.toggle("picked", !!S.palPick && c.dataset.pk === S.palPick));
+  const m = document.getElementById("map"); if (m && S.level === "ring") m.innerHTML = svgMap();
+}
 function palChips(F) {
   const tab = S.palTab || "val", ctx = palCtxStation(), cls = (m) => { if (!ctx) return ""; const a = availAt(m, ctx); return a === true || a === "call" ? " ok" : a === "other" ? " oth" : " ng"; };
-  const chip = (tok, m, extra) => `<button type="button" class="chip${m ? cls(m) : ""}" data-ins="${esc(tok)}" ${m ? `data-pm="${esc(m.n)}"` : ""} title="${esc(m ? m.d || m.now || "" : extra || "")}"><b>${esc(tok)}</b><small>${m ? (m.now ? ((ss) => ss.length ? (ss.length > 3 ? ss.length + " 駅" : "駅 " + ss.map((x) => dn(x)).join("・")) : "呼ばれない")(methodStations(m)) : "駅 " + dn(m.st) + (m.arg ? "（引数）" : "")) : esc(extra || "")}</small></button>`;
+  const chip = (tok, m, extra, pk) => `<button type="button" class="chip${m ? cls(m) : ""}${pkOn(m ? `m|${m.n}|${tok}` : pk)}" data-ins="${esc(tok)}" data-pk="${esc(m ? `m|${m.n}|${tok}` : pk || "")}" ${m ? `data-pm="${esc(m.n)}"` : ""} title="${esc(m ? m.d || m.now || "" : extra || "")}"><b>${esc(tok)}</b><small>${m ? (m.now ? ((ss) => ss.length ? (ss.length > 3 ? ss.length + " 駅" : "駅 " + ss.map((x) => dn(x)).join("・")) : "呼ばれない")(methodStations(m)) : "駅 " + dn(m.st) + (m.arg ? "（引数）" : "")) : esc(extra || "")}</small></button>`;
   if (tab === "find") return findBox();
   if (tab === "file") return filesView(F);
   if (tab === "val") return (MATS[F.task] || []).flatMap((m) => tokensOf(m.n).map((tk) => chip(tk, m))).join("");
   if (tab === "meth") return (METHODS[F.task] || []).map((m) => chip(tokensOf(m.n)[0], m)).join("");
-  if (tab === "memo") return ivars().flatMap((v) => (memoTokens(v.n).length ? memoTokens(v.n) : [v.n]).map((tk) => chip(tk, null, `${mkLabel(v.kind)}${v.st && US[v.st] ? "・駅 " + dn(v.st) : ""}`))).join("") || "<small>（まだ無い。「4. メモ」で足すと、ここに出る）</small>";
+  if (tab === "memo") return ivars().flatMap((v, i) => (memoTokens(v.n).length ? memoTokens(v.n) : [v.n]).map((tk) => chip(tk, null, `${mkLabel(v.kind)}${v.st && US[v.st] ? "・駅 " + dn(v.st) : ""}`, `v|${i}|${tk}`))).join("") || "<small>（まだ無い。「4. メモ」で足すと、ここに出る）</small>";
   const q = (S.palQ || "").trim().toLowerCase(), list = codeNames().filter((c) => !q || c.n.toLowerCase().includes(q) || c.f.includes(q) || c.kind.includes(q));
-  return `<div class="codelist">${list.slice(0, 60).map((c) => `<button type="button" class="chip code" data-ins="${esc(c.n)}" title="${esc(c.kind)}"><b>${esc(c.n)}</b><small>${esc(c.f.replace("players/", ""))}:${c.ln}・${esc(c.kind)}</small></button>`).join("")}${list.length > 60 ? `<small>ほか ${list.length - 60} 件（上の欄で絞る）</small>` : ""}${list.length ? "" : "<small>（見つからない）</small>"}</div>`;
+  return `<div class="codelist">${list.slice(0, 60).map((c) => `<button type="button" class="chip code${pkOn(codePk(c))}" data-ins="${esc(c.n)}" data-pk="${esc(codePk(c))}" title="${esc(c.kind)}"><b>${esc(c.n)}</b><small>${esc(c.f.replace("players/", ""))}:${c.ln}・${esc(c.kind)}</small></button>`).join("")}${list.length > 60 ? `<small>ほか ${list.length - 60} 件（上の欄で絞る）</small>` : ""}${list.length ? "" : "<small>（見つからない）</small>"}</div>`;
 }
 function palette(F) {
   if (!F.task) return "";
   const tab = S.palTab || "val";
   return `<details class="pal" data-dkey="pal" open><summary>使える材料（押すと、いま書いている欄に入る）<small id="palTarget">${S.lastLabel ? "入る欄: " + esc(S.lastLabel) : "先に、書く欄をクリックする"}</small></summary>
-    <div class="h3row"><div class="seg ptabs">${PTABS.map(([k, t]) => `<button type="button" data-paltab="${k}" aria-pressed="${tab === k}">${t}</button>`).join("")}</div>${tab === "code" ? `<input class="palq" data-palq placeholder="名前・ファイル・種類で絞る" value="${esc(S.palQ || "")}">` : ""}</div>
+    ${palPickHtml()}<div class="h3row"><div class="seg ptabs">${PTABS.map(([k, t]) => `<button type="button" data-paltab="${k}" aria-pressed="${tab === k}">${t}</button>`).join("")}</div>${tab === "code" ? `<input class="palq" data-palq placeholder="名前・ファイル・種類で絞る" value="${esc(S.palQ || "")}">` : ""}</div>
     <div class="palbody">${palChips(F)}</div>
     <small class="palhint">色: 緑 = 入れる欄の駅で使える／橙 = 別の駅のメソッド／赤 = その駅ではまだ無い。入れる欄の駅は、自分の設計のステップなら、そのステップの駅。それ以外は置き場所の駅。</small></details>`;
 }
@@ -1339,6 +1383,7 @@ function updatePalette() {
   const F = findPick().F, t = document.getElementById("palTarget"), ctx = palCtxStation();
   if (S.palTab === "file") { const b = document.querySelector(".palbody"); if (b) b.innerHTML = palChips(F); }
   if (t) t.textContent = S.lastLabel ? "入る欄: " + S.lastLabel : "先に、書く欄をクリックする";
+  if (S.palPick) { const pp = document.querySelector(".palpick"); if (pp) pp.outerHTML = palPickHtml(); }
   document.querySelectorAll(".chip[data-pm]").forEach((c) => { const m = matOf(F.task, c.dataset.pm); if (!m || !ctx) return; const a = availAt(m, ctx); c.classList.remove("ok", "oth", "ng"); c.classList.add(a === true || a === "call" ? "ok" : a === "other" ? "oth" : "ng"); });
 }
 function insertToken(tok) {
@@ -1797,8 +1842,8 @@ function filesView(F) {
   const mk = (set) => set ? [...set].sort().join("") : "";
   return `<div class="pfiles2"><div class="pmarks">${labels.length ? labels.map(esc).join("　") : "（環状線の駅が選ばれていない）"}<small>　● 旗　◎ 置き場所　◆ 書いている欄の駅</small></div>
     ${order.map((f) => { const fm = mk(marks[f]); const fns = fl.filter((c) => c.f === f);
-      return `<div class="pfile${fm ? " here" : ""}"><button type="button" class="chip file${fm ? " here" : ""}" data-ins="${esc(f)}" title="${f === mine ? "このタスクで変えるファイル" : ""}"><b>${esc(f)}</b><small>${(SRC[f] || []).length} 行${f === mine ? "・変える" : ""}${fm ? " " + fm : ""}</small></button>
-        <span class="pfns">${fns.map((c) => { const m2 = mk(marks[f + "|" + c.n]); return `<button type="button" class="chip fn${m2 ? " here" : ""}" data-ins="${esc(c.n)}" title="${esc(f)}:${c.ln}"><b>${esc(c.n)}()</b><small>${c.ln}${m2 ? " " + m2 : ""}</small></button>`; }).join("") || "<small>（関数なし）</small>"}</span></div>`; }).join("")}</div>`;
+      return `<div class="pfile${fm ? " here" : ""}"><button type="button" class="chip file${fm ? " here" : ""}${pkOn("f|" + f)}" data-ins="${esc(f)}" data-pk="${esc("f|" + f)}" title="${f === mine ? "このタスクで変えるファイル" : ""}"><b>${esc(f)}</b><small>${(SRC[f] || []).length} 行${f === mine ? "・変える" : ""}${fm ? " " + fm : ""}</small></button>
+        <span class="pfns">${fns.map((c) => { const m2 = mk(marks[f + "|" + c.n]); return `<button type="button" class="chip fn${m2 ? " here" : ""}${pkOn(codePk(c))}" data-ins="${esc(c.n)}" data-pk="${esc(codePk(c))}" title="${esc(f)}:${c.ln}"><b>${esc(c.n)}()</b><small>${c.ln}${m2 ? " " + m2 : ""}</small></button>`; }).join("") || "<small>（関数なし）</small>"}</span></div>`; }).join("")}</div>`;
 }
 // ---- 相談プロンプト: 設計を頼まず、「この変数・メソッドは、こういう処理に使えるか」を軽く聞く。自分の設計のステップ・メモした材料の単位で並べる ----
 const CQ = ["① この材料（変数・メソッド）は、上の処理に使えますか（はい／条件つき／いいえ）。理由は短く。", "② 足りない・違う所は、どこですか。", "③ 代わりに使える既存の材料・メソッドはありますか。", "④ 新しく作る必要があるなら、どの駅のどのファイルに、どんな形で作ると良いですか（コードは書かず、場所と形だけ）。"];
@@ -2125,8 +2170,10 @@ document.addEventListener("click", (ev) => {
   if (ca) { tset("ideaMemo", ""); tset("ideaVars", []); tset("logicSteps", []); S.mmemo = {}; store.set("matMemo", {}); S.find = { ...(S.find || {}), mats: [], ex: undefined }; store.set("find", S.find); const y = window.scrollY; render(); window.scrollTo({ top: y }); return; }
   const pt = ev.target.closest("[data-paltab]");
   if (pt) { S.palTab = pt.dataset.paltab; const y = window.scrollY; render(); window.scrollTo({ top: y }); return; }
+  if (ev.target.closest("[data-pickclear]")) { S.palPick = null; refreshPick(); return; }
+  if (ev.target.closest("[data-pickmap]")) { const m = document.getElementById("map"); if (m) m.scrollIntoView({ block: "start" }); return; }
   const ci = ev.target.closest("[data-ins]");
-  if (ci) { insertToken(ci.dataset.ins); return; }
+  if (ci) { if (ci.dataset.pk) { S.palPick = ci.dataset.pk; refreshPick(); } insertToken(ci.dataset.ins); return; }
   const sa = ev.target.closest("[data-lsadd]");
   if (sa) { const { side } = findPick(), ls = lsteps(), ns = document.querySelector("[data-lsnewst]"), nk = document.querySelector("[data-lsnewk]"); ls.push({ k: nk ? nk.value : ls.length ? "judge" : "init", st: ns && ns.value ? ns.value : side ? side.st : "s0", t: "" }); tset("logicSteps", ls); const y = window.scrollY; render(); window.scrollTo({ top: y }); return; }
   const sd = ev.target.closest("[data-lsdel]");
