@@ -3257,10 +3257,13 @@ function taskPanel(lv) {
       ${st.ex ? `<h4>変更の例（最低限）</h4>${diffHtml(st.ex)}${st.exNote ? `<p class="note">${esc(st.exNote)}</p>` : ""}` : ""}</div>`;
   }
   const prep = steps.map((x, i) => [x, i]).filter(([x]) => x.p === true), prep2 = steps.map((x, i) => [x, i]).filter(([x]) => x.p === 2), flow = steps.map((x, i) => [x, i]).filter(([x]) => !x.p);
+  const isBranch = (x) => x.a && x.a[0] === "git" && x.a[1] === 0 && !x.b;   // ブランチを切る（コードの変更とは別の話）
+  const prepCode = T.flow ? [] : prep.filter(([x]) => !isBranch(x)), prepMain = T.flow ? prep : prep.filter(([x]) => isBranch(x));
   el.innerHTML = `<section class="tpanel" style="--t:${T.c}"><div class="dh"><span class="kind" style="--c:${T.c}">${T.flow ? "流れ" : "タスク"}</span><h2>${esc(T.t)}</h2></div><p class="note">${esc(T.note)}</p>
     ${T.routes ? `<p class="where"><b>環状線 01 で見る</b>${T.routes.map((r) => refBtn("route:" + r)).join("")}</p>` : ""}
     ${!T.flow && steps.some((x) => x.where && x.p) ? `<details class="wsum"><summary>変更が効く所の一覧（環状線・一手の流れ）</summary><table><tbody>${steps.map((x, i) => x.where && x.p ? `<tr><td><button type="button" class="btn" data-tstep="${i}">${tag(i)}. ${esc(x.label)}</button></td><td>${refsHtml(x.where)}</td></tr>` : "").join("")}</tbody></table></details>` : ""}
-    <div class="tcols">${prep.length ? `<div><h3 style="color:${PREP_C}">${T.prepTitles ? T.prepTitles[0] : T.flow ? "実行前の準備（起動するまで）" : "実行前の準備（並列・どれからでもよい）"}</h3><ol>${prep.map(([x, i]) => item(x, i)).join("")}</ol></div>` : ""}
+    <div class="tcols">${prepMain.length ? `<div><h3 style="color:${PREP_C}">${T.prepTitles ? T.prepTitles[0] : T.flow ? "実行前の準備（起動するまで）" : prepCode.length ? "準備（ブランチ。コードの変更とは別。最初に1回）" : "実行前の準備（並列・どれからでもよい）"}</h3><ol>${prepMain.map(([x, i]) => item(x, i)).join("")}</ol></div>` : ""}
+      ${prepCode.length ? `<div><h3 style="color:var(--branch)">コードの変更（パラメータ・メソッド。並列・どれからでもよい）</h3><ol>${prepCode.map(([x, i]) => item(x, i)).join("")}</ol></div>` : ""}
       ${prep2.length ? `<div><h3 style="color:var(--prep2)">${T.prepTitles[1]}</h3><ol>${prep2.map(([x, i]) => item(x, i)).join("")}</ol></div>` : ""}
       <div><h3 style="color:${T.c}">${T.flow ? "流れ（順番）" : T.outside ? "直したい所" : prep.length ? "実行の流れ（順番）" : "流れ（順番）"}</h3><ol>${flow.map(([x, i]) => item(x, i)).join("")}</ol></div></div>${body}${screenHtml(S.task, lv === "c4" ? k : null, tag)}
     ${T.related ? `<p class="note">ほかにタスク外で直したい所は、3 環状線の旗にある: ${T.related.map((id) => `<button type="button" class="btn" data-ringissue="${id}">${id} ${esc(R.issues.find((x) => x.id === id).title)}</button>`).join(" ")}</p>` : ""}
