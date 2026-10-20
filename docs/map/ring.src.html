@@ -291,7 +291,7 @@ tfoot td { font-weight: 700; }
 .c4 .box4 .row.must .l { font-weight: 800; } .c4 .mmarks { pointer-events: none; } .c4 .mmarks .mm { fill: none; stroke: var(--danger); stroke-width: 2.5; } .c4 .mmarks .mm.opt { stroke: var(--muted); stroke-width: 1.5; stroke-dasharray: 4 3; }
 .c4 .mtag { font: 800 10.5px var(--display); fill: var(--danger); paint-order: stroke; stroke: var(--panel); stroke-width: 3px; } .c4 .mtag.opt { fill: var(--muted); }
 em.must, em.opt { font-style: normal; font-size: .7rem; font-weight: 800; margin-left: 6px; padding: 0 6px; border-radius: 8px; color: #fff; background: var(--danger); vertical-align: middle; } em.opt { background: var(--muted); }
-li.must > button { box-shadow: inset 3px 0 0 var(--danger); } li.opt > button { opacity: .75; } .mustn { margin: 2px 0 6px; }
+li.must > button { box-shadow: inset 3px 0 0 var(--danger); } li.opt > button { opacity: .75; } .mustn { margin: 2px 0 6px; } h4.cfg { margin: 8px 0 2px; font-size: .8rem; color: var(--muted); border-bottom: 1px dashed var(--line); } h4.cfg small { color: var(--danger); font-weight: 800; margin-left: 4px; }
 .scr .code.term .ln.past span { opacity: .5; } .scr .code.term .ln.now { background: color-mix(in srgb, var(--t) 30%, transparent); } .scr .code.term .ln.now span { font-weight: 700; }
 .scr .code.term .typed { text-decoration: underline; text-underline-offset: 3px; margin-left: 2px; } .scr .code.term .snote span { font-style: italic; opacity: .8; }
 /* 手順を選んでいる間: 今アクティブなフロー（矢印・箱・行）以外は、全部グレーにする */
@@ -2897,6 +2897,14 @@ const PREP_C = "var(--prep)";
 // タスク A で必ず変える所（スライド p.60: player_simple.py の4つと autodealer.py の2つ）と、任意の所（スライドには無い）
 const A_MUST = ["stop_balance（勝ち逃げ）", "撤退条件を足す（全員・p.58）", "unit_bet（掛け金の単位）", "hit_threshold（hit する点）", "MAX（ゲームの回数）", "initial_balance（初期残高）"];
 for (const s of TASKS.A.c4) { if (A_MUST.includes(s.label)) s.must = true; else if (/スライドには無い/.test(s.label)) s.opt = true; }
+// コードの変更を、変えるファイルごとに分ける（変える箱が入っている枠: プレイヤーのファイル・autodealer.py・dealer.py）
+const CODE_FG = { f_lib: "players/ のファイル（player_simple.py のコピー）だけの変更", f_auto: "autodealer.py の変更（players/ の全員の結果に効く）", f_dealer: "dealer.py・player.py の変更" };
+function codeFrame(x) { const r = x.b || x.a, bx = r && C4B.find((bb) => bb.id === r[0]); return bx && !bx.band ? bx.f : "other"; }
+function codeGroups(list, item) {
+  const g = new Map(); for (const it of list) { const k = codeFrame(it[0]); if (!g.has(k)) g.set(k, []); g.get(k).push(it); }
+  if (g.size < 2) return `<ol>${list.map(([x, i]) => item(x, i)).join("")}</ol>`;
+  return [...g].map(([k, its]) => `<h4 class="cfg">${esc(CODE_FG[k] || "そのほか")}${its.some(([x]) => x.must) ? ` <small>必ず変える ${its.filter(([x]) => x.must).length}</small>` : ""}</h4><ol>${its.map(([x, i]) => item(x, i)).join("")}</ol>`).join("");
+}
 const mustBadge = (x) => (x.must ? `<em class="must">必ず変える</em>` : x.opt ? `<em class="opt">任意</em>` : "");
 function c4Steps() { const T = TASKS[S.task]; return T ? T.c4 : []; }
 // ---- 画面（ターミナル）: 流れ・タスクの手順に合わせて、その手順で画面に出る行を光らせる ----
@@ -3271,7 +3279,7 @@ function taskPanel(lv) {
     ${T.routes ? `<p class="where"><b>環状線 01 で見る</b>${T.routes.map((r) => refBtn("route:" + r)).join("")}</p>` : ""}
     ${!T.flow && steps.some((x) => x.where && x.p) ? `<details class="wsum"><summary>変更が効く所の一覧（環状線・一手の流れ）</summary><table><tbody>${steps.map((x, i) => x.where && x.p ? `<tr><td><button type="button" class="btn" data-tstep="${i}">${tag(i)}. ${esc(x.label)}</button></td><td>${refsHtml(x.where)}</td></tr>` : "").join("")}</tbody></table></details>` : ""}
     <div class="tcols">${prepMain.length ? `<div><h3 style="color:${PREP_C}">${T.prepTitles ? T.prepTitles[0] : T.flow ? "実行前の準備（起動するまで）" : prepCode.length ? "準備（ブランチ。コードの変更とは別。最初に1回）" : "実行前の準備（並列・どれからでもよい）"}</h3><ol>${prepMain.map(([x, i]) => item(x, i)).join("")}</ol></div>` : ""}
-      ${prepCode.length ? `<div><h3 style="color:var(--branch)">コードの変更（パラメータ・メソッド。並列・どれからでもよい）</h3>${prepCode.some(([x]) => x.must) ? `<p class="note mustn">「必ず変える」の ${prepCode.filter(([x]) => x.must).length} つが、このタスクで変える所（スライド p.60）。${prepCode.some(([x]) => x.opt) ? "「任意」は、変えなくてよい（変えたらレポートに書く）。" : ""}</p>` : ""}<ol>${prepCode.map(([x, i]) => item(x, i)).join("")}</ol></div>` : ""}
+      ${prepCode.length ? `<div><h3 style="color:var(--branch)">コードの変更（パラメータ・メソッド。並列・どれからでもよい）</h3>${prepCode.some(([x]) => x.must) ? `<p class="note mustn">「必ず変える」の ${prepCode.filter(([x]) => x.must).length} つが、このタスクで変える所（スライド p.60）。${prepCode.some(([x]) => x.opt) ? "「任意」は、変えなくてよい（変えたらレポートに書く）。" : ""}</p>` : ""}${codeGroups(prepCode, item)}</div>` : ""}
       ${prep2.length ? `<div><h3 style="color:var(--prep2)">${T.prepTitles[1]}</h3><ol>${prep2.map(([x, i]) => item(x, i)).join("")}</ol></div>` : ""}
       <div><h3 style="color:${T.c}">${T.flow ? "流れ（順番）" : T.outside ? "直したい所" : prep.length ? "実行の流れ（順番）" : "流れ（順番）"}</h3><ol>${flow.map(([x, i]) => item(x, i)).join("")}</ol></div></div>${body}${screenHtml(S.task, lv === "c4" ? k : null, tag)}
     ${T.related ? `<p class="note">ほかにタスク外で直したい所は、3 環状線の旗にある: ${T.related.map((id) => `<button type="button" class="btn" data-ringissue="${id}">${id} ${esc(R.issues.find((x) => x.id === id).title)}</button>`).join(" ")}</p>` : ""}
@@ -3451,13 +3459,15 @@ function drawC4() {
       svgEl("text", { class: "l", x: p.x + 12, y: y + 11 }, rg).textContent = l;
       svgEl("text", { class: "r", x: p.x + p.w - (ln && ln.st ? 30 : 12), y: y + 11, "text-anchor": "end" }, rg).textContent = r;
       if (ln && ln.st) svgEl("text", { class: "ring", x: p.x + p.w - 10, y: y + 11, "text-anchor": "end" }, rg).textContent = "◯";
-      if (mrows.has(b.id + ":" + i) || mrows.has(b.id + ":" + i + ":opt")) mmarks.push({ x: p.x + 4, y: y - 4, w: p.w - 8, opt: !mrows.has(b.id + ":" + i), copy: b.id === "simple" });
+      if (mrows.has(b.id + ":" + i) || mrows.has(b.id + ":" + i + ":opt")) mmarks.push({ x: p.x + 4, y: y - 4, w: p.w - 8, opt: !mrows.has(b.id + ":" + i), copy: b.f === "f_lib", auto: b.f === "f_auto" });
     });
   }
   root.appendChild(tg);
   if (mmarks.length) { const mg = svgEl("g", { class: "mmarks" }, root);
     for (const m of mmarks) { svgEl("rect", { x: m.x, y: m.y, width: m.w, height: RH, rx: 3, class: m.opt ? "mm opt" : "mm" }, mg);
-      svgEl("text", { class: "mtag" + (m.opt ? " opt" : ""), x: m.x - 8, y: m.y + RH - 6, "text-anchor": "end" }, mg).textContent = m.opt ? "任意" : m.copy ? "コピーで変える" : "変える"; } }
+      const tx = svgEl("text", { class: "mtag" + (m.opt ? " opt" : ""), x: m.x - 8, y: m.y + RH - 6, "text-anchor": "end" }, mg);
+      if (m.auto && !m.opt) { svgEl("tspan", { x: m.x - 8, dy: -6 }, tx).textContent = "autodealer"; svgEl("tspan", { x: m.x - 8, dy: 11 }, tx).textContent = "で変える"; }   // 溝が狭いので2行に
+      else tx.textContent = m.opt ? "任意" : m.copy ? "コピーで変える" : "変える"; } }
 }
 
 function c4Detail(level) {
