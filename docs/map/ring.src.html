@@ -273,8 +273,9 @@ tfoot td { font-weight: 700; }
 .taskbar button { border: 1.5px solid var(--c, var(--line)); background: var(--panel); color: var(--fg); border-radius: 999px; padding: 4px 12px; font: 700 .85rem var(--display); cursor: pointer; }
 .taskbar button[aria-pressed="true"] { background: var(--c, var(--fg)); color: #fff; border-color: var(--c, var(--fg)); }
 .taskbar button.none[aria-pressed="true"] { background: var(--fg); color: var(--bg); }
-.c4.tasking:not(.nodim) .box4:not(.inflow) { opacity: .32; }
-.c4.tasking:not(.nodim) .edge { opacity: .14; pointer-events: none; }
+.c4.tasking .box4:not(.inflow) { opacity: .32; }
+.c4.tasking .edge { opacity: .14; pointer-events: none; }
+.c4.nodim .box4 .row.orow rect { fill: color-mix(in srgb, var(--t) 22%, transparent); }
 .levels .dimtog, .dimtog { margin-left: 14px; border-style: dashed; } .dimtog[aria-pressed="false"] { opacity: .75; }
 .c4 .box4 .row.trow rect { fill: color-mix(in srgb, var(--t) 22%, transparent); }
 .c4 .tflow path { fill: none; stroke: var(--t); stroke-width: 3; stroke-linejoin: round; }
@@ -2925,7 +2926,7 @@ function taskBar(lv) {
   el.innerHTML = `<span class="levels-label">流れで見る</span><button type="button" class="none" data-task="" aria-pressed="${!S.task}">なし</button>` +
     Object.entries(TASKS).filter(([, t]) => t.flow).map(btn).join("") + `<span class="levels-label" style="margin-left:14px">タスクで見る</span>` +
     Object.entries(TASKS).filter(([, t]) => !t.flow).map(([k, t]) => `${t.outside ? '<span class="levels-label" style="margin-left:10px">｜</span>' : ""}<button type="button" data-task="${k}" style="--c:${t.c}" class="${t.outside ? "outside" : ""}" aria-pressed="${S.task === k}">${t.t}</button>`).join("") +
-    (S.task ? `<button type="button" class="dimtog" data-dimtog aria-pressed="${S.c4dim !== false}" title="オフにすると、選んだ流れ・手順の印はそのままで、ほかの箱や線も普通の色の強さに戻る">ほかをグレーにする: ${S.c4dim !== false ? "オン" : "オフ"}</button>` : "");
+    (S.task ? `<button type="button" class="dimtog" data-dimtog aria-pressed="${S.c4dim !== false}" title="オフにすると、このタブ（流れ・タスク）のほかの手順もグレーにせず、普通の色の強さで出す。このタブに関係しない箱・線は、オフでもグレーのまま">ほかの手順をグレーにする: ${S.c4dim !== false ? "オン" : "オフ"}</button>` : "");
 }
 // コードの抜き出し: 探した行から n 行（0 ならかたまり全部）。hl は光らせる行、ed は変える行
 function nthIndex(L, find) { // "…#2" なら2つ目に見つかった行
