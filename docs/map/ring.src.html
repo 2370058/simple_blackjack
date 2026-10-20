@@ -39,6 +39,7 @@ p { margin: 0; }
 .crumb { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; font-family: var(--display); font-size: .85rem; color: var(--muted); }
 .crumb b { background: var(--fg); color: var(--bg); border-radius: 4px; padding: 0 6px; font-size: .75rem; }
 .lead { color: var(--muted); max-width: 62ch; }
+.leadd { margin: 2px 0 8px; } .leadd > summary { cursor: pointer; color: var(--muted); font-size: .82rem; width: max-content; } .leadd[open] > summary { margin-bottom: 4px; }
 .bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 .seg { display: inline-flex; flex-wrap: wrap; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; background: var(--panel); }
 .seg button { border: 0; background: transparent; color: var(--fg); font: 600 .88rem var(--display); padding: 8px 14px; cursor: pointer; }
@@ -425,7 +426,7 @@ code.vv.yes { background: color-mix(in srgb, var(--player) 25%, transparent); } 
   </div>
   <section class="lv" data-lv="ctx" hidden>
     <h1>コンテキスト図</h1>
-    <p class="lead">C4 モデルの1段目。simple_blackjack 全体を1つの箱にして、周りの人と外部のものとのやりとりだけを描く。授業の3つのタスク（A 分析・B 戦略・C 改造）をする人も、ここでは別の人として並べる。箱や矢印を押すと、下に説明が出る。</p>
+    <details class="leadd"><summary>このページの説明</summary><p class="lead">C4 モデルの1段目。simple_blackjack 全体を1つの箱にして、周りの人と外部のものとのやりとりだけを描く。授業の3つのタスク（A 分析・B 戦略・C 改造）をする人も、ここでは別の人として並べる。箱や矢印を押すと、下に説明が出る。</p></details>
     <div class="taskbar" id="ctxbar"></div>
     <div class="map c4"><svg id="ctxmap" viewBox="0 0 1150 440" role="img" aria-label="遊ぶ人・タスク A B C の学生・授業の担当と、GitHub・Ubuntu と VS Code・Excel が、simple_blackjack とどうやりとりするかを表したコンテキスト図"></svg></div>
     <div id="ctxtask"></div>
@@ -433,9 +434,9 @@ code.vv.yes { background: color-mix(in srgb, var(--player) 25%, transparent); } 
   </section>
   <section class="lv" data-lv="c4" hidden>
     <h1>コンテナ図とコンポーネント図</h1>
-    <p class="lead">C4 モデルの2段目と3段目。点線の大きな枠がコンテナ（python3 で動かす単位と、import される部品の置き場）、中の箱がコンポーネント（ファイルや関数のまとまり）。
+    <details class="leadd"><summary>このページの説明</summary><p class="lead">C4 モデルの2段目と3段目。点線の大きな枠がコンテナ（python3 で動かす単位と、import される部品の置き場）、中の箱がコンポーネント（ファイルや関数のまとまり）。
       いちばん大事な境目は、ディーラーとプレイヤーをつなぐ <b>7つの命令</b>（start_turn・place_bet・receive_hand・look_dealer_hand・input・finish_dealer_hand・notify_result）。この形を変えると、players/ の全部のファイルが動かなくなる。
-      1ラウンドの流れは左の dealer.py の箱に1回だけ書いた。autodealer.py の game() はその流れを関数に入れたもので、箱には違う所（±）だけを書いてある（点線の枠の行が「dealer.py と同じ」）。ルールを直すときは、同じ流れが2つのファイルにあるので両方を直す。行を押すとそのコードが出る。右端に ◯ がある行は環状線に駅があり、「環状線で見る」で3段目に下りられる。</p>
+      1ラウンドの流れは左の dealer.py の箱に1回だけ書いた。autodealer.py の game() はその流れを関数に入れたもので、箱には違う所（±）だけを書いてある（点線の枠の行が「dealer.py と同じ」）。ルールを直すときは、同じ流れが2つのファイルにあるので両方を直す。行を押すとそのコードが出る。右端に ◯ がある行は環状線に駅があり、「環状線で見る」で3段目に下りられる。</p></details>
     <div class="taskbar" id="c4bar"></div>
     <div class="map c4"><svg id="c4map" viewBox="0 0 1320 1000" role="img" aria-label="dealer.py と autodealer.py の2つのプログラムが、card.py と players/ のプレイヤーを import して使い、ターミナルに入出力する構成図"></svg></div>
     <div id="c4task"></div>
@@ -444,7 +445,7 @@ code.vv.yes { background: color-mix(in srgb, var(--player) 25%, transparent); } 
   <section class="lv" data-lv="ring">
   <div class="seg" id="rings"></div>
   <h1 id="title">環状線</h1>
-  <p class="lead" id="lead"></p>
+  <details class="leadd"><summary>このページの説明</summary><p class="lead" id="lead"></p></details>
   <div class="bar">
     <div class="seg" id="modes"></div>
     <div class="seg layers" id="layers"></div>
@@ -2422,7 +2423,8 @@ document.addEventListener("input", (ev) => { if (ev.target.matches && ev.target.
   const mi = ev.target.closest && ev.target.closest("[data-mmemo]");
   if (mi) { S.mmemo = { ...(S.mmemo || {}), [mi.dataset.mmemo]: mi.value }; store.set("matMemo", S.mmemo); mi.closest(".mm").classList.toggle("empty", !mi.value.trim()); refreshLive(); return; }
   if (ev.target.matches && ev.target.matches("[data-memo]")) { tset("ideaMemo", ev.target.value); refreshLive(); } });
-document.addEventListener("toggle", (ev) => { if (ev.target.id === "pdet") store.set("paramsOpen", ev.target.open); if (ev.target.id === "stcode") store.set("stcodeOpen", ev.target.open); if (ev.target.id === "fres") store.set("fresOpen", ev.target.open); if (ev.target.id === "step3") store.set("step3Open", ev.target.open); }, true);
+document.addEventListener("toggle", (ev) => { if (ev.target.classList && ev.target.classList.contains("leadd")) { store.set("leadOpen", ev.target.open); document.querySelectorAll(".leadd").forEach((d) => { if (d !== ev.target && d.open !== ev.target.open) d.open = ev.target.open; }); }
+  if (ev.target.id === "pdet") store.set("paramsOpen", ev.target.open); if (ev.target.id === "stcode") store.set("stcodeOpen", ev.target.open); if (ev.target.id === "fres") store.set("fresOpen", ev.target.open); if (ev.target.id === "step3") store.set("step3Open", ev.target.open); }, true);
 document.addEventListener("keydown", (ev) => {
   if (S.level !== "ring" || (ev.target.closest && ev.target.closest("input,textarea"))) return;
   const el = ev.target.closest && ev.target.closest("[data-st],[data-issue]");
@@ -3573,6 +3575,7 @@ document.addEventListener("keydown", (ev) => {
 
 S.task = TASKS[store.get("task", "")] ? store.get("task", "") : null;
 render();
+document.querySelectorAll(".leadd").forEach((d) => { d.open = !!store.get("leadOpen", false); });   // このページの説明は、最初は閉じておく
 setLevel(["ctx", "c4", "ring"].includes(store.get("level", "c4")) ? store.get("level", "c4") : "c4");
 })();
 </script>
