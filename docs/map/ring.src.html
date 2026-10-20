@@ -123,6 +123,8 @@ h5.mg { margin: 8px 0 4px; font: 800 .8rem var(--display); color: var(--muted); 
   .fside .pal { position: sticky; top: 8px; bottom: auto; max-height: calc(100vh - 16px); margin: 0; }
   .pminimap { display: block; } .pstrip.r01 { display: none; }
 }
+.pexp { display: grid; gap: 2px; margin-bottom: 4px; padding: 4px 6px; border-left: 3px solid var(--player); background: color-mix(in srgb, var(--player) 8%, transparent); border-radius: 4px; font-size: .76rem; } .pexp b { color: var(--player); margin-right: 4px; } .pexp .pmore { color: var(--muted); }
+.mcard .goal { font-weight: 700; }
 .palpick { margin: 4px 0 6px; font-size: .78rem; position: sticky; top: -6px; z-index: 2; background: var(--panel); padding: 4px 0; border-bottom: 1px solid var(--line); } .palpick .pph { display: flex; flex-wrap: wrap; gap: 4px 8px; align-items: center; } .palpick .pk1 { color: var(--player); font-weight: 800; } .palpick .pk3 { color: var(--perf); font-weight: 700; }
 .pstrip { display: flex; flex-wrap: wrap; gap: 3px; align-items: center; margin-top: 3px; } .pstrip small { width: 1.8em; color: var(--muted); } .pst { display: inline-grid; place-items: center; min-width: 22px; height: 22px; padding: 0 3px; border-radius: 11px; border: 1.5px solid var(--line); font: 700 .7rem var(--mono); color: var(--muted); box-sizing: border-box; } .pst.main { background: var(--player); border-color: var(--player); color: #fff; } .pst.use { border: 2px dashed var(--player); color: var(--fg); } .pst.ctx { outline: 2px solid var(--perf); outline-offset: 1px; } .chip.picked { outline: 3px solid var(--player); outline-offset: 1px; }
 .gsearch { margin: 8px 0; flex: 1 1 100%; min-width: 0; max-width: 100%; } .gsearch .fld { width: 100%; } .gres .btn { white-space: normal; text-align: left; max-width: 100%; } .gsearch .gs-row { display: flex; gap: 6px; } .gsearch input { flex: 1; min-width: 0; } .gres { font-size: .8rem; margin-top: 4px; } .gres details { margin-top: 4px; } .gres table { width: 100%; border-collapse: collapse; } .gres td:last-child { min-width: 14em; } .gres td { vertical-align: top; padding: 2px 4px; border-top: 1px solid var(--line, #8883); word-break: break-word; }
@@ -176,7 +178,7 @@ textarea.prompt { width: 100%; box-sizing: border-box; font: .76rem/1.5 var(--mo
 .ichip.bad { background: var(--c); color: #fff; }
 .ichip.ops { background: color-mix(in srgb, var(--c) 18%, var(--panel)); }
 .ichip[aria-pressed="true"] { outline: 3px solid var(--car); outline-offset: 1px; }
-.detail { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; }
+.detail { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; } .detail > section { min-width: 0; } .scr { min-width: 0; max-width: 100%; } .scr .code { overflow-x: auto; max-width: 100%; }
 @media (max-width: 820px) { .detail { grid-template-columns: minmax(0, 1fr); } }
 .dh { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 .kind { font: 800 .75rem var(--display); color: #fff; background: var(--c); padding: 2px 8px; border-radius: 6px; }
@@ -187,7 +189,7 @@ textarea.prompt { width: 100%; box-sizing: border-box; font: .76rem/1.5 var(--mo
 .shape dd { margin: 0; }
 .cargo { display: grid; gap: 4px; font-size: .85rem; }
 .cargo div { display: flex; flex-wrap: wrap; gap: 4px 8px; align-items: center; }
-.cargo code { font-family: var(--mono); color: var(--muted); min-width: 9.5em; }
+.cargo code { font-family: var(--mono); color: var(--muted); min-width: 9.5em; } .cargo .cards.chg { padding: 2px 4px; border-radius: 6px; background: var(--hit); }
 .deal { display: inline-flex; align-items: center; gap: 2px; border-radius: 6px; padding: 1px 3px 1px 1px; }
 .deal small { font: 800 .72rem var(--display); color: #fff; border-radius: 4px; padding: 0 4px; }
 .deal.P { background: color-mix(in srgb, var(--player) 18%, transparent); } .deal.P small { background: var(--player); }
@@ -599,7 +601,7 @@ function svgMap() {
     s += `<g transform="translate(${x},${y - 22})" pointer-events="none"><path d="M0 0 V-26" stroke="var(--fg)" stroke-width="2"/><path d="M0 -26 L18 -20 0 -14z" fill="var(--car)" stroke="var(--fg)" stroke-width="1"/></g>`; }
   return s + `</svg><div class="legend"><span><i style="--c:var(--dealer)"></i>本線の駅（ディーラー）</span><span><i style="--c:var(--branch)"></i>◇ 分岐（if）</span>
     <span><i style="--c:var(--player)"></i>プレイヤーへのランプ</span><span><i style="--c:var(--deck)"></i>山札へのランプ</span><span><i style="--c:var(--calc)"></i>card.py へのランプ</span>
-    <span><i style="--c:var(--exit)"></i>点線 = 近道・出口・戻り</span>${PKany ? `<span><i style="--c:var(--player)"></i>緑の輪 = パレットで選んだ「${esc(PK.label)}」（太い = ${esc(PK.mainT)}・点線 = 名前が出てくる駅）</span>` : ""}${GHany ? `<span><i style="--c:var(--srch)"></i>青の点線の輪 = 検索に当たった駅（数字は当たった行数）</span>` : ""}${TREL ? `<span><i style="--c:${TREL.T.c}"></i>色の輪 = ${esc(TREL.T.t)} が関係する駅（駅名に添えた字は${TREL.k === "REF" ? "参考実装の名前" : TREL.k === "FIND" ? "入れる所と材料" : "手順の番号"}）</span>` : ""}<span><i style="--c:var(--car)"></i>旗 = 今データがいる駅（← → で動く）</span></div>`;
+    <span><i style="--c:var(--exit)"></i>点線 = 近道・出口・戻り</span>${PKany ? `<span><i style="--c:var(--player)"></i>緑の輪 = パレットで選んだ「${esc(PK.label)}」（太い = ${esc(PK.mainT)}・点線 = 名前が出てくる駅）</span>` : ""}${GHany ? `<span><i style="--c:var(--srch)"></i>青の点線の輪 = 検索に当たった駅（数字は当たった行数）</span>` : ""}${TREL ? `<span><i style="--c:${TREL.T.c}"></i>色の輪 = ${esc(TREL.T.t)} が関係する駅（駅名に添えた字は${TREL.k === "REF" ? "参考実装の名前" : TREL.k === "FIND" ? "入れる所・材料と、タスクの手順の番号" : "手順の番号"}）</span>` : ""}<span><i style="--c:var(--car)"></i>旗 = 今データがいる駅（← → で動く）</span></div>`;
 }
 
 // ---- 荷物（その駅に着いたときの game() の変数） ----
@@ -618,7 +620,8 @@ function cargoHtml(entry) {
   const c = entry.after || entry.cargo, p = entry.cargo, prev = !!entry.after, SK = searchKeys();
   return Object.keys(LBL).filter((k) => k in c).map((k) => {
     const v = c[k], chg = prev && JSON.stringify(p[k]) !== JSON.stringify(v), rel = SK.on && SK.cargo.has(k);
-    const val = Array.isArray(v) ? (v.length ? v.map((x, i) => cardChip(x, Array.isArray(p[k]) && i >= p[k].length)).join("") : "<span>[]</span>")
+    const grow = Array.isArray(v) && Array.isArray(p[k]) && v.length >= p[k].length && p[k].every((x, i) => v[i] === x);   // 足しただけ（引いたカード）か、作り直したか
+    const val = Array.isArray(v) ? (v.length ? `<span class="${chg && !grow ? "chg cards" : "cards"}">${v.map((x, i) => cardChip(x, chg && (!grow || i >= p[k].length))).join("")}</span>` : `<span class="${chg ? "chg" : ""}">[]</span>${chg ? " <small>（空にした・作った）</small>" : ""}`)
       : `<span class="${chg ? "chg" : ""}">${esc(typeof v === "string" ? `"${v}"` : v === true ? "True" : v === false ? "False" : v)}</span>`;
     return `<div${rel ? ' class="srch" title="検索に関係する値"' : ""}><code>${LBL[k]}</code>${val}${rel ? " <small>🔍</small>" : ""}</div>${S.showOrig ? originHtml("c", entry, k) : ""}`;
   }).join("");
@@ -767,11 +770,11 @@ function paramsHtml(e) {
   let lastG = -1, placed = false;
   const withView = (html) => { if (placed || !S.ofv || !S.ofv.startsWith("p|") || !html.includes(`data-ofv="${S.ofv}"`)) return html; placed = true;   // 押した行のすぐ下に出す
     const [, f, ln] = S.ofv.split("|"); return html + `<tr class="fnrow"><td colspan="4"><div class="ofvw" style="--t:var(--dealer)">${fnView(f, +ln, 'data-ofv=""')}</div></td></tr>`; };
-  const rows = order.map((n) => { const info = PARAMS[n] || { g: 2, t: "" }, [v, ty] = a[n], before = b && b[n], chg = before && before[0] !== v, u = used[n];
+  const rows = order.map((n) => { const info = PARAMS[n] || { g: 2, t: "" }, [v, ty] = a[n], before = b && b[n], fresh = !before && !!e.after && !(PARAMS[n] && PARAMS[n].static) && n !== "MAX" && n !== "撤退条件", chg = before ? before[0] !== v : fresh, u = used[n];
     const head = info.g !== lastG ? `<tr class="pg"><th colspan="4">${PGROUP[info.g]}</th></tr>` : ""; lastG = info.g;
     const aBtn = info.a ? taskBadges(paramTasks(info.a)) : "";
     return `${head}<tr class="${u ? "used" : ""}${info.static ? " static" : ""}${SK.param(n) ? " srch" : ""}"><td><code>${esc(n)}</code>${aBtn}</td>
-      <td><span class="${chg ? "chg" : ""}">${chg ? `${esc(before[0])} → ` : ""}<b>${esc(v)}</b></span> <small>${esc(ty)}</small></td>
+      <td><span class="${chg ? "chg" : ""}">${chg && before ? `${esc(before[0])} → ` : fresh ? "（この駅でできた）" : ""}<b>${esc(v)}</b></span> <small>${esc(ty)}</small></td>
       <td>${info.static ? `<small>このゲーム（game()）の中には無い</small><div class="pd">${refsHtml(info.refs || [])}</div>` : u ? u.map((x) => `<div class="pu"><span class="pk ${x.kind === "判定" ? "j" : x.kind === "入れた" ? "s" : ""}">${x.kind}</span>${srcLink("p", x.f, x.ln)} <code>${esc(x.t)}</code>${x.n > 1 ? ` <small>×${x.n}</small>` : ""}</div>`).join("") : `<small>この駅では使っていない</small>`}</td>
       <td><small>${esc(info.t)}</small>${defOf(n) ? `<div class="pd">置き場: ${defOf(n)}</div>` : ""}${S.showOrig && originHtml("p", e, n) ? `<div class="pd">入った所: ${originHtml("p", e, n)}</div>` : ""}</td></tr>`; }).map(withView).join("");
   const refs = (S.ring === "r01" && REFIMPL[e.id]) || [];
@@ -848,6 +851,18 @@ function calcBox(e) {
   const c = e.after || e.cargo, rows = ["player_hand", "dealer_hand"].filter((k) => Array.isArray(c[k]) && c[k].length).map((k) => `<p><code>${k}</code> ${esc(sumExplain(c[k]))}</p>`).join("");
   return `<div class="issue" style="--c:var(--calc)"><h3>点数の計算（card.Card.sum が辞書 card.vals を引く）</h3>${rows}<p><small>この駅で Card.sum を ${e.calls["Card.sum"]} 回呼んだ。辞書を引くのは関数の呼び出しではないので、実行時の呼び出しの記録には出ない（card.py 17 行）。</small></p></div>`;
 }
+// 環状線の駅の画面（ターミナル）: このルートで、ここまでに画面に出た行。この駅で出る行を光らせる
+function stationScreen(e) {
+  const P = path(), i = S.pos, r2 = S.ring === "r02", lines = [];
+  P.slice(0, i + 1).forEach((x, j) => (x.screen || []).forEach((t) => lines.push({ t, now: j === i })));
+  const kin = !r2 && DATA.dealer.screen.find((x) => x[0] === "in" && (e.id === "s3" ? /賭け金/.test(x[1]) : e.id === "s8" ? /hit or stand/.test(x[1]) : false));
+  const nowN = lines.filter((l) => l.now).length, past = lines.filter((l) => !l.now), cut = Math.max(0, past.length - 8);
+  const row = (l) => `<div class="ln${l.now ? " now" : " past"}"><i></i><s></s><span>${esc(l.t)}</span><span></span></div>`;
+  const body = (cut ? `<div class="ln past"><i></i><s></s><span>…（前に ${cut} 行）</span><span></span></div>` : "") + past.slice(cut).map(row).join("") + lines.filter((l) => l.now).map(row).join("")
+    + (kin ? `<div class="ln now"><i>⌨</i><s></s><span>${esc(kin[1])}<b class="typed">${esc(kin[2])}</b>　（dealer.py では、ここでキーボードで打つ）</span><span></span></div>` : "");
+  return `<div class="scr" style="--t:var(--dealer)"><h3>画面（ターミナル）</h3><p class="note">${r2 ? "python3 autodealer.py の画面。" : "autodealer.py の is_print = True のとき（dealer.py では print で）出る文字。"}このルートで、ここまでに出た行。${nowN || kin ? "光っている行が、この駅で出る所。" : "この駅では、画面に新しく出るものは無い。"}</p>
+    <div class="code term">${body || `<div class="ln"><i></i><s></s><span>（まだ何も出ていない${r2 ? "" : "。is_print = False のふだんは、何も出ない"}）</span><span></span></div>`}</div></div>`;
+}
 function stationDetail() {
   const P = path(), e = cur(), st = ST[e.id], prev = S.pos > 0 ? P[S.pos - 1] : null;
   const col = st.kind === "分岐" ? "var(--branch)" : st.kind === "出口" || st.kind === "入口" ? "var(--exit)" : "var(--dealer)";
@@ -863,6 +878,7 @@ function stationDetail() {
       <div class="scargo-wrap">${searchCargoBox(e)}</div><div class="h3row"><h3>旗の荷物（この駅を出るときの変数）</h3><button type="button" class="btn otog" data-origtog aria-pressed="${!!S.showOrig}">出どころのソース: ${S.showOrig ? "オン" : "オフ"}</button></div><div class="cargo">${cargoHtml(e)}</div>${S.showOrig ? originView("c") : ""}
       <p class="note">黄色 = この駅で変わった値・光るカード = この駅で増えたカード。本物の game() を流して記録した値。「出どころのソース」をオンにすると、値ごとに「←」の行が出る: その値が入った所（値が変わった直後に、直前に実行していた行）と、その行を通った駅。戻り値なら、受け取った行と、返した行の両方。行番号を押すと、その行が入っている関数の全体が出る。</p>
       ${paramsHtml(e)}
+      ${stationScreen(e)}
       <p class="stats"><span>この駅で実行した行 <b>${Object.keys(e.lines).length}</b></span><span>${S.ring === "r02" ? "game() を呼んだ回数" : "card.py を呼んだ回数"} <b>${esc(calls)}</b></span></p>
       ${calcBox(e)}
       ${issues.map(issueHtml).join("")}
@@ -1196,6 +1212,42 @@ function findPick() { const F = S.find || {}; const tm = TIMINGS.find((x) => x.i
   return { F, tm, side: side && side.none ? null : side, none: side && side.none ? side : null }; }
 // メソッド（材料の入れ物）: 駅で呼ばれるが、今は少ししか使っていない・別の使い方ができるもの。呼ばれる駅は本物の記録から出す
 // now = 今していること、room = 使っていないもの・改造の余地、can = このメソッドでできること、cross = 別ファイル・別の駅、caution = 注意
+// 材料の目的: その材料を、何のために使うか（判断・改造のどこに効くか）
+const MATGOAL = {
+  "balance（place_bet の引数）": "今の残高を見て、賭ける額と、やめる時（勝ち逃げ・撤退）を決めるため。",
+  "self.balance": "place_bet 以外（input など）でも残高を見て、残高に合わせて戦略を変えるため。",
+  "self.round": "混ぜてから何ラウンド目かで、山札の残り（出たカードの数え方）を考えるため。",
+  "self.hand": "自分の手札の点数・ソフトかを見て、hit か stand かを決めるため。",
+  "self.dealer_card": "ディーラーの表のカードの強さで、hit・stand の境目を変えるため（ベーシックストラテジー）。",
+  "self.last_dealer_hand": "前のラウンドでディーラーが開いたカードを覚えて、出たカードを数えるため。",
+  "result・bet_amount（notify_result の引数）": "勝ち負けと掛け金を受け取り、連勝・連敗や損得を数えて、次の掛け金に生かすため。",
+  "自分で足した self.…": "上の材料から作った自分の記録（連敗の数・数えたカードなど）を、メソッドどうしで受け渡すため。",
+  "player_balance": "プレイヤーの残高で、ゲームの終わり（残高 0）や精算を決めるため。",
+  "bet_amount": "掛け金が有効かを確かめ、勝ち負けで残高に足し引きするため（ダブルダウンで2倍にするなど）。",
+  "player_hand・dealer_hand": "両方の手札で、バースト・勝ち負け・ブラックジャックを決めるため。",
+  "player_choice": "プレイヤーが返した hit / stand（足すなら double など）で、次の動きを分けるため。",
+  "is_burst": "バーストしたかで、ディーラーの番を飛ばして負けにするため。",
+  "turns": "1ゲームのラウンド数を数えて、集計（ラウンド数の平均）に返すため。",
+  "deck・round（global）": "山札の残りと、混ぜてからのラウンド数で、混ぜ直す時を決めるため。",
+  "penetration": "山札をどこまで使ったら混ぜ直すかを決め、カードの数えやすさを変えるため。",
+  "__init__(balance, …)": "ゲームの初めに、プレイヤーの値（残高・自分の記録）を用意するため。",
+  "place_bet(balance)": "毎ラウンドの掛け金と、やめる時を返すため（タスク B の戦略の1つめ）。",
+  "start_turn(round)": "ラウンドの初めに、ラウンドごとの記録を用意・リセットするため。",
+  "receive_hand(hand)": "配られた・引いた手札を受け取り、判断の材料として覚えるため。",
+  "look_dealer_hand(card)": "ディーラーの表のカードを受け取り、判断の材料として覚えるため。",
+  "input(message)": "hit か stand かを返すため（タスク B の戦略の2つめ）。",
+  "finish_dealer_hand(hand)": "ディーラーが開いた手を受け取り、出たカードを覚えるため。",
+  "notify_result(result, bet_amount)": "勝ち負けを受け取り、次のラウンドの判断（掛け金など）に生かすため。",
+  "__str__()": "プレイヤーを文字にして、画面や記録に名前・残高を出すため。",
+  "game(Player)": "1ゲームの流れ（配る・聞く・精算）を変えて、ルールを改造するため。",
+  "check_shuffle()": "山札を混ぜ直す条件（デッキの数・どこまで使うか）を変えるため。",
+  "turn_end()": "ラウンドの終わりの処理（ラウンド数・混ぜ直し）を変えるため。",
+  "printx(*args)": "途中の様子を画面に出して、改造が正しく動くかを確かめるため。",
+  "Card.sum(cards)": "手札の点数の数え方（A を 1 か 11 か）を使う・変えるため。",
+  "Card.is_soft(cards)": "A を 11 と数えているか（ソフト）で、ソフト 17 などのルールを決めるため。",
+  "Card.is_blackjack(cards)": "2枚で 21 かを見て、ブラックジャックの配当などを決めるため。",
+};
+const goalOf = (m) => (m && (m.goal || MATGOAL[m.n])) || "";
 const METHODS = {
   B: [
     { n: "__init__(balance, …)", f: "players/player_simple.py", fn: "__init__", d: "ゲームの最初に1回",
@@ -1382,13 +1434,23 @@ function miniRing(P, ctx) {
   s += `<path d="M26 26 V${cy - 14}" fill="none" stroke="var(--exit)" stroke-width="1.5" stroke-dasharray="3 3"/>` + node("end", 26, 16, "終", false, true);
   return `<div class="pminimap">${s}</svg><div class="mleg">緑 = 選んだ材料（太い ● ／点線 ○）・青 = 検索・黄 = 旗・◆ = 入れる欄の駅。0 から時計回り</div></div>`;
 }
+function pickExplain(P) {   // パレットで選んだ材料の説明（目的・何か）
+  const [k, a, b, c, d] = P.pk.split("|"); let goal = "", what = "", more = "";
+  if (k === "m") { const m = matOf(findPick().F.task, a); if (m) { goal = goalOf(m); what = m.now ? `今していること: ${m.now}` : m.d || ""; more = m.now ? (m.can ? `できること: ${m.can}` : "") : m.use ? `今の使われ方: ${m.use}` : ""; } }
+  else if (k === "v") { const v = ivars()[+a]; if (v) { goal = v.logic ? `こう使いたい: ${v.logic}` : "（メモの「ロジック」に、何に使うかを書くと、ここに出る）"; what = `メモした材料（${mkLabel(v.kind)}）${v.init ? "・初期値 " + v.init : ""}`; } }
+  else if (k === "c") { const m = [...(MATS[findPick().F.task] || []), ...(METHODS[findPick().F.task] || [])].find((x) => tokensOf(x.n).includes(c));
+    goal = m ? goalOf(m) : ""; what = `${d}（${a}:${b}）。${(LOF(a)[+b - 1] || "").trim().slice(0, 70)}`; }
+  else if (k === "f") { what = `ファイル ${a}（${(SRC[a] || []).length} 行）`; goal = a === FTASK[findPick().F.task].f ? "このタスクで書き換えるファイル。" : "読むだけのファイル（このタスクでは変えない）。"; }
+  if (!goal && !what) return "";
+  return `<div class="pexp">${goal ? `<div><b>目的</b> ${esc(goal)}</div>` : ""}${what ? `<div><b>何か</b> ${esc(what)}</div>` : ""}${more ? `<div class="pmore">${esc(more)}</div>` : ""}</div>`;
+}
 function palPickHtml() {
   const ctx0 = palCtxStation();
   if (!S.palPick) return `<div class="palpick"><small>材料を押すと、その駅が光る（ここの図と、環状線の図）</small>${miniRing(null, ctx0)}</div>`;
   const P = pickData(S.palPick), ctx = ctx0;
   const dot = (id) => { const c = P.main.includes(id) ? "main" : P.use.includes(id) ? "use" : "";
     return `<span class="pst ${c}${id === ctx ? " ctx" : ""}" title="駅 ${esc(dn(id))}「${esc(stTitle(id))}」${c === "main" ? "・" + esc(P.mainT) : c === "use" ? "・名前が出てくる" : ""}${id === ctx ? "・入れる欄の駅" : ""}">${esc(id === "end" || id === "r02:end" ? "終" : dn(id).replace("02-", ""))}</span>`; };
-  return `<div class="palpick"><div class="pph"><b>${esc(P.label)}</b><span class="pk1">● ${esc(P.mainT || "—")}: ${P.main.map((x) => "駅 " + esc(dn(x))).join("・") || "なし"}</span><span>○ 名前が出てくる駅: ${P.use.length ? P.use.map((x) => esc(dn(x))).join("・") : P.tok ? "ほかに無い" : "—"}</span>${ctx ? `<span class="pk3">◆ 入れる欄の駅 ${esc(dn(ctx))}${P.main.includes(ctx) ? "（●に入っている）" : ""}</span>` : ""}<button type="button" class="btn sb" data-pickmap>図で見る</button><button type="button" class="btn sb" data-pickclear>× 外す</button></div>
+  return `<div class="palpick">${pickExplain(P)}<div class="pph"><b>${esc(P.label)}</b><span class="pk1">● ${esc(P.mainT || "—")}: ${P.main.map((x) => "駅 " + esc(dn(x))).join("・") || "なし"}</span><span>○ 名前が出てくる駅: ${P.use.length ? P.use.map((x) => esc(dn(x))).join("・") : P.tok ? "ほかに無い" : "—"}</span>${ctx ? `<span class="pk3">◆ 入れる欄の駅 ${esc(dn(ctx))}${P.main.includes(ctx) ? "（●に入っている）" : ""}</span>` : ""}<button type="button" class="btn sb" data-pickmap>図で見る</button><button type="button" class="btn sb" data-pickclear>× 外す</button></div>
     ${miniRing(P, ctx)}<div class="pstrip r01"><small>01</small>${R1L.map((x) => dot(x.id)).join("")}${dot("end")}</div><div class="pstrip r02"><small>02</small>${R2L.map((x) => dot("r02:" + x.id)).join("")}${dot("r02:end")}</div></div>`;
 }
 function refreshPick() {
@@ -1438,13 +1500,15 @@ function findRel() {
   const { F, side } = findPick(), st = {}, add = (id, x) => (st[id] = st[id] || []).push(x);
   if (side && S.ring === "r01") { add(side.st, { n: "ここに入れる", kind: "発火" });
     for (const n of (F.mats || [])) { const m = matOf(F.task, n); if (!m) continue; const at = m.now ? methodStations(m).filter((x) => x !== side.st)[0] : m.st; if (at && at !== side.st) add(at, { n: "材料: " + n.split(/[（(]/)[0], kind: "材料" }); } }
+  if (F.task && TASKS[F.task]) { const R0 = taskRel(F.task), T0 = TASKS[F.task];   // タスク B・C を選んだときと同じ位置（手順の番号）
+    for (const [id, list] of Object.entries(R0.st)) add(id, { n: `${F.task} ${list.map((x) => stepTag(T0.c4, x.i, T0)).join("・")}`, kind: "タスク" }); }
   const edits = side ? [[FTASK[F.task].f, side.at]] : [];
   return { st, routes: new Set(), edits, T: { t: "置き場所", c: FIND_C, c4: [] }, k: "FIND" };
 }
 function methodCard(task, m, side) {
   const sts = methodStations(m), r = defRange(m.f, m.fn), here = side && sts.includes(side.st);
   return `<div class="mcard meth"><div class="mh"><code>${esc(m.n)}</code><small>${esc(m.f)}</small>${side ? (here ? `<em class="ok">この駅で呼ばれる</em>` : `<em class="oth">別の駅で呼ばれる（そこで覚えて、この駅で使う）</em>`) : ""}</div>
-    <dl><dt>定義</dt><dd>${r ? `${srcLink("m", m.f, r.from)} <code>${esc((SRC[m.f] || [])[r.from - 1].trim())}</code>` : "—"}</dd>
+    <dl>${goalOf(m) ? `<dt>目的（何に使う）</dt><dd class="goal">${esc(goalOf(m))}</dd>` : ""}<dt>定義</dt><dd>${r ? `${srcLink("m", m.f, r.from)} <code>${esc((SRC[m.f] || [])[r.from - 1].trim())}</code>` : "—"}</dd>
       <dt>呼ばれる駅</dt><dd>${sts.length ? sts.map((x) => `<button type="button" class="btn sb" data-tst="${x}">駅 ${dn(x)}. ${esc(US[x].title)}</button>`).join(" ") : "<small>今のルートでは呼ばれない</small>"}</dd>
       <dt>今していること</dt><dd>${esc(m.now)}</dd><dt>使っていない・改造の余地</dt><dd>${esc(m.room)}</dd><dt>このメソッドでできること</dt><dd>${esc(m.can)}</dd>
       <dt>別ファイル・別の駅</dt><dd>${esc(m.cross)}</dd><dt>注意</dt><dd>${esc(m.caution)}</dd></dl></div>`;
@@ -1453,7 +1517,7 @@ function matCard(task, m, side) {
   if (m.now) return methodCard(task, m, side);
   const ok = matOk(m, side), uses = matUses(task, m);
   return `<div class="mcard${ok === false ? " ng" : ""}"><div class="mh"><code>${esc(m.n)}</code><button type="button" class="btn sb" data-tst="${m.st}">駅 ${dn(m.st)}. ${esc(US[m.st].title)} から</button>${ok === false ? `<em>この駅ではまだ無い${m.arg ? `（引数なので駅 ${dn(m.st)} の中だけ）` : ""}</em>` : ok ? "<em class=\"ok\">この駅で使える</em>" : ""}</div>
-    <dl><dt>今どこにあるか</dt><dd>${esc(m.def)}</dd>
+    <dl>${goalOf(m) ? `<dt>目的（何に使う）</dt><dd class="goal">${esc(goalOf(m))}</dd>` : ""}<dt>今どこにあるか</dt><dd>${esc(m.def)}</dd>
       <dt>今の使われ方</dt><dd>${esc(m.use)}${uses.length ? `<ul class="uses">${uses.map((u) => `<li><span class="pk ${u.kind === "判定" ? "j" : u.kind === "代入" ? "s" : ""}">${u.kind}</span>${srcLink("m", u.f, u.ln)} <code>${esc(u.t)}</code>${u.st ? ` <button type="button" class="btn sb" data-tst="${u.st}">駅 ${dn(u.st)}</button>` : " <small>（今のルートでは通らない）</small>"}</li>`).join("")}</ul>` : ""}</dd>
       <dt>外す・無効にする</dt><dd>${esc(m.off)}</dd><dt>置き換え</dt><dd>${esc(m.alt)}</dd><dt>併せて使う</dt><dd>${esc(m.combo)}</dd>
       <dt>変えると（今の駅のロジック）</dt><dd>${esc(m.change)}</dd><dt>変える順番</dt><dd><ol>${m.order.map((o) => `<li>${esc(o)}</li>`).join("")}</ol></dd></dl></div>`;
@@ -1894,8 +1958,8 @@ function matLines(task, m, st) {
   const mm = ((S.mmemo || {})[m.n] || "").trim(), o = [], a = st ? availAt(m, st) : null;
   const where = a == null ? "" : a === true || a === "call" ? `・駅 ${dn(st)} で使える` : a === "other" ? `・駅 ${dn(st)} では呼ばれない（別の駅: ${methodStations(m).map((x) => dn(x)).join("・")}）` : `・駅 ${dn(st)} ではまだ無い`;
   if (m.now) { const ss = methodStations(m);
-    o.push(`- ${m.f} ${m.n}（${ss.length ? "駅 " + ss.map((x) => dn(x)).join("・") + " で呼ばれる" : "今のルートでは呼ばれない"}${where}）`, ...(mm ? [`  - 使いたいこと: ${mm}`] : []), `  - 今していること: ${m.now}`, `  - 使っていない・余地: ${m.room}`, `  - できること: ${m.can}`, `  - 別ファイル・別の駅: ${m.cross}`); }
-  else { o.push(`- ${m.n}（駅 ${dn(m.st)} から${where}）`, ...(mm ? [`  - 使いたいこと: ${mm}`] : []), `  - 今どこにある: ${m.def}`, `  - 今の使われ方: ${m.use}`);
+    o.push(`- ${m.f} ${m.n}（${ss.length ? "駅 " + ss.map((x) => dn(x)).join("・") + " で呼ばれる" : "今のルートでは呼ばれない"}${where}）`, ...(goalOf(m) ? [`  - 目的: ${goalOf(m)}`] : []), ...(mm ? [`  - 使いたいこと: ${mm}`] : []), `  - 今していること: ${m.now}`, `  - 使っていない・余地: ${m.room}`, `  - できること: ${m.can}`, `  - 別ファイル・別の駅: ${m.cross}`); }
+  else { o.push(`- ${m.n}（駅 ${dn(m.st)} から${where}）`, ...(goalOf(m) ? [`  - 目的: ${goalOf(m)}`] : []), ...(mm ? [`  - 使いたいこと: ${mm}`] : []), `  - 今どこにある: ${m.def}`, `  - 今の使われ方: ${m.use}`);
     for (const u of matUses(task, m).slice(0, 3)) o.push(`    - ${u.kind}: ${u.f}:${u.ln} \`${u.t}\``);
     o.push(`  - 置き換え: ${m.alt}`, `  - 変えると: ${m.change}`); }
   return o;

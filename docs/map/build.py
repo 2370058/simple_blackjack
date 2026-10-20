@@ -188,6 +188,8 @@ def run_route(ad, simple, card_mod, route, stations):
             if up is not None:
                 key = f"{modname(files[up.f_code.co_filename])}.{up.f_code.co_qualname}:{up.f_lineno} -> {modname(f)}.{fr.f_code.co_qualname}"
                 edges[key] = edges.get(key, 0) + 1
+        if ev == 'call' and f == 'autodealer.py' and fr.f_code.co_name == 'printx' and cur is not None:   # 画面: is_print = True なら出る文字（print と同じく空白でつなぐ）
+            cur.setdefault('screen', []).extend(' '.join(str(a) for a in fr.f_locals['args']).split('\n'))
         if ev == 'call' and f == 'card.py' and fr.f_code.co_name in ('sum', 'is_soft', 'is_blackjack'):
             name = 'Card.' + fr.f_code.co_name
             calls[name] = calls.get(name, 0) + 1
@@ -339,6 +341,7 @@ def trace_main(ring2) -> dict:
             if ln in begin and (cur is None or cur['id'] != begin[ln]):
                 if cur is not None:
                     cur['after'] = snap(fr.f_globals)
+                    grab(cur)
                 cur = {'id': begin[ln], 'lines': {}, 'cargo': snap(fr.f_globals)}
                 path.append(cur)
             if cur is not None:
@@ -346,7 +349,13 @@ def trace_main(ring2) -> dict:
                 cur['lines'][key] = cur['lines'].get(key, 0) + 1
         return tracer
     g = {'__name__': '__main__', '__file__': pf}
-    out, here = io.StringIO(), os.getcwd()
+    out, here, pos = io.StringIO(), os.getcwd(), [0]
+
+    def grab(st):   # 画面: この駅のあいだに print された行
+        text = out.getvalue()[pos[0]:]
+        pos[0] += len(text)
+        if text:
+            st.setdefault('screen', []).extend(text.splitlines())
     random.seed(7)
     os.chdir(REPO)
     try:
@@ -360,6 +369,7 @@ def trace_main(ring2) -> dict:
         os.chdir(here)
     if cur is not None:
         cur['after'] = snap(g)
+        grab(cur)
     path.append({'id': 'end', 'lines': {}, 'cargo': snap(g)})
     return {'path': path, 'calls': {}, 'result': [0, 0], 'stdout': out.getvalue()}
 
