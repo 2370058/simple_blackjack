@@ -92,6 +92,7 @@ button:focus-visible, [tabindex]:focus-visible { outline: 3px solid var(--car); 
 .mat code { font: 700 .78rem var(--mono); } .mat small { color: var(--muted); font-size: .72rem; } .mat em { color: var(--danger); font-style: normal; font-size: .72rem; font-weight: 700; }
 .mat[aria-pressed="true"] { border-color: var(--t); box-shadow: 0 0 0 2px var(--t); } .mat.ng { opacity: .75; }
 .fres { border: 2px solid var(--t); border-radius: 10px; padding: 8px 10px; margin: 8px 0; } .fres.ng { border-color: var(--danger); } .fres h4 { margin: 0 0 6px; }
+details.fres > summary { cursor: pointer; list-style: none; } details.fres > summary::-webkit-details-marker { display: none; } details.fres > summary h4 { display: inline; } details.fres > summary::before { content: "▶ "; color: var(--muted); } details.fres[open] > summary::before { content: "▼ "; } details.fres:not([open]) > summary h4 { margin: 0; } details.fres > summary small { font-weight: 500; color: var(--muted); }
 .ftab { border-collapse: collapse; width: 100%; font-size: .84rem; } .ftab th, .ftab td { border-top: 1px solid var(--line); padding: 5px 6px; text-align: left; vertical-align: top; } .ftab th { white-space: nowrap; font: 800 .8rem var(--display); }
 .ftab code { font-family: var(--mono); font-size: .78rem; overflow-wrap: anywhere; } .ftab small { color: var(--muted); } .ftab tr.cur td { background: color-mix(in srgb, var(--t) 14%, transparent); }
 .ftab .ok { color: var(--player); font-weight: 700; } .ftab .oth { color: var(--perf); font-weight: 700; } .ftab .ng { color: var(--danger); font-weight: 700; }
@@ -2166,9 +2167,9 @@ function findPanel(bar) {
     const bad = (F.mats || []).filter((n) => { const m = matOf(F.task, n); return m && matOk(m, side) === false; });
     const used = FS[side.st] || {}, refs = REFIMPL[side.st] || [], rel = taskRel(F.task).st[side.st] || [];
     const exRef = F.ex != null && FIND_EX[F.ex] ? refs.find((x) => x.n === FIND_EX[F.ex].ref) : null;
-    result = `<div class="fres"><h4>置き場所</h4><table class="ftab"><tbody>
+    result = `<details class="fres" id="fres"${store.get("fresOpen", true) ? " open" : ""}><summary><h4>置き場所 <small>駅 ${esc(dn(side.st))}「${esc(US[side.st].title)}」・${esc(editName(F.task))} の ${esc(side.fn)}</small></h4></summary><table class="ftab"><tbody>
       <tr><th>駅</th><td><button type="button" class="btn" data-tst="${side.st}">${dn(side.st)}. ${esc(US[side.st].title)}</button></td></tr>
-      <tr><th>ファイル</th><td><code>${esc(f)}</code></td></tr>
+      <tr><th>ファイル</th><td><code>${esc(editName(F.task))}</code>${FTASK[F.task].copy ? ` <small>（${esc(f)} をコピーしたもの。原本は残す）</small>` : ""}</td></tr>
       <tr><th>関数</th><td><code>${esc(side.fn)}</code> <small>${esc(side.how)}</small></td></tr>
       <tr><th>入れる行</th><td>${i < 0 ? "（見つからない）" : `${srcLink("f", f, i + 1)} <code>${esc(L[i].trim())}</code> <small>の前後（行番号を押すと関数の全体）</small>`}</td></tr>
       <tr><th>材料</th><td>${(F.mats || []).length ? (F.mats || []).map((m) => { const o = matOf(F.task, m), other = o && o.now && matOk(o, side) === "other";
@@ -2177,7 +2178,7 @@ function findPanel(bar) {
       ${refs.length ? `<tr><th>この駅の参考実装</th><td>${refs.map((x) => `<button type="button" class="btn rfb" data-refgo="${esc(x.n)}" data-tst="${side.st}">${esc(x.n)}</button>`).join(" ")}</td></tr>` : ""}
       ${rel.length ? `<tr><th>タスク ${F.task} の手順</th><td>${rel.map((x) => `<button type="button" class="btn" data-goflow="${F.task}:${x.i}">${stepTag(TASKS[F.task].c4, x.i, TASKS[F.task])}. ${esc(TASKS[F.task].c4[x.i].label)}</button>`).join(" ")}</td></tr>` : ""}
       </tbody></table>${originView("f")}
-      ${exRef ? `<div class="exans"><h4>この例の答え（参考実装 ${esc(exRef.n)}）</h4>${REFLOGIC[exRef.n] ? `<ol>${REFLOGIC[exRef.n].how.map((h) => `<li>${esc(h)}</li>`).join("")}</ol>` : ""}${diffHtml(exRef.ex)}</div>` : ""}</div>`; }
+      ${exRef ? `<div class="exans"><h4>この例の答え（参考実装 ${esc(exRef.n)}）</h4>${REFLOGIC[exRef.n] ? `<ol>${REFLOGIC[exRef.n].how.map((h) => `<li>${esc(h)}</li>`).join("")}</ol>` : ""}${diffHtml(exRef.ex)}</div>` : ""}</details>`; }
   const sel = (F.mats || []).map((n) => matOf(F.task, n)).filter(Boolean);
   let placed = false;   // 押したコードの関数の全体は、そのカードの中に出す
   const card = (m) => { const h = matCard(F.task, m, side); if (placed || !S.ofv || !S.ofv.startsWith("m|") || !h.includes(`data-ofv="${S.ofv}"`)) return h; placed = true;
@@ -2371,7 +2372,7 @@ document.addEventListener("input", (ev) => { if (ev.target.matches && ev.target.
   const mi = ev.target.closest && ev.target.closest("[data-mmemo]");
   if (mi) { S.mmemo = { ...(S.mmemo || {}), [mi.dataset.mmemo]: mi.value }; store.set("matMemo", S.mmemo); mi.closest(".mm").classList.toggle("empty", !mi.value.trim()); refreshLive(); return; }
   if (ev.target.matches && ev.target.matches("[data-memo]")) { tset("ideaMemo", ev.target.value); refreshLive(); } });
-document.addEventListener("toggle", (ev) => { if (ev.target.id === "pdet") store.set("paramsOpen", ev.target.open); if (ev.target.id === "stcode") store.set("stcodeOpen", ev.target.open); }, true);
+document.addEventListener("toggle", (ev) => { if (ev.target.id === "pdet") store.set("paramsOpen", ev.target.open); if (ev.target.id === "stcode") store.set("stcodeOpen", ev.target.open); if (ev.target.id === "fres") store.set("fresOpen", ev.target.open); }, true);
 document.addEventListener("keydown", (ev) => {
   if (S.level !== "ring" || (ev.target.closest && ev.target.closest("input,textarea"))) return;
   const el = ev.target.closest && ev.target.closest("[data-st],[data-issue]");
