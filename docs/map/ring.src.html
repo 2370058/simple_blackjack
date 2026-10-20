@@ -275,6 +275,11 @@ tfoot td { font-weight: 700; }
 .c4 .tflow.dim path { stroke-opacity: .35; }
 .c4 .tflow.cur path { stroke-width: 5; }
 .c4 .tflow.hl path { stroke-dasharray: 3 4; }
+/* 手順を選んでいる間: 今アクティブなフロー（矢印・箱・行）以外は、全部グレーにする */
+.c4.stepping .box4:not(.curflow) { opacity: .3; filter: grayscale(1); }
+.c4.stepping .tflow.dim { opacity: .3; filter: grayscale(1); }
+.c4.stepping .frame, .c4.stepping .ft { filter: grayscale(1); opacity: .55; }
+.c4 .box4 .row.orow rect { fill: color-mix(in srgb, var(--muted) 16%, transparent); }
 .c4 .tbadge { cursor: pointer; }
 .c4 .tbadge circle { fill: var(--t); stroke: var(--panel); stroke-width: 2.5; }
 .c4 .tbadge.cur circle { stroke: var(--fg); stroke-width: 3; }
@@ -3107,11 +3112,12 @@ function drawCtx() {
     svgEl("path", { d: `M${x1 + nx} ${y1 + ny} L${x2 + nx} ${y2 + ny}`, "marker-end": "url(#ahx)" }, g);
     svgEl("text", { x: (x1 + x2) / 2 + nx * 2 + dx, y: (y1 + y2) / 2 + ny * 2 + dy, "text-anchor": "middle" }, g).textContent = label;
   }
-  const T = TASKS[S.task], inflow = new Set(), tg = svgEl("g", {}, root);
-  root.parentElement.classList.toggle("tasking", !!T);
+  const T = TASKS[S.task], inflow = new Set(), cbox = new Set(), tg = svgEl("g", {}, root);
+  const cur = T && S.tstep != null ? T.ctx[S.tstep] : null;   // 今アクティブなフロー（手順）。ほかは全部グレーにする
+  root.parentElement.classList.toggle("tasking", !!T); root.parentElement.classList.toggle("stepping", !!cur);
   if (T) {
     root.style.setProperty("--t", T.c); arrowDefs(root, "aht", "tah", 14);
-    T.ctx.forEach(([a, b], i) => { inflow.add(a); if (b) inflow.add(b);
+    T.ctx.forEach(([a, b], i) => { inflow.add(a); if (b) inflow.add(b); if (T.ctx[i] === cur) { cbox.add(a); if (b) cbox.add(b); }
       const A = B[a], Z = B[b];
       let [x1, y1] = clip(A, Z.x + Z.w / 2, Z.y + Z.h / 2), [x2, y2] = clip(Z, A.x + A.w / 2, A.y + A.h / 2);
       const len = Math.hypot(x2 - x1, y2 - y1) || 1, nx = -(y2 - y1) / len * 14, ny = (x2 - x1) / len * 14;
@@ -3121,7 +3127,7 @@ function drawCtx() {
   }
   root.appendChild(tg);
   for (const b of CTX) {
-    const g = svgEl("g", { class: `box4 ${b.kind}${S.c4pick === b.id ? " on" : ""}${inflow.has(b.id) ? " inflow" : ""}`, "data-c4": b.id, tabindex: 0, role: "button", style: `--c:${C4K[b.kind].c}` }, bg);
+    const g = svgEl("g", { class: `box4 ${b.kind}${S.c4pick === b.id ? " on" : ""}${inflow.has(b.id) ? " inflow" : ""}${cbox.has(b.id) ? " curflow" : ""}`, "data-c4": b.id, tabindex: 0, role: "button", style: `--c:${C4K[b.kind].c}` }, bg);
     svgEl("rect", { class: "body", x: b.x, y: b.y, width: b.w, height: b.h, rx: b.kind === "person" ? 30 : 8 }, g);
     svgEl("text", { class: "t", x: b.x + 16, y: b.y + (b.kind === "sys" ? 40 : 30) }, g).textContent = b.title;
     svgEl("text", { class: "sub", x: b.x + 16, y: b.y + (b.kind === "sys" ? 62 : 51) }, g).textContent = b.sub;
@@ -3188,13 +3194,14 @@ function drawC4() {
     svgEl("path", { d: r.d, "marker-end": "url(#ahk)" }, g);
     svgEl("text", { x: r.lx, y: r.ly, "text-anchor": r.anchor }, g).textContent = label;
   }
-  const T = TASKS[S.task], inflow = new Set(), trows = new Set(), tg = svgEl("g", {}, root);
-  root.parentElement.classList.toggle("tasking", !!T);
+  const T = TASKS[S.task], inflow = new Set(), trows = new Set(), orows = new Set(), cbox = new Set(), tg = svgEl("g", {}, root);
+  const cur = T && S.tstep != null ? T.c4[S.tstep] : null;   // 今アクティブなフロー（手順）。ほかは全部グレーにする
+  root.parentElement.classList.toggle("tasking", !!T); root.parentElement.classList.toggle("stepping", !!cur);
   if (T) {
     root.style.setProperty("--t", T.c); arrowDefs(root, "aht", "tah", 14);
     arrowDefs(root, "ahp", "tahp", 14); arrowDefs(root, "ahq", "tahq", 14);
     T.c4.forEach((st, i) => { const { a, b } = st, tag = stepTag(T.c4, i);
-      for (const x of [a, b]) if (x) { inflow.add(x[0]); if (x[1] >= 0) trows.add(x[0] + ":" + x[1] + (st.p ? ":p" : "")); }
+      for (const x of [a, b]) if (x) { inflow.add(x[0]); if (st === cur) cbox.add(x[0]); if (x[1] >= 0) (!cur || st === cur ? trows : orows).add(x[0] + ":" + x[1] + (st.p ? ":p" : "")); }
       const g = svgEl("g", { class: flowCls(i) + (st.p === 2 ? " prep2" : st.p ? " prep" : "") }, tg);
       if (st.p && b && pos[a[0]].band) { const r = route(a[0], a[1], b[0], b[1], 6 + i * 7);   // 準備の帯から、書き換える行へ
         svgEl("path", { d: `M${pos[a[0]].x + 2} ${rowY(pos[a[0]], a[1]) - 9} V${rowY(pos[a[0]], a[1]) + 9}`, "stroke-width": 6 }, g);
@@ -3208,12 +3215,12 @@ function drawC4() {
     });
   }
   for (const b of C4B) {
-    const p = pos[b.id], g = svgEl("g", { class: `box4${b.band ? " band" : ""}${b.mine ? " mine" : ""}${S.c4pick === b.id ? " on" : ""}${inflow.has(b.id) ? " inflow" : ""}`, "data-c4": b.id, tabindex: 0, role: "button", style: `--c:${b.c}` }, bg);
+    const p = pos[b.id], g = svgEl("g", { class: `box4${b.band ? " band" : ""}${b.mine ? " mine" : ""}${S.c4pick === b.id ? " on" : ""}${inflow.has(b.id) ? " inflow" : ""}${cbox.has(b.id) ? " curflow" : ""}`, "data-c4": b.id, tabindex: 0, role: "button", style: `--c:${b.c}` }, bg);
     svgEl("rect", { class: "body", x: p.x, y: p.y, width: p.w, height: p.h, rx: 8 }, g);
     svgEl("text", { class: "tm", x: p.x + 12, y: p.y + 22 }, g).textContent = b.title;
     svgEl("text", { class: "tag", x: p.x + p.w - 12, y: p.y + 22, "text-anchor": "end" }, g).textContent = b.tag;
     b.rows.forEach(([l, r, ln], i) => {
-      const y = p.y + HEAD + i * RH, rg = svgEl("g", { class: "row" + (S.c4pick === b.id && S.c4row === i ? " on" : "") + (trows.has(b.id + ":" + i) ? " trow" : "") + (trows.has(b.id + ":" + i + ":p") ? " trow prow" : ""), "data-c4": b.id, "data-row": i, style: T ? `--t:${T.c}` : "" }, g);
+      const y = p.y + HEAD + i * RH, rg = svgEl("g", { class: "row" + (S.c4pick === b.id && S.c4row === i ? " on" : "") + (trows.has(b.id + ":" + i) ? " trow" : "") + (trows.has(b.id + ":" + i + ":p") ? " trow prow" : "") + (orows.has(b.id + ":" + i) || orows.has(b.id + ":" + i + ":p") ? " orow" : ""), "data-c4": b.id, "data-row": i, style: T ? `--t:${T.c}` : "" }, g);
       svgEl("rect", { x: p.x + 4, y: y - 4, width: p.w - 8, height: RH }, rg);
       if (ln && ln.same) svgEl("rect", { class: "samebox", x: p.x + 6, y: y - 3, width: p.w - 12, height: RH - 2, rx: 4 }, rg);   // dealer.py の流れが中に入っている
       if (ln && ln.diff) svgEl("text", { class: "dmark", x: p.x + 3, y: y + 11 }, rg).textContent = "±";
