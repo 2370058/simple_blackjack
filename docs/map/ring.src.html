@@ -150,7 +150,8 @@ h5.mg { margin: 8px 0 4px; font: 800 .8rem var(--display); color: var(--muted); 
 .cunits { display: grid; grid-template-columns: 1fr auto; gap: 2px 8px; align-items: center; margin: 6px 0; } .cunits .chk { margin: 0; }
 .ftab td div small { color: var(--muted); }
 .chapters { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 10px; margin: 8px 0; }
-.cg { border: 1px solid var(--line); border-radius: 10px; padding: 6px 10px; background: var(--panel); min-width: 0; } .cg > b { font: 800 .82rem var(--display); margin-right: 8px; }
+.cg { border: 1px solid var(--line); border-radius: 10px; padding: 6px 10px; background: var(--panel); min-width: 0; overflow-x: auto; } .cg > b { font: 800 .82rem var(--display); margin-right: 8px; }
+.cg .chk { display: flex; flex-wrap: nowrap; align-items: center; gap: 6px; white-space: nowrap; width: max-content; min-width: 100%; box-sizing: border-box; } .cg .chk span { white-space: nowrap; } .cg .chk small { margin-left: auto; padding-left: 10px; white-space: nowrap; }
 .cbtns { float: right; display: inline-flex; gap: 4px; } .chk { display: flex; flex-wrap: wrap; gap: 2px 6px; align-items: baseline; font-size: .82rem; margin: 3px 0; cursor: pointer; clear: both; } .chk input { margin-right: 2px; } .chk small { color: var(--muted); margin-left: auto; }
 .pfd { margin: 6px 0; } .pfd > summary small.sumline { display: block; color: var(--muted); font-weight: 400; margin-top: 2px; overflow-wrap: anywhere; }
 .pfiles { min-width: 520px; } .pfiles td.why { max-width: 280px; } .whyl { overflow-x: auto; white-space: nowrap; max-width: 260px; padding-bottom: 2px; } .pfiles .seg { flex-wrap: nowrap; } .pfiles .seg button { white-space: nowrap; } .pfiles td { vertical-align: top; } .pfiles .btn { white-space: nowrap; } .pfiles td:last-child { min-width: 9em; } .pfiles td:first-child { white-space: nowrap; }
@@ -178,6 +179,8 @@ textarea.prompt { width: 100%; box-sizing: border-box; font: .76rem/1.5 var(--mo
 .ichip.bad { background: var(--c); color: #fff; }
 .ichip.ops { background: color-mix(in srgb, var(--c) 18%, var(--panel)); }
 .ichip[aria-pressed="true"] { outline: 3px solid var(--car); outline-offset: 1px; }
+.stcode { min-width: 0; max-width: 100%; } .stcode .code { max-width: 100%; overflow-x: auto; } .stcode > summary { cursor: pointer; list-style: none; } .stcode > summary::-webkit-details-marker { display: none; } .stcode > summary h2 { display: inline; } .stcode > summary::before { content: "▶ "; color: var(--muted); } .stcode[open] > summary::before { content: "▼ "; }
+.exlog { margin: 6px 0; padding: 6px 8px; border: 1px dashed var(--line); border-radius: 10px; } .exlog details { margin: 4px 0; } .exlog summary { cursor: pointer; font-size: .82rem; } .exlog .code { max-width: 100%; overflow-x: auto; font-size: .76rem; }
 .detail { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; } .detail > section { min-width: 0; } .scr { min-width: 0; max-width: 100%; } .scr .code { overflow-x: auto; max-width: 100%; }
 @media (max-width: 820px) { .detail { grid-template-columns: minmax(0, 1fr); } }
 .dh { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
@@ -465,7 +468,7 @@ const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&l
 
 const store = { get(k, d) { try { const v = localStorage.getItem("bjmap:" + k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } },
   set(k, v) { try { localStorage.setItem("bjmap:" + k, JSON.stringify(v)); } catch (e) { /* 保存できなくても動く */ } } };
-const S = { kopen: new Set(), fnview: null, ofv: null, showOrig: store.get("showOrig", false), showRef: store.get("showRef", false), showMat: store.get("showMat", false), pcode: store.get("pcode", "paste") === "upload" ? "pick" : store.get("pcode", "paste"), pfiles: store.get("pfiles", {}), psec: store.get("psec", {}), mmemo: store.get("matMemo", {}), airole: store.get("airole", null), cu: store.get("cu", {}), cuCode: store.get("cuCode", false), route: store.get("route", "main"), pos: 0, mode: store.get("mode", "drive"),
+const S = { kopen: new Set(), fnview: null, ofv: null, showOrig: store.get("showOrig", false), showRef: store.get("showRef", false), showMat: store.get("showMat", false), showExist: store.get("showExist", false), pcode: store.get("pcode", "paste") === "upload" ? "pick" : store.get("pcode", "paste"), pfiles: store.get("pfiles", {}), psec: store.get("psec", {}), mmemo: store.get("matMemo", {}), airole: store.get("airole", null), cu: store.get("cu", {}), cuCode: store.get("cuCode", false), route: store.get("route", "main"), pos: 0, mode: store.get("mode", "drive"),
   rtask: store.get("rtask", null), find: store.get("find", {}), layers: store.get("layers2", { "緊急": false, "悪意": false, "速さ": false }), c4dim: store.get("c4dim", true), issue: null, role: null, timer: null };
 S.ring = store.get("ring", "r01");
 
@@ -885,9 +888,9 @@ function stationDetail() {
       ${issues.map(issueHtml).join("")}
       ${flowLinks(e.id)}
     </section>
-    <section class="box"><div class="dh"><h2>この駅のコード</h2></div>
+    <section class="box"><details class="stcode" id="stcode"${store.get("stcodeOpen", true) ? " open" : ""}><summary><h2>この駅のコード</h2></summary>
       <p class="note">濃い行 = このルートで実行した行（×n は回数）。左の色は部品図の役割: ${Object.entries(rc).map(([r, n]) => `<span style="color:${RC[r]}">■</span>${r} ${n}`).join("　")}</p>
-      ${codeHtml(e, S.role)}</section></div>`;
+      ${codeHtml(e, S.role)}</details></section></div>`;
 }
 
 function partsTable() {
@@ -1599,6 +1602,23 @@ function refreshLsw(ls) {
   document.querySelectorAll(".ls").forEach((box, k) => { const w = box.querySelector(".lsw"), x = ls[k];   // 新しい変数の初期値は、ほかのステップにも関わるので、全部確かめ直す
     if (w && x) w.innerHTML = `<small>置く所: ${esc(stepWhere(F.task, x))}</small>` + stepChecks(F.task, x, ls).map((c) => `<span class="lc ${c.ok ? "ok" : c.other ? "oth" : "ng"}">${c.ok ? "✓" : c.other ? "↪" : "✗"} ${esc(c.n.split(/[（(]/)[0])}<small>${esc(c.msg)}</small></span>`).join(""); });
 }
+// 自分のロジックの横に出す、既存のロジック（今のコード）: 置き場所と自分のステップの駅で動く所
+function existLogic(F, side) {
+  const steps = lsteps(), f = FTASK[F.task].f, FS = stationFiles(), sts = [...new Set([side && side.st, ...steps.map((s) => s.st)].filter((x) => x && US[x]))].sort((a, b) => UI[a] - UI[b]);
+  const head = `<p class="note">今のコード（${F.task === "B" ? `コピー元の ${esc(f)}。コピーした直後の ${esc(editName("B"))} も同じ` : esc(f) + " の game()"}）のうち、置き場所の駅と、自分のステップの駅で動く所。自分のステップと見比べる。</p>`;
+  if (F.task === "B") {
+    const fns = new Map(), note = (fn, st) => { if (!fns.has(fn)) fns.set(fn, new Set()); if (st) fns.get(fn).add(st); };
+    if (side && side.fn) note(side.fn, side.st);
+    for (const st of sts) for (const fn of (FS[st] && FS[st][f]) || []) if (fn !== "（関数の外）") note(fn, st);
+    if (!fns.size) return head + "<small>（置き場所かステップを選ぶと、ここに出る）</small>";
+    return head + [...fns].map(([fn, ss]) => { const L = SRC[f] || [], i = L.findIndex((l) => new RegExp(`^\\s*def ${fn}\\(`).test(l)), m = (METHODS.B || []).find((x) => x.fn === fn);
+      return `<details open><summary><code>${esc(fn)}()</code>${ss.size ? ` <small>駅 ${[...ss].sort((a, b) => UI[a] - UI[b]).map((x) => esc(dn(x))).join("・")}</small>` : ""}${m ? ` <small>今していること: ${esc(m.now)}</small>` : ""}</summary>${i >= 0 ? fnView(f, i + 2, 'data-exlog="off"') : ""}</details>`; }).join("");
+  }
+  const L = SRC[f] || [], rows = sts.filter((st) => !st.startsWith("r02:")).map((st) => { const rs = stRanges(st);
+    const code = rs.map(([a, b]) => { let h = ""; for (let n = a; n <= b; n++) { const role = ROLE[`${f}:${n}`]; h += `<div class="ln"><i>${n}</i><s style="--r:${role ? RC[role] : "transparent"}"></s><span>${esc(L[n - 1] || "")}</span><span></span></div>`; } return h; }).join(`<div class="gap">  ⋮</div>`);
+    return `<details open><summary>駅 ${esc(dn(st))}「${esc(stTitle(st))}」 <small>${rs.map(([a, b]) => `${f}:${a}〜${b}`).join("・")}</small></summary><div class="code">${code}</div></details>`; });
+  return head + (rows.join("") || "<small>（置き場所かステップを選ぶと、ここに出る。環状線 02 の駅は __main__ なので、ここには出さない）</small>");
+}
 function logicPanel(F, side) {
   const steps = lsteps(), task = F.task; if (!task) return "";
   const rows = steps.map((s, i) => { const ch = stepChecks(task, s, steps);
@@ -1608,8 +1628,9 @@ function logicPanel(F, side) {
       <input data-lst="${i}" value="${esc(s.t || "")}" placeholder="何をする？（自分の言葉で。材料の名前を入れると、この駅で使えるか確かめる）">${stepSrcHtml(s, i)}
       <button type="button" class="btn sb" data-lsmv="${i}:-1" aria-label="上へ">↑</button><button type="button" class="btn sb" data-lsmv="${i}:1" aria-label="下へ">↓</button><button type="button" class="btn sb" data-lsdel="${i}" aria-label="消す">×</button><button type="button" class="btn sb" data-cucopy="s:${i}">相談をコピー</button>
       <div class="lsw"><small>置く所: ${esc(stepWhere(task, s))}</small>${ch.map((c) => `<span class="lc ${c.ok ? "ok" : c.other ? "oth" : "ng"}">${c.ok ? "✓" : c.other ? "↪" : "✗"} ${esc(c.n.split(/[（(]/)[0])}<small>${esc(c.msg)}</small></span>`).join("")}</div></div>`; }).join("");
+  const exl = `<div class="h3row"><button type="button" class="btn otog" data-exlog aria-pressed="${!!S.showExist}">既存のロジック（今のコード）: ${S.showExist ? "オン" : "オフ"}</button></div>${S.showExist ? `<div class="exlog">${existLogic(F, side)}</div>` : ""}`;
   return `<div class="fstep"><b>5. 自分のロジックを組む</b>（ステップごとに、種類・駅・内容を選ぶ。AI に頼む前に、自分で順番を考える所）
-    <div class="lsteps">${rows || "<small>（まだ無い。「ステップを足す」で、1つずつ。例: 初期値を置く → 値を更新する → 判定する → 返す）</small>"}</div>
+    ${exl}<div class="lsteps">${rows || "<small>（まだ無い。「ステップを足す」で、1つずつ。例: 初期値を置く → 値を更新する → 判定する → 返す）</small>"}</div>
     <div class="ivform"><label class="fld"><span>足すステップの駅（● 旗＝今いる駅・◎ 置き場所・◆ 前のステップ。全部の駅から選べる）</span><select data-lsnewst aria-label="足す駅">${stationOptions(S.lsNewSt || (side ? side.st : flagStation()), { rec: searchKeys().on ? recSts([]) : [] })}</select></label>
       <label class="fld"><span>種類</span><select data-lsnewk aria-label="足す種類">${LKINDS.map(([k, t]) => `<option value="${k}"${(S.lsNewK || (steps.length ? "judge" : "init")) === k ? " selected" : ""}>${t}</option>`).join("")}</select></label></div>
     ${searchKeys().on && recSts([]).length ? `<div class="lsrec"><small>🔍 検索「${esc(S.snip.trim().slice(0, 30))}」で光った駅（★ おすすめ。押すと、足す駅になる）:</small>${recSts([]).map((x) => `<button type="button" class="btn sb" data-lsnewrec="${esc(x)}" aria-pressed="${x === S.lsNewSt}">★ ${esc(dn(x))} ${esc(stTitle(x))}</button>`).join("")}<button type="button" class="btn" data-lsaddsrc>検索の行を使ってステップを足す</button></div>` : ""}
@@ -2256,6 +2277,8 @@ document.addEventListener("click", (ev) => {
     if (navigator.clipboard) navigator.clipboard.writeText(txt).then(done, () => {}); return; }
   const pc = ev.target.closest("[data-pcode]");
   if (pc) { S.pcode = pc.dataset.pcode; store.set("pcode", S.pcode); const y = window.scrollY; render(); window.scrollTo({ top: y }); return; }
+  const xl = ev.target.closest("[data-exlog]");
+  if (xl) { S.showExist = xl.dataset.exlog === "off" ? false : !S.showExist; store.set("showExist", S.showExist); const y = window.scrollY; render(); window.scrollTo({ top: y }); return; }
   const mt = ev.target.closest("[data-mattog]");
   if (mt) { S.showMat = !S.showMat; store.set("showMat", S.showMat); if (!S.showMat && S.ofv && S.ofv.startsWith("m|")) S.ofv = null; const y = window.scrollY; render(); window.scrollTo({ top: y }); return; }
   const lr = ev.target.closest("[data-lsrec]");
@@ -2347,7 +2370,7 @@ document.addEventListener("input", (ev) => { if (ev.target.matches && ev.target.
   const mi = ev.target.closest && ev.target.closest("[data-mmemo]");
   if (mi) { S.mmemo = { ...(S.mmemo || {}), [mi.dataset.mmemo]: mi.value }; store.set("matMemo", S.mmemo); mi.closest(".mm").classList.toggle("empty", !mi.value.trim()); refreshLive(); return; }
   if (ev.target.matches && ev.target.matches("[data-memo]")) { tset("ideaMemo", ev.target.value); refreshLive(); } });
-document.addEventListener("toggle", (ev) => { if (ev.target.id === "pdet") store.set("paramsOpen", ev.target.open); }, true);
+document.addEventListener("toggle", (ev) => { if (ev.target.id === "pdet") store.set("paramsOpen", ev.target.open); if (ev.target.id === "stcode") store.set("stcodeOpen", ev.target.open); }, true);
 document.addEventListener("keydown", (ev) => {
   if (S.level !== "ring" || (ev.target.closest && ev.target.closest("input,textarea"))) return;
   const el = ev.target.closest && ev.target.closest("[data-st],[data-issue]");
