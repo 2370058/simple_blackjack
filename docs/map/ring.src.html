@@ -181,6 +181,11 @@ textarea.prompt { width: 100%; box-sizing: border-box; font: .76rem/1.5 var(--mo
 .ichip.ops { background: color-mix(in srgb, var(--c) 18%, var(--panel)); }
 .ichip[aria-pressed="true"] { outline: 3px solid var(--car); outline-offset: 1px; }
 .stcode { min-width: 0; max-width: 100%; } .stcode .code { max-width: 100%; overflow-x: auto; } .stcode > summary { cursor: pointer; list-style: none; } .stcode > summary::-webkit-details-marker { display: none; } .stcode > summary h2 { display: inline; } .stcode > summary::before { content: "▶ "; color: var(--muted); } .stcode[open] > summary::before { content: "▼ "; }
+details.fold > summary { cursor: pointer; } details.fold > summary .fsum { color: var(--muted); font-weight: 500; }
+.exg { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px; align-items: start; } @media (max-width: 820px) { .exg { grid-template-columns: minmax(0, 1fr); } } .exc, .exb { min-width: 0; }
+.xbl { display: grid; gap: 2px; } .xb { display: flex; flex-wrap: wrap; gap: 2px 6px; align-items: center; margin-left: calc(var(--d) * 16px); padding: 2px 4px 2px 6px; border-left: 3px solid var(--line); font-size: .76rem; } .xb code { font-size: .74rem; word-break: break-all; } .xb small { color: var(--muted); }
+.lk { font-size: .68rem; font-weight: 800; padding: 0 5px; border-radius: 6px; color: #fff; background: var(--muted); } .lk.k-init { background: var(--player); } .lk.k-update { background: var(--perf); } .lk.k-judge { background: var(--branch); } .lk.k-ret { background: var(--danger); } .lk.k-call { background: var(--dealer); }
+.lsrc.exsrc { border-left-color: var(--branch); }
 .exlog { margin: 6px 0; padding: 6px 8px; border: 1px dashed var(--line); border-radius: 10px; } .exlog details { margin: 4px 0; } .exlog summary { cursor: pointer; font-size: .82rem; } .exlog .code { max-width: 100%; overflow-x: auto; font-size: .76rem; }
 .detail { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; } .detail > section { min-width: 0; } .scr { min-width: 0; max-width: 100%; } .scr .code { overflow-x: auto; max-width: 100%; }
 @media (max-width: 820px) { .detail { grid-template-columns: minmax(0, 1fr); } }
@@ -1559,7 +1564,7 @@ function availAt(m, st) { if (st.startsWith("r02:")) return m.now ? (m.fn === "g
 function stepChecks(task, step, all) {
   const out = [], text = (step.t || "") + " " + (step.want || "");
   if (step.src && step.src.f) { const ss = stationsOfLine(step.src.f, step.src.ln).sts, on = ss.includes(step.st);
-    out.push({ n: `検索した行 ${step.src.f.replace("players/", "")}:${step.src.ln}`, ok: on, other: !on, msg: on ? "この駅の行。そのまま使える" : `この行は駅 ${ss.map((x) => dn(x)).join("・") || "—"}。ここで使うなら、その駅で値を覚えておくか、同じ処理をこの駅に書く` }); }
+    out.push({ n: `${step.src.from === "exist" ? "今のコードの行" : "検索した行"} ${step.src.f.replace("players/", "")}:${step.src.ln}`, ok: on, other: !on, msg: on ? "この駅の行。そのまま使える" : `この行は駅 ${ss.map((x) => dn(x)).join("・") || "—"}。ここで使うなら、その駅で値を覚えておくか、同じ処理をこの駅に書く` }); }
   const known = [...(MATS[task] || []), ...(METHODS[task] || [])];
   const seen = new Set();
   for (const m of known) for (const tk of tokensOf(m.n)) { if (seen.has(m.n) || !text.includes(tk)) continue; seen.add(m.n);
@@ -1587,15 +1592,17 @@ function stepWhere(task, step) {
 function stepSrcHtml(s, i) {
   if (!s.src) return "";
   const rec = s.rec || [];
-  return `<div class="lsrc"><small>🔍 検索${s.src.q ? `「${esc(s.src.q.slice(0, 30))}」` : ""}から: ${s.src.f ? `${srcLink("q", s.src.f, s.src.ln)} <code>${esc(s.src.code || "")}</code>` : ""}</small>
+  const ex = s.src.from === "exist";
+  return `<div class="lsrc${ex ? " exsrc" : ""}"><small>${ex ? "📄 既存のロジックから" : `🔍 検索${s.src.q ? `「${esc(s.src.q.slice(0, 30))}」` : ""}から`}: ${s.src.f ? `${srcLink("q", s.src.f, s.src.ln)} <code>${esc(s.src.code || "")}</code>` : ""}</small>
     ${rec.length ? `<span class="lsrecs"><small>おすすめの駅（★。押すと、このステップの駅になる）:</small>${rec.map((x) => `<button type="button" class="btn sb" data-lsrec="${i}|${esc(x)}" aria-pressed="${x === s.st}">★ ${esc(dn(x))} ${esc(stTitle(x))}</button>`).join("")}</span>` : ""}
-    <input data-lswant="${i}" value="${esc(s.want || "")}" aria-label="これを使ってしたいこと" placeholder="これを使って、こんなことしたい（例: deck の残りが少ないときは、賭け金を小さくしたい）"></div>`;
+    <input data-lswant="${i}" value="${esc(s.want || "")}" aria-label="これを使ってしたいこと" placeholder="${ex ? "ここを、こう変えたい・このまま使う（例: hit_threshold を、ディーラーの表のカードで変えたい）" : "これを使って、こんなことしたい（例: deck の残りが少ないときは、賭け金を小さくしたい）"}"></div>`;
 }
 function stepSrcLines(s, ind) {
   if (!s.src) return [];
-  const o = []; if (s.src.f) o.push(`${ind}- 検索から: ${s.src.f}:${s.src.ln} \`${s.src.code}\`（検索「${s.src.q}」。この行の駅: ${stationsOfLine(s.src.f, s.src.ln).sts.map((x) => dn(x)).join("・") || "—"}）`);
+  const o = [], ex = s.src.from === "exist";
+  if (s.src.f) o.push(`${ind}- ${ex ? "既存のロジックから（今のコードの行）" : "検索から"}: ${s.src.f}:${s.src.ln} \`${s.src.code}\`（${ex ? "" : `検索「${s.src.q}」。`}この行の駅: ${stationsOfLine(s.src.f, s.src.ln).sts.map((x) => dn(x)).join("・") || "—"}）`);
   else if (s.src.q) o.push(`${ind}- 検索から: 「${s.src.q}」`);
-  o.push(`${ind}- これを使ってしたいこと: ${(s.want || "").trim() || "（未記入）"}`);
+  o.push(`${ind}- ${ex ? "ここをどうしたいか" : "これを使ってしたいこと"}: ${(s.want || "").trim() || (ex ? "（未記入。今のまま使う）" : "（未記入）")}`);
   if ((s.rec || []).length) o.push(`${ind}- 検索で光った駅（おすすめ）: ${s.rec.map((x) => `駅 ${dn(x)}「${stTitle(x)}」`).join("・")}${s.rec.includes(s.st) ? "" : `（このステップは、おすすめに無い駅 ${dn(s.st)} を選んだ）`}`);
   return o;
 }
@@ -1604,21 +1611,49 @@ function refreshLsw(ls) {
   document.querySelectorAll(".ls").forEach((box, k) => { const w = box.querySelector(".lsw"), x = ls[k];   // 新しい変数の初期値は、ほかのステップにも関わるので、全部確かめ直す
     if (w && x) w.innerHTML = `<small>置く所: ${esc(stepWhere(F.task, x))}</small>` + stepChecks(F.task, x, ls).map((c) => `<span class="lc ${c.ok ? "ok" : c.other ? "oth" : "ng"}">${c.ok ? "✓" : c.other ? "↪" : "✗"} ${esc(c.n.split(/[（(]/)[0])}<small>${esc(c.msg)}</small></span>`).join(""); });
 }
+// 今のコードを、自分のロジックと同じ単位（初期値・更新・判定・返す・呼ぶ）のステートメントに分ける。字下げがブロックの深さ
+const CBC = {};
+function codeBlocks(f, from, to, fn) {
+  const key = `${f}|${from}|${to}`; if (CBC[key]) return CBC[key];
+  const L = SRC[f] || [], ind = (x) => x.match(/^\s*/)[0].length, rows = [], seen = new Set(); let inDoc = false;
+  for (let n = from; n <= to; n++) { const raw = L[n - 1] || "", q3 = (raw.match(/'{3}|"{3}/g) || []).length;
+    if (inDoc || q3) { if (q3 === 1) inDoc = !inDoc; continue; }
+    const c = codeOf(raw).trim(); if (!c || /^(def |class |global |pass$|@)/.test(c)) continue;
+    let k = "call"; const m = c.match(/^([\w.\[\]'"]+)\s*(\+|-|\*|\/)?=(?!=)/);
+    if (/^(if|elif|else|while|for)\b/.test(c)) k = "judge"; else if (/^(return|break|continue)\b|^exit\(/.test(c)) k = "ret";
+    else if (m) { k = fn === "__init__" || (!m[2] && !m[1].startsWith("self.") && !seen.has(m[1])) ? "init" : "update"; seen.add(m[1]); }
+    rows.push({ ln: n, code: c, ind: ind(raw), kind: k, head: /:\s*$/.test(c) });
+  }
+  const base = Math.min(...rows.map((r) => r.ind), 99);
+  rows.forEach((r, i) => { r.depth = Math.round((r.ind - base) / 4); let e = i; if (r.head) while (e + 1 < rows.length && rows[e + 1].ind > r.ind) e++; r.end = rows[e].ln;
+    r.st = (stationsOfLine(f, r.ln).sts || [])[0] || null; });
+  return (CBC[key] = rows);
+}
+function blocksHtml(f, rows, side) {   // 組み立ての一覧（押すと自分のステップに入る）
+  return `<div class="xbl">${rows.map((r) => { const st = r.st && US[r.st] ? r.st : side ? side.st : null;
+    return `<div class="xb" style="--d:${r.depth}"><span class="lk k-${r.kind}">${esc(lkLabel(r.kind).replace(/（.*）/, ""))}</span><code>${esc(r.code)}</code>${st ? `<small>駅 ${esc(dn(st))}</small>` : ""}<small>${r.ln}</small><button type="button" class="btn sb" data-exadd="${esc(f)}|${r.ln}|${r.ln}" title="この1行をステップに入れる">＋</button>${r.head && r.end > r.ln ? `<button type="button" class="btn sb" data-exadd="${esc(f)}|${r.ln}|${r.end}" title="このブロック（中の行も）を、順にステップに入れる">＋ブロック</button>` : ""}</div>`; }).join("")}</div>`;
+}
+function exGroup(title, f, from, to, fn, codeHtml, side) {   // 左に今のコード、右に組み立て
+  const rows = codeBlocks(f, from, to, fn);
+  return `<details open><summary>${title}</summary><div class="exg"><div class="exc">${codeHtml}</div><div class="exb"><div class="h3row"><b>今の組み立て（${rows.length} ステートメント）</b><button type="button" class="btn sb" data-exadd="${esc(f)}|${from}|${to}">全部ステップに入れる</button></div>${blocksHtml(f, rows, side)}</div></div></details>`;
+}
 // 自分のロジックの横に出す、既存のロジック（今のコード）: 置き場所と自分のステップの駅で動く所
 function existLogic(F, side) {
   const steps = lsteps(), f = FTASK[F.task].f, FS = stationFiles(), sts = [...new Set([side && side.st, ...steps.map((s) => s.st)].filter((x) => x && US[x]))].sort((a, b) => UI[a] - UI[b]);
-  const head = `<p class="note">今のコード（${F.task === "B" ? `コピー元の ${esc(f)}。コピーした直後の ${esc(editName("B"))} も同じ` : esc(f) + " の game()"}）のうち、置き場所の駅と、自分のステップの駅で動く所。自分のステップと見比べる。</p>`;
+  const head = `<p class="note">左が今のコード、右が同じ所を自分のロジックと同じ単位（初期値・更新・判定・返す・呼ぶ）に分けた組み立て。字下げがブロックの深さ。「＋」でその行、「＋ブロック」で if などの中の行ごと、「全部ステップに入れる」で全部を、自分のステップ（下）に順に入れる。入れたステップの内容や駅を書き換えたり、間に自分のステップを足したりして、一緒に組み込んでいく。</p><p class="note">今のコード（${F.task === "B" ? `コピー元の ${esc(f)}。コピーした直後の ${esc(editName("B"))} も同じ` : esc(f) + " の game()"}）のうち、置き場所の駅と、自分のステップの駅で動く所。自分のステップと見比べる。</p>`;
   if (F.task === "B") {
     const fns = new Map(), note = (fn, st) => { if (!fns.has(fn)) fns.set(fn, new Set()); if (st) fns.get(fn).add(st); };
     if (side && side.fn) note(side.fn, side.st);
     for (const st of sts) for (const fn of (FS[st] && FS[st][f]) || []) if (fn !== "（関数の外）") note(fn, st);
     if (!fns.size) return head + "<small>（置き場所かステップを選ぶと、ここに出る）</small>";
-    return head + [...fns].map(([fn, ss]) => { const L = SRC[f] || [], i = L.findIndex((l) => new RegExp(`^\\s*def ${fn}\\(`).test(l)), m = (METHODS.B || []).find((x) => x.fn === fn);
-      return `<details open><summary><code>${esc(fn)}()</code>${ss.size ? ` <small>駅 ${[...ss].sort((a, b) => UI[a] - UI[b]).map((x) => esc(dn(x))).join("・")}</small>` : ""}${m ? ` <small>今していること: ${esc(m.now)}</small>` : ""}</summary>${i >= 0 ? fnView(f, i + 2, 'data-exlog="off"') : ""}</details>`; }).join("");
+    return head + [...fns].map(([fn, ss]) => { const L = SRC[f] || [], i = L.findIndex((l) => new RegExp(`^\\s*def ${fn}\\(`).test(l)), m = (METHODS.B || []).find((x) => x.fn === fn), r = i >= 0 ? enclosing(f, i + 2) : null;
+      const title = `<code>${esc(fn)}()</code>${ss.size ? ` <small>駅 ${[...ss].sort((a, b) => UI[a] - UI[b]).map((x) => esc(dn(x))).join("・")}</small>` : ""}${m ? ` <small>今していること: ${esc(m.now)}</small>` : ""}`;
+      return r ? exGroup(title, f, r.from + 1, r.to, fn, fnView(f, i + 2, 'data-exlog="off"'), side) : `<details open><summary>${title}</summary></details>`; }).join("");
   }
   const L = SRC[f] || [], rows = sts.filter((st) => !st.startsWith("r02:")).map((st) => { const rs = stRanges(st);
     const code = rs.map(([a, b]) => { let h = ""; for (let n = a; n <= b; n++) { const role = ROLE[`${f}:${n}`]; h += `<div class="ln"><i>${n}</i><s style="--r:${role ? RC[role] : "transparent"}"></s><span>${esc(L[n - 1] || "")}</span><span></span></div>`; } return h; }).join(`<div class="gap">  ⋮</div>`);
-    return `<details open><summary>駅 ${esc(dn(st))}「${esc(stTitle(st))}」 <small>${rs.map(([a, b]) => `${f}:${a}〜${b}`).join("・")}</small></summary><div class="code">${code}</div></details>`; });
+    const title = `駅 ${esc(dn(st))}「${esc(stTitle(st))}」 <small>${rs.map(([a, b]) => `${f}:${a}〜${b}`).join("・")}</small>`;
+    return rs.length ? exGroup(title, f, rs[0][0], rs[rs.length - 1][1], "game", `<div class="code">${code}</div>`, side) : ""; });
   return head + (rows.join("") || "<small>（置き場所かステップを選ぶと、ここに出る。環状線 02 の駅は __main__ なので、ここには出さない）</small>");
 }
 function logicPanel(F, side) {
@@ -2150,8 +2185,8 @@ function findPanel(bar) {
   const selNames = (F.mats || []).filter((n) => matOf(F.task, n));
   const selMemoBlock = selNames.length ? `<h5 class="mg">選んだ材料と、使いたいこと（「この材料で何をしたいか」を書く。プロンプトの「選んだ材料」に入り、AI は選んだものを使う前提で考える）</h5><div class="mmemos">${selNames.map((n) => { const m = matOf(F.task, n), ok = matOk(m, side);
     return `<label class="mm${(mm[n] || "").trim() ? "" : " empty"}"><span><code>${esc(n)}</code><small>${m.now ? "メソッド" : "値"}・駅 ${dn(m.st != null ? m.st : (methodStations(m)[0] || "s0"))}${ok === false ? "・この駅ではまだ無い" : ok === "other" ? "・別の駅で呼ばれる" : ""}</small></span><input data-mmemo="${esc(n)}" value="${esc(mm[n] || "")}" placeholder="この材料で何をしたい？（例: 手札の合計と比べて、以上なら stand）"><button type="button" class="btn sb" data-cucopy="x:${esc(n)}">相談をコピー</button></label>`; }).join("")}</div>` : "";
-  const step3 = F.task ? `<div class="fstep"><div class="h3row"><b>3. 何を材料に判断する？</b>${infoTog}</div><small>（いくつでも。説明をオンにすると、下に詳しいカードが出る）</small><h5 class="mg">値（変数・引数）</h5><div class="mats">${mats.map((m) => { const on = (F.mats || []).includes(m.n), ok = matOk(m, side);
-    return `<button type="button" class="mat${ok === false ? " ng" : ok ? " ok" : ""}" data-fset="mat:${esc(m.n)}" aria-pressed="${on}"><code>${esc(m.n)}</code><small>駅 ${dn(m.st)} から・${esc(m.d)}</small>${ok === false ? `<em>この駅ではまだ無い${m.arg ? "（引数なので駅 " + dn(m.st) + " の中だけ）" : ""}</em>` : ""}</button>`; }).join("")}</div>${methBtns}${selMemoBlock}</div>` : "";
+  const step3 = F.task ? `<details class="fstep fold" id="step3"${store.get("step3Open", true) ? " open" : ""}><summary><b>3. 何を材料に判断する？</b> <small class="fsum">選んだ ${(F.mats || []).length} つ${(F.mats || []).length ? "：" + esc((F.mats || []).map((n) => n.split(/[（(]/)[0]).join("・")) : ""}</small></summary><div class="h3row">${infoTog}</div><small>（いくつでも。説明をオンにすると、下に詳しいカードが出る）</small><h5 class="mg">値（変数・引数）</h5><div class="mats">${mats.map((m) => { const on = (F.mats || []).includes(m.n), ok = matOk(m, side);
+    return `<button type="button" class="mat${ok === false ? " ng" : ok ? " ok" : ""}" data-fset="mat:${esc(m.n)}" aria-pressed="${on}"><code>${esc(m.n)}</code><small>駅 ${dn(m.st)} から・${esc(m.d)}</small>${ok === false ? `<em>この駅ではまだ無い${m.arg ? "（引数なので駅 " + dn(m.st) + " の中だけ）" : ""}</em>` : ""}</button>`; }).join("")}</div>${methBtns}${selMemoBlock}</details>` : "";
   const step4 = F.task ? `<div class="fstep"><b>4. メモ: こういう材料があればいいかも</b>（変数でも、新しく呼ぶメソッドでも。もうコードに無いかを自動で調べて、あれば場所、無ければ作る場所を出す。プロンプトでは、まず既存の材料で代わりにならないかを検討させる）
     <div class="ivars">${vars.map((v, i) => `<div class="iv"><code>${esc(v.n)}</code><div><small class="kd">${esc(mkLabel(v.kind))}${v.st && US[v.st] ? `・使う駅 ${dn(v.st)}` : ""}</small><small><b>初期値</b> ${esc(v.init || "—")}</small><small><b>ロジック</b> ${esc(v.logic || "—")}</small>${memoStHtml(v, F.task)}</div><button type="button" class="btn sb" data-ivdel="${i}" aria-label="${esc(v.n)} を消す">×</button><button type="button" class="btn sb" data-cucopy="m:${i}">相談をコピー</button></div>`).join("") || "<small>（まだ無い）</small>"}</div>
     <div class="ivform"><label class="fld"><span>名前</span><input data-ivn aria-label="メモの名前" placeholder="例: lose_streak、on_shuffle"></label>
@@ -2279,6 +2314,12 @@ document.addEventListener("click", (ev) => {
     if (navigator.clipboard) navigator.clipboard.writeText(txt).then(done, () => {}); return; }
   const pc = ev.target.closest("[data-pcode]");
   if (pc) { S.pcode = pc.dataset.pcode; store.set("pcode", S.pcode); const y = window.scrollY; render(); window.scrollTo({ top: y }); return; }
+  const xa = ev.target.closest("[data-exadd]");
+  if (xa) { const [f, a, b] = xa.dataset.exadd.split("|"), { F, side } = findPick(), ls = lsteps();
+    const fn0 = (fnOfLine(f, +a) || {}).name, grp = Object.values(CBC).find((rs) => rs.some((r) => r.ln === +a)) || codeBlocks(f, +a, +b, fn0);
+    for (const r of grp.filter((r) => r.ln >= +a && r.ln <= +b)) { const st = r.st && US[r.st] ? r.st : side ? side.st : "s0";
+      ls.push({ k: r.kind, st, t: `今の「${r.code}」`, src: { q: "", f, ln: r.ln, code: r.code, from: "exist" }, rec: [st], want: "" }); }
+    tset("logicSteps", ls); const y = window.scrollY; render(); window.scrollTo({ top: y }); return; }
   const xl = ev.target.closest("[data-exlog]");
   if (xl) { S.showExist = xl.dataset.exlog === "off" ? false : !S.showExist; store.set("showExist", S.showExist); const y = window.scrollY; render(); window.scrollTo({ top: y }); return; }
   const mt = ev.target.closest("[data-mattog]");
@@ -2372,7 +2413,7 @@ document.addEventListener("input", (ev) => { if (ev.target.matches && ev.target.
   const mi = ev.target.closest && ev.target.closest("[data-mmemo]");
   if (mi) { S.mmemo = { ...(S.mmemo || {}), [mi.dataset.mmemo]: mi.value }; store.set("matMemo", S.mmemo); mi.closest(".mm").classList.toggle("empty", !mi.value.trim()); refreshLive(); return; }
   if (ev.target.matches && ev.target.matches("[data-memo]")) { tset("ideaMemo", ev.target.value); refreshLive(); } });
-document.addEventListener("toggle", (ev) => { if (ev.target.id === "pdet") store.set("paramsOpen", ev.target.open); if (ev.target.id === "stcode") store.set("stcodeOpen", ev.target.open); if (ev.target.id === "fres") store.set("fresOpen", ev.target.open); }, true);
+document.addEventListener("toggle", (ev) => { if (ev.target.id === "pdet") store.set("paramsOpen", ev.target.open); if (ev.target.id === "stcode") store.set("stcodeOpen", ev.target.open); if (ev.target.id === "fres") store.set("fresOpen", ev.target.open); if (ev.target.id === "step3") store.set("step3Open", ev.target.open); }, true);
 document.addEventListener("keydown", (ev) => {
   if (S.level !== "ring" || (ev.target.closest && ev.target.closest("input,textarea"))) return;
   const el = ev.target.closest && ev.target.closest("[data-st],[data-issue]");
