@@ -557,13 +557,20 @@ def trace_dealer() -> dict:
     files = {str(REPO / f): f for f in FILES}
     for seed in range(500):
         answers = iter(['100', 'hit', 'stand', '0'])
-        shown = []
+        shown, screen, pos = [], [], [0]   # screen: 画面に出た順（打った行と、print された行）
+        edges, out = {}, io.StringIO()
+
+        def flush():
+            text = out.getvalue()[pos[0]:]
+            pos[0] += len(text)
+            screen.extend(['out', x] for x in text.splitlines())
 
         def fake_input(prompt=''):
             a = next(answers)
             shown.append(f'{prompt}{a}')
+            flush()
+            screen.append(['in', prompt, a])
             return a
-        edges, out = {}, io.StringIO()
 
         def glob(fr, ev, arg):
             f = files.get(fr.f_code.co_filename)
@@ -591,10 +598,40 @@ def trace_dealer() -> dict:
                     sys.settrace(None)
         finally:
             builtins.input = real_input
+        flush()
         text = out.getvalue()
         if text.count('カードを引きます') == 1 and 'バースト' not in text and '無効' not in text and 'ゲームを終了' in text:
-            return {'seed': seed, 'edges': edges, 'stdout': text, 'answers': shown}
+            return {'seed': seed, 'edges': edges, 'stdout': text, 'answers': shown, 'screen': screen}
     raise SystemExit('dealer.py の1ラウンドを流せる種が見つからない')
+
+
+def screens() -> dict:
+    """画面（ターミナル）に出る文字。python3 autodealer.py の結果の行（本物の MAX = 4000 のまま、乱数の種を決めて流す）と、
+    is_print = True にしたときに game() が printx で出す、最初の所。"""
+    import contextlib
+    import io
+    import os
+    import random
+    import runpy
+    here = os.getcwd()
+    os.chdir(REPO)
+    try:
+        random.seed(1)
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            runpy.run_path(str(REPO / 'autodealer.py'), run_name='__main__')
+        ad = importlib.import_module('autodealer')
+        player = importlib.import_module('players.player_simple').BlackjackPlayer
+        random.seed(3)
+        ad.is_print, out2 = True, io.StringIO()
+        try:
+            with contextlib.redirect_stdout(out2):
+                ad.game(player)
+        finally:
+            ad.is_print = False
+    finally:
+        os.chdir(here)
+    return {'auto': out.getvalue().splitlines(), 'printx': out2.getvalue().splitlines()[:16]}
 
 
 def dealer_diff() -> dict:
@@ -669,7 +706,9 @@ def build() -> pathlib.Path:
     for k, e in endings.items():
         print(f"  終わり方 {k}: 種 {e['seed']}・{len(e['events'])} 行")
     print(f"  dealer.py 種 {dealer['seed']}: 呼び出し {len(dealer['edges'])} 種類")
-    data = {'ring': ring, 'sources': src, 'traces': traces, 'roles': roles, 'roleNames': ROLE_NAMES, 'dealer': dealer, 'diff': dealer_diff(), 'players': PLAYERS, 'decisions': decisions, 'endings': endings, 'scenarios': [{k: v for k, v in x.items() if k != 'cards'} for x in scenarios],
+    scr = screens()
+    print(f"  画面: 結果の行 {len(scr['auto'])}・is_print の行 {len(scr['printx'])}")
+    data = {'screen': scr, 'ring': ring, 'sources': src, 'traces': traces, 'roles': roles, 'roleNames': ROLE_NAMES, 'dealer': dealer, 'diff': dealer_diff(), 'players': PLAYERS, 'decisions': decisions, 'endings': endings, 'scenarios': [{k: v for k, v in x.items() if k != 'cards'} for x in scenarios],
             'rings': {'r01': {'ring': ring, 'traces': traces}, 'r02': {'ring': ring2, 'traces': {r['id']: main2 for r in ring2['routes']}}}}
     blob = json.dumps(data, ensure_ascii=False).replace('</', '<\\/')
     page = (HERE / 'ring.src.html').read_text(encoding='utf-8')

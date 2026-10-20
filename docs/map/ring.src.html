@@ -275,6 +275,8 @@ tfoot td { font-weight: 700; }
 .c4 .tflow.dim path { stroke-opacity: .35; }
 .c4 .tflow.cur path { stroke-width: 5; }
 .c4 .tflow.hl path { stroke-dasharray: 3 4; }
+.scr .code.term .ln.past span { opacity: .5; } .scr .code.term .ln.now { background: color-mix(in srgb, var(--t) 30%, transparent); } .scr .code.term .ln.now span { font-weight: 700; }
+.scr .code.term .typed { text-decoration: underline; text-underline-offset: 3px; margin-left: 2px; } .scr .code.term .snote span { font-style: italic; opacity: .8; }
 /* 手順を選んでいる間: 今アクティブなフロー（矢印・箱・行）以外は、全部グレーにする */
 .c4.stepping .box4:not(.curflow) { opacity: .3; filter: grayscale(1); }
 .c4.stepping .tflow.dim { opacity: .3; filter: grayscale(1); }
@@ -461,7 +463,7 @@ const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&l
 const store = { get(k, d) { try { const v = localStorage.getItem("bjmap:" + k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } },
   set(k, v) { try { localStorage.setItem("bjmap:" + k, JSON.stringify(v)); } catch (e) { /* 保存できなくても動く */ } } };
 const S = { kopen: new Set(), fnview: null, ofv: null, showOrig: store.get("showOrig", false), showRef: store.get("showRef", false), showMat: store.get("showMat", false), pcode: store.get("pcode", "paste") === "upload" ? "pick" : store.get("pcode", "paste"), pfiles: store.get("pfiles", {}), psec: store.get("psec", {}), mmemo: store.get("matMemo", {}), airole: store.get("airole", null), cu: store.get("cu", {}), cuCode: store.get("cuCode", false), route: store.get("route", "main"), pos: 0, mode: store.get("mode", "drive"),
-  rtask: store.get("rtask", null), find: store.get("find", {}), layers: store.get("layers", { "緊急": true, "悪意": true, "速さ": false }), issue: null, role: null, timer: null };
+  rtask: store.get("rtask", null), find: store.get("find", {}), layers: store.get("layers2", { "緊急": false, "悪意": false, "速さ": false }), issue: null, role: null, timer: null };
 S.ring = store.get("ring", "r01");
 
 // 駅ごとに、そのルートで寄った拠点（ファイルと山札）を、実行した行から出す
@@ -556,6 +558,11 @@ function svgMap() {
     const lx = .25 * x1 + .5 * cx + .25 * x2, ly = .25 * y1 + .5 * cy + .25 * y2;
     s += `<text x="${lx}" y="${ly - 6}" text-anchor="middle" font-size="12" font-weight="800" fill="var(--muted)">${(R.loops && R.loops[a + ">" + b]) || (back ? "戻る" : b === "end" ? "出口: return" : "近道: continue")}</text>`;
   }
+  // ゲーム終了のあと: __main__ がもう一度 game() を呼ぶと、次のゲームが駅 0（ゲームを用意する）から始まる
+  if (S.ring !== "r02") { const [x0, y0] = posOf(R1L[0].id), sx = END[0], sy = END[1] + 26, cx = sx, cy = y0, dx = x0 - cx, dy = y0 - cy, dl = Math.hypot(dx, dy) || 1;
+    const ex = x0 - dx / dl * 21, ey = y0 - dy / dl * 21, live = here.id === "end";
+    s += `<path d="M${sx} ${sy} Q${cx} ${cy} ${ex} ${ey}" fill="none" stroke="${live ? "var(--car)" : "var(--exit)"}" stroke-width="${live ? 4 : 2.5}" stroke-dasharray="7 6" marker-end="url(#${live ? "ahc" : "ah"})"/>
+      <text x="10" y="${(sy + cy) / 2 - 6}" text-anchor="start" font-size="11.5" font-weight="800" fill="var(--muted)"><tspan x="10">次のゲーム</tspan><tspan x="10" dy="15">（もう一度 game()）</tspan></text>`; }
   // 終了の駅
   { const on = visited.has("end"), isCur = here.id === "end";
     const tl = TREL && TREL.st.end;
@@ -851,6 +858,7 @@ function stationDetail() {
     <section class="box"><div class="dh"><span class="kind" style="--c:${col}">${st.kind || "駅"} ${e.id === "end" ? "" : idx[e.id]}</span><h2>${esc(st.title)}</h2>
       <div class="nav"><button type="button" data-step="-1" ${S.pos ? "" : "disabled"}>← 前</button><button type="button" data-step="1" ${S.pos < P.length - 1 ? "" : "disabled"}>次 →</button></div></div>
       <p class="note">${S.pos + 1} / ${P.length} 番目の駅（このルートで）${sites ? " ・寄る拠点 " + sites : ""}</p>
+      ${e.id === "end" && S.ring === "r01" ? `<p class="nextgame"><button type="button" class="btn" data-goto="0">次のゲームへ → 駅 0「${esc(ST[R1L[0].id].title)}」</button> <small>autodealer.py の __main__ が、MAX 回になるまで game() をもう一度呼ぶ（dealer.py は1回で終わり）。新しいゲームは、プレイヤーを作り直して駅 0 から始まる</small></p>` : ""}
       <dl class="shape"><dt>入る形</dt><dd>${esc(st.in)}</dd><dt>出る形</dt><dd>${esc(st.out)}</dd>${st.note ? `<dt>メモ</dt><dd>${esc(st.note)}</dd>` : ""}</dl>
       <div class="scargo-wrap">${searchCargoBox(e)}</div><div class="h3row"><h3>旗の荷物（この駅を出るときの変数）</h3><button type="button" class="btn otog" data-origtog aria-pressed="${!!S.showOrig}">出どころのソース: ${S.showOrig ? "オン" : "オフ"}</button></div><div class="cargo">${cargoHtml(e)}</div>${S.showOrig ? originView("c") : ""}
       <p class="note">黄色 = この駅で変わった値・光るカード = この駅で増えたカード。本物の game() を流して記録した値。「出どころのソース」をオンにすると、値ごとに「←」の行が出る: その値が入った所（値が変わった直後に、直前に実行していた行）と、その行を通った駅。戻り値なら、受け取った行と、返した行の両方。行番号を押すと、その行が入っている関数の全体が出る。</p>
@@ -1371,7 +1379,7 @@ function miniRing(P, ctx) {
     const shape = box ? `<rect x="${x - 15}" y="${y - 9}" width="30" height="18" rx="5" fill="${fill}" stroke="var(--muted)" stroke-width="1"/>` : dia ? `<rect x="${x - 6.5}" y="${y - 6.5}" width="13" height="13" transform="rotate(45 ${x} ${y})" fill="${fill}" stroke="var(--branch)" stroke-width="1.5"/>` : `<circle cx="${x}" cy="${y}" r="8" fill="${fill}" stroke="var(--dealer)" stroke-width="1.5"/>`;
     return `<g opacity="${!any || on ? 1 : .4}"><title>${esc(id === "end" ? "終了" : "駅 " + dn(id))}「${esc(stTitle(id))}」${c === "main" ? "・" + esc(P.mainT) : c === "use" ? "・名前が出てくる" : ""}${hit ? `・検索 ${hit} 行` : ""}${id === flag ? "・旗" : ""}${id === ctx ? "・入れる欄の駅" : ""}</title>${g}${shape}<text x="${x}" y="${y + 3}" text-anchor="middle" font-size="${box ? 9 : 8.5}" font-weight="800" fill="${fg}">${esc(lab)}</text></g>`; };
   R1L.forEach((x, i) => { const a = Math.PI + 2 * Math.PI * i / n; s += node(x.id, cx + rx * Math.cos(a), cy + ry * Math.sin(a), String(i), x.kind === "分岐"); });
-  s += node("end", 26, 16, "終", false, true);
+  s += `<path d="M26 26 V${cy - 14}" fill="none" stroke="var(--exit)" stroke-width="1.5" stroke-dasharray="3 3"/>` + node("end", 26, 16, "終", false, true);
   return `<div class="pminimap">${s}</svg><div class="mleg">緑 = 選んだ材料（太い ● ／点線 ○）・青 = 検索・黄 = 旗・◆ = 入れる欄の駅。0 から時計回り</div></div>`;
 }
 function palPickHtml() {
@@ -2241,7 +2249,7 @@ document.addEventListener("click", (ev) => {
   if (b.id === "auto") { if (S.timer) stopAuto(); else { if (S.pos >= path().length - 1) S.pos = 0;
     S.timer = setInterval(() => { if (S.pos >= path().length - 1) { stopAuto(); render(); } else go(S.pos + 1); }, 1100); } render(); return; }
   if (b.dataset.mode) { S.mode = b.dataset.mode; store.set("mode", S.mode); render(); }
-  else if (b.dataset.layer) { S.layers[b.dataset.layer] = !S.layers[b.dataset.layer]; store.set("layers", S.layers); render(); }
+  else if (b.dataset.layer) { S.layers[b.dataset.layer] = !S.layers[b.dataset.layer]; store.set("layers2", S.layers); render(); }
   else if (b.dataset.route) { stopAuto(); setRoute(b.dataset.route); }
   else if (b.dataset.step) go(S.pos + +b.dataset.step);
   else if (b.dataset.goto) { S.role = b.dataset.role || null; S.pos = +b.dataset.goto; render(); }
@@ -2439,6 +2447,8 @@ const C4B = [
       ["player_simple, 0.04, 6.1, 1012.4", "autodealer.py の結果の1行（例）"]] },
 ];
 C4B.unshift(...C4P);
+{ const tb = C4B.find((b) => b.id === "term"), a = (DATA.screen && DATA.screen.auto[0] || "").split(", ");   // 結果の行の例を、本物の1行（数字は短く）に
+  if (tb && a.length === 4) tb.rows[2] = [`${a[0]}, ${(+a[1]).toFixed(2)}, ${(+a[2]).toFixed(1)}, ${(+a[3]).toFixed(1)}`, "autodealer.py の結果の1行（本物）"]; }
 // [id, from, fromRow, to, toRow, label, desc, style]（row が -1 なら箱の題名の高さ）
 const C4E = [
   ["k0", "boot", 0, "deck", -1, "起動のとき1回", "python3 autodealer.py で動かすと、関数の外の deck・round・penetration が上から用意される。game() を何回呼んでも作り直されない（緊5）。", "cfg"],
@@ -2747,6 +2757,70 @@ for t in (12, 14, 16, 18, 20):
 };
 const PREP_C = "var(--prep)";
 function c4Steps() { const T = TASKS[S.task]; return T ? T.c4 : []; }
+// ---- 画面（ターミナル）: 流れ・タスクの手順に合わせて、その手順で画面に出る行を光らせる ----
+// 手順の label → add: 画面に出るもの（cmd = 打つコマンド・auto = python3 autodealer.py の結果の行・printx = is_print = True の行・dealerOut = dealer.py の print の行・note = 説明）、
+// match: dealer.py の本物の画面（打った行と出た行）のうち、この手順で出る行（上から順に、手順の順を戻らずに当てる）、note: 画面に何も出ない手順の説明。"*" はほかの手順の説明
+const GITCMD = ["cmd", "git switch -c 学籍番号develop"], EDITNOTE = "VS Code でファイルを書き換えるだけ。画面には何も出ない。", QUIET = "is_print = False なので、ゲームの途中は画面に何も出ない。MAX 回が全部終わると、結果の行が出る。";
+const SCR = {
+  P: { "*": { note: "画面には何も出ない（計算・読み込みだけ）。" }, "掛け金を聞く": { note: "player.place_bet が input() で聞く。打つのは次の手順。" }, "hit / stand を聞く": { note: "player.input が input() で聞く。打つのは次の手順。" },
+    "キーボードで 100 を打つ": { match: ["賭け金を入力", "掛け金は"] }, "4枚配って手札を渡す": { match: ["表のカード", "プレイヤーの手"] }, "点数を計算する（Card.sum を呼ぶ）": { match: ["プレイヤーの点数"] },
+    "キーボードで hit・stand を打つ": { match: ["hit or stand", "カードを引きます", "プレイヤーの手"] }, "hit のあとの点数（A を 1 に直す）": { match: ["プレイヤーの点数", "hit or stand"] },
+    "ディーラーが 17 まで引く": { match: ["ディーラー"] }, "勝ち負けを決めて知らせる": { match: ["勝ち|負け|引き分け|残高:"] }, "turn_end() で次の周へ": { match: ["次のラウンド", "賭け金を入力", "ゲームを終了"] } },
+  Q: { "*": { note: QUIET } },
+  W: { "*": { note: QUIET }, "__main__ が受け取る（total += 1200）": { note: "受け取って集計にたすだけ。画面にはまだ何も出ない（出るのは MAX 回のあと）。" },
+    "MAX 回のあと: 結果の1行を出して、次のプレイヤーへ": { add: [["note", "（MAX = 4000 回のゲームが全部終わると、プレイヤーごとに1行）"], ["auto"]] } },
+  L: { "*": { note: QUIET }, "__main__ が受け取る（total += 0）": { note: "受け取って集計にたすだけ。画面にはまだ何も出ない（出るのは MAX 回のあと）。" },
+    "MAX 回のあと: 結果の1行を出して、次のプレイヤーへ": { add: [["note", "（MAX = 4000 回のゲームが全部終わると、プレイヤーごとに1行）"], ["auto"]] } },
+  A: { "*": { note: EDITNOTE }, "ブランチを切る（全員）": { add: [GITCMD] }, "コピーして名前に数字": { add: [["cmd", "cp players/player_simple.py players/player_simple_1200_100_16.py"]] },
+    "players/ から全部見つける": { add: [["cmd", "python3 autodealer.py"]] }, "game() を MAX 回": { note: QUIET }, "place_bet・input を呼ぶ": { note: QUIET }, "残高をたす": { note: QUIET },
+    "結果の1行（3つの数字）": { add: [["auto"], ["note", "（コピーした player_simple_1200_100_16 の行も、ここに並ぶ。名前, 1ゲームの ms, ラウンド数の平均, 残高の平均）"]] } },
+  B: { "*": { note: EDITNOTE }, "ブランチを切る（全員）": { add: [GITCMD] }, "コピーして作る": { add: [["cmd", "cp players/player_simple.py players/player_xxx.py"]] },
+    "dealer.py の import を差し替える": { add: [["cmd", "python3 dealer.py"], ["note", "（例: player.py で 100 → hit → stand と打ったときに出た行。自分のプレイヤーなら打つ所は無く、place_bet・input が答える）"], ["dealerOut"]] },
+    "dealer.py で1手ずつ呼ばれる": { note: "前の手順の画面の「プレイヤーの手」「プレイヤーの点数」のあとで、input が呼ばれて hit / stand を返す。" },
+    "autodealer が読み込む": { add: [["cmd", "python3 autodealer.py"]] }, "MAX 回 × 何ラウンドも呼ばれる": { note: QUIET },
+    "結果の1行で比べる": { add: [["auto"], ["note", "（player_xxx の行が、ここに並ぶ。player_random より悪ければ、悪い戦略）"]] } },
+  C: { "*": { note: EDITNOTE }, "ブランチを切る（全員）": { add: [GITCMD] },
+    "is_print = True で確かめる": { add: [["note", "autodealer.py の is_print = True にして流すと（MAX は小さくしておく）:"], ["cmd", "python3 autodealer.py"], ["printx"], ["note", "…（1ラウンドずつ続く）"]] },
+    "python3 autodealer.py で流す": { add: [["note", "is_print = False に戻して:"], ["cmd", "python3 autodealer.py"]] },
+    "改造の前と後を比べる": { add: [["note", "改造の前:"], ["auto"], ["note", "改造の後: （ここに、改造したあとの行を並べて比べる）"]] } },
+};
+const SCRC = {};
+function taskScreen(key) {   // [{ k: cmd・in・out・note, t, a（打った答え）, src, s: 手順の番号 }]
+  if (SCRC[key]) return SCRC[key];
+  const T = TASKS[key], sp = SCR[key]; if (!T || !sp) return null;
+  const L = [], steps = T.c4, out = (t, s, src) => L.push({ k: "out", t, s, src });
+  steps.forEach((st, i) => { for (const c of st.cmd || []) L.push({ k: "cmd", t: c, s: i, src: "cmd" });
+    for (const it of (sp[st.label] || {}).add || []) {
+      if (it[0] === "auto") DATA.screen.auto.forEach((x) => out(x, i, "auto"));
+      else if (it[0] === "printx") DATA.screen.printx.forEach((x) => out(x, i, "out"));
+      else if (it[0] === "dealerOut") DATA.dealer.screen.filter((e) => e[0] === "out").forEach((e) => out(e[1], i, "out"));
+      else L.push({ k: it[0], t: it[1], s: i, src: it[0] }); } });
+  if (steps.some((st) => (sp[st.label] || {}).match)) { let ptr = 0;   // dealer.py の本物の画面を、手順の順に当てる
+    for (const e of DATA.dealer.screen) { const text = e[0] === "in" ? e[1] + e[2] : e[1];
+      const j = steps.findIndex((st, i) => i >= ptr && ((sp[st.label] || {}).match || []).some((m) => new RegExp(m).test(text)));
+      if (j >= 0) ptr = j;
+      L.push(e[0] === "in" ? { k: "in", t: e[1], a: e[2], s: ptr, src: "in" } : { k: "out", t: e[1], s: ptr, src: "out" }); } }
+  L.forEach((l, i) => (l.o = i)); L.sort((a, b) => a.s - b.s || a.o - b.o);
+  return (SCRC[key] = L);
+}
+function screenHtml(key, k, tag) {
+  const L = taskScreen(key); if (!L || !L.length) return "";
+  const T = TASKS[key], sp = SCR[key], st = k != null ? T.c4[k] : null, nowN = L.filter((l) => l.s === k).length, fut = k == null ? 0 : L.filter((l) => l.s > k).length;
+  const row = (l) => { const c = k == null ? "" : l.s === k ? " now" : " past";
+    if (l.k === "cmd") return `<div class="ln${c}"><i>$</i><s></s><span>${esc(l.t)}</span><span></span></div>`;
+    if (l.k === "in") return `<div class="ln${c}"><i>⌨</i><s></s><span>${esc(l.t)}<b class="typed">${esc(l.a)}</b></span><span></span></div>`;
+    if (l.k === "note") return `<div class="ln snote${c}"><i></i><s></s><span>${esc(l.t)}</span><span></span></div>`;
+    return `<div class="ln${c}"><i></i><s></s><span>${esc(l.t)}</span><span></span></div>`; };
+  const why = st ? ((sp[st.label] || {}).note || (sp["*"] || {}).note || "") : "";
+  const head = k == null ? "手順を選ぶと、その手順で画面に出る所が光る（それより後の行は隠れる）。" : nowN ? `手順 ${tag(k)} で画面に出る所が光っている（薄い行は、それまでに出た所）。` : `手順 ${tag(k)} では、画面に新しく出るものは無い。${why}`;
+  const shown = L.filter((l) => k == null || l.s <= k);
+  return `<div class="scr" style="--t:${T.c}"><h3>画面（ターミナル）</h3><p class="note">${esc(head)}</p><div class="code term">${shown.map(row).join("") || `<div class="ln"><i></i><s></s><span>（まだ何も出ていない）</span><span></span></div>`}</div>${fut ? `<p class="note">このあと ${fut} 行（次の手順から出る）</p>` : ""}</div>`;
+}
+function screenRows(key, k) {   // 2 の図のターミナルの箱で光らせる行（0 = input・1 = print・2 = 結果の行）
+  const L = taskScreen(key), set = new Set(); if (!L || k == null) return set;
+  for (const l of L) if (l.s === k) { if (l.src === "in") set.add(0); else if (l.src === "auto") set.add(2); else if (l.src === "out") set.add(1); }
+  return set;
+}
 function stepTag(steps, i, T = TASKS[S.task]) { // 準備は a・b・c…、実行の流れは 1・2・3…、タスク外は 外1・外2…
   if (T && T.outside) return "外" + (i + 1);
   let a = 0, k = 0, n = 0;
@@ -3052,9 +3126,8 @@ function taskPanel(lv) {
     ${!T.flow && steps.some((x) => x.where && x.p) ? `<details class="wsum"><summary>変更が効く所の一覧（環状線・一手の流れ）</summary><table><tbody>${steps.map((x, i) => x.where && x.p ? `<tr><td><button type="button" class="btn" data-tstep="${i}">${tag(i)}. ${esc(x.label)}</button></td><td>${refsHtml(x.where)}</td></tr>` : "").join("")}</tbody></table></details>` : ""}
     <div class="tcols">${prep.length ? `<div><h3 style="color:${PREP_C}">${T.prepTitles ? T.prepTitles[0] : T.flow ? "実行前の準備（起動するまで）" : "実行前の準備（並列・どれからでもよい）"}</h3><ol>${prep.map(([x, i]) => item(x, i)).join("")}</ol></div>` : ""}
       ${prep2.length ? `<div><h3 style="color:var(--prep2)">${T.prepTitles[1]}</h3><ol>${prep2.map(([x, i]) => item(x, i)).join("")}</ol></div>` : ""}
-      <div><h3 style="color:${T.c}">${T.flow ? "流れ（順番）" : T.outside ? "直したい所" : prep.length ? "実行の流れ（順番）" : "流れ（順番）"}</h3><ol>${flow.map(([x, i]) => item(x, i)).join("")}</ol></div></div>${body}
+      <div><h3 style="color:${T.c}">${T.flow ? "流れ（順番）" : T.outside ? "直したい所" : prep.length ? "実行の流れ（順番）" : "流れ（順番）"}</h3><ol>${flow.map(([x, i]) => item(x, i)).join("")}</ol></div></div>${body}${screenHtml(S.task, lv === "c4" ? k : null, tag)}
     ${T.related ? `<p class="note">ほかにタスク外で直したい所は、3 環状線の旗にある: ${T.related.map((id) => `<button type="button" class="btn" data-ringissue="${id}">${id} ${esc(R.issues.find((x) => x.id === id).title)}</button>`).join(" ")}</p>` : ""}
-    ${T.transcript ? `<h3>画面（ターミナル）</h3><div class="code term"><div class="file">打った答え</div>${DATA.dealer.answers.map((a) => `<div class="ln"><i></i><s></s><span>${esc(a)}</span><span></span></div>`).join("")}<div class="file">print された文字</div>${DATA.dealer.stdout.trim().split("\n").map((a) => `<div class="ln"><i></i><s></s><span>${esc(a)}</span><span></span></div>`).join("")}</div>` : ""}
     ${T.decide ? decidePanel() : ""}
     ${T.ending && lv === "c4" ? endingPanel(T.ending) : ""}
     ${!T.outside && !T.flow ? `<p class="note">タスク外で直したい所（どのタスクの結果にも効く所）は <button type="button" class="btn" data-task="X">タスク外の改修</button> にまとめてある。</p>` : ""}
@@ -3197,6 +3270,8 @@ function drawC4() {
   const T = TASKS[S.task], inflow = new Set(), trows = new Set(), orows = new Set(), cbox = new Set(), tg = svgEl("g", {}, root);
   const cur = T && S.tstep != null ? T.c4[S.tstep] : null;   // 今アクティブなフロー（手順）。ほかは全部グレーにする
   root.parentElement.classList.toggle("tasking", !!T); root.parentElement.classList.toggle("stepping", !!cur);
+  const srows = cur ? screenRows(S.task, S.tstep) : new Set();   // この手順で画面（ターミナル）に出る行
+  if (srows.size) { cbox.add("term"); inflow.add("term"); for (const r of srows) trows.add("term:" + r); }
   if (T) {
     root.style.setProperty("--t", T.c); arrowDefs(root, "aht", "tah", 14);
     arrowDefs(root, "ahp", "tahp", 14); arrowDefs(root, "ahq", "tahq", 14);
