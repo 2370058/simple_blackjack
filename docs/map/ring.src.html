@@ -116,6 +116,13 @@ h5.mg { margin: 8px 0 4px; font: 800 .8rem var(--display); color: var(--muted); 
 .cargo .srch { outline: 2px solid var(--srch); border-radius: 6px; padding: 1px 4px; } .cargo .srch code { color: var(--srch); font-weight: 800; } .ptab tr.srch td { background: color-mix(in srgb, var(--srch) 14%, transparent); }
 .scargo { border: 2px solid var(--srch); border-radius: 10px; padding: 8px 10px; margin: 8px 0; font-size: .82rem; } .scargo h4 { margin: 0 0 4px; color: var(--srch); font-size: .88rem; } .scargo td, .scargo th { padding: 3px 6px; border-top: 1px solid var(--line); text-align: left; vertical-align: top; word-break: break-word; } .scargo th { font-size: .74rem; color: var(--muted); font-weight: 600; } .scargo td.d { background: color-mix(in srgb, var(--srch) 20%, transparent); font-weight: 800; } .scargo .hl { display: flex; flex-wrap: wrap; gap: 2px 8px; margin-top: 4px; }
 .lsrc { flex-basis: 100%; display: grid; gap: 4px; border-left: 3px solid var(--srch); padding: 2px 0 2px 8px; margin: 2px 0; font-size: .8rem; } .lsrc input { width: 100%; box-sizing: border-box; } .lsrecs, .lsrec { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; } .lsrecs [aria-pressed="true"], .lsrec [aria-pressed="true"] { outline: 2px solid var(--srch); }
+.fgrid, .fmain, .fside { min-width: 0; } .pminimap { display: none; } .pminimap svg { width: 100%; height: auto; display: block; } .pminimap .mleg { font-size: .72rem; color: var(--muted); }
+@media (max-width: 999px) { .fside { display: contents; } }   /* スマホ: パレットは今まで通り画面の下に留める */
+@media (min-width: 1000px) {   /* PC: パレットを右の列に。駅の小さな図つき */
+  .fgrid:not(.nopal) { display: grid; grid-template-columns: minmax(0, 1fr) 330px; gap: 14px; }
+  .fside .pal { position: sticky; top: 8px; bottom: auto; max-height: calc(100vh - 16px); margin: 0; }
+  .pminimap { display: block; } .pstrip.r01 { display: none; }
+}
 .palpick { margin: 4px 0 6px; font-size: .78rem; position: sticky; top: -6px; z-index: 2; background: var(--panel); padding: 4px 0; border-bottom: 1px solid var(--line); } .palpick .pph { display: flex; flex-wrap: wrap; gap: 4px 8px; align-items: center; } .palpick .pk1 { color: var(--player); font-weight: 800; } .palpick .pk3 { color: var(--perf); font-weight: 700; }
 .pstrip { display: flex; flex-wrap: wrap; gap: 3px; align-items: center; margin-top: 3px; } .pstrip small { width: 1.8em; color: var(--muted); } .pst { display: inline-grid; place-items: center; min-width: 22px; height: 22px; padding: 0 3px; border-radius: 11px; border: 1.5px solid var(--line); font: 700 .7rem var(--mono); color: var(--muted); box-sizing: border-box; } .pst.main { background: var(--player); border-color: var(--player); color: #fff; } .pst.use { border: 2px dashed var(--player); color: var(--fg); } .pst.ctx { outline: 2px solid var(--perf); outline-offset: 1px; } .chip.picked { outline: 3px solid var(--player); outline-offset: 1px; }
 .gsearch { margin: 8px 0; flex: 1 1 100%; min-width: 0; max-width: 100%; } .gsearch .fld { width: 100%; } .gres .btn { white-space: normal; text-align: left; max-width: 100%; } .gsearch .gs-row { display: flex; gap: 6px; } .gsearch input { flex: 1; min-width: 0; } .gres { font-size: .8rem; margin-top: 4px; } .gres details { margin-top: 4px; } .gres table { width: 100%; border-collapse: collapse; } .gres td:last-child { min-width: 14em; } .gres td { vertical-align: top; padding: 2px 4px; border-top: 1px solid var(--line, #8883); word-break: break-word; }
@@ -1345,13 +1352,31 @@ function pickData(pk) {
   const use = tok ? nameSts(tok) : { sts: [], n: 0 }, sort = (xs) => [...new Set(xs)].filter((x) => US[x]).sort((p2, q) => UI[p2] - UI[q]);
   return (PKC[pk] = { pk, label, tok, main: sort(main), mainT, use: sort(use.sts.filter((s2) => !main.includes(s2))), useN: use.n });
 }
+// PC のパレットの上の、環状線 01 の小さな図（選んだ材料・検索・旗・入れる欄の駅）
+function miniRing(P, ctx) {
+  const G = S.snip ? globalHits().count : {}, flag = flagStation(), cx = 150, cy = 94, rx = 122, ry = 64, n = R1L.length, any = !!P || Object.keys(G).length > 0;
+  let s = `<svg viewBox="0 0 300 172" role="img" aria-label="環状線 01 の小さな図"><ellipse cx="${cx}" cy="${cy}" rx="${rx}" ry="${ry}" fill="none" stroke="var(--asphalt)" stroke-width="7" opacity=".5"/>`;
+  const node = (id, x, y, lab, dia, box) => {
+    const c = P && P.main.includes(id) ? "main" : P && P.use.includes(id) ? "use" : "", hit = G[id], on = c || hit || id === ctx || id === flag;
+    let g = "";
+    if (c) g += box ? `<rect x="${x - 21}" y="${y - 13}" width="42" height="26" rx="7" fill="none" stroke="var(--player)" stroke-width="${c === "main" ? 3.5 : 2}"${c === "use" ? ' stroke-dasharray="3 2"' : ""}/>` : `<circle cx="${x}" cy="${y}" r="12.5" fill="none" stroke="var(--player)" stroke-width="${c === "main" ? 3.5 : 2}"${c === "use" ? ' stroke-dasharray="3 2"' : ""}/>`;
+    if (hit) g += `<circle cx="${x}" cy="${y}" r="${box ? 19 : 16}" fill="none" stroke="var(--srch)" stroke-width="2" stroke-dasharray="4 2"/>`;
+    if (id === ctx) g += `<rect x="${x - 7}" y="${y - 25}" width="9" height="9" transform="rotate(45 ${x - 2.5} ${y - 20.5})" fill="var(--perf)"/>`;
+    const fill = id === flag ? "var(--car)" : c === "main" ? "var(--player)" : "var(--panel)", fg = c === "main" && id !== flag ? "#fff" : "var(--fg)";
+    const shape = box ? `<rect x="${x - 15}" y="${y - 9}" width="30" height="18" rx="5" fill="${fill}" stroke="var(--muted)" stroke-width="1"/>` : dia ? `<rect x="${x - 6.5}" y="${y - 6.5}" width="13" height="13" transform="rotate(45 ${x} ${y})" fill="${fill}" stroke="var(--branch)" stroke-width="1.5"/>` : `<circle cx="${x}" cy="${y}" r="8" fill="${fill}" stroke="var(--dealer)" stroke-width="1.5"/>`;
+    return `<g opacity="${!any || on ? 1 : .4}"><title>${esc(id === "end" ? "終了" : "駅 " + dn(id))}「${esc(stTitle(id))}」${c === "main" ? "・" + esc(P.mainT) : c === "use" ? "・名前が出てくる" : ""}${hit ? `・検索 ${hit} 行` : ""}${id === flag ? "・旗" : ""}${id === ctx ? "・入れる欄の駅" : ""}</title>${g}${shape}<text x="${x}" y="${y + 3}" text-anchor="middle" font-size="${box ? 9 : 8.5}" font-weight="800" fill="${fg}">${esc(lab)}</text></g>`; };
+  R1L.forEach((x, i) => { const a = Math.PI + 2 * Math.PI * i / n; s += node(x.id, cx + rx * Math.cos(a), cy + ry * Math.sin(a), String(i), x.kind === "分岐"); });
+  s += node("end", 26, 16, "終", false, true);
+  return `<div class="pminimap">${s}</svg><div class="mleg">緑 = 選んだ材料（太い ● ／点線 ○）・青 = 検索・黄 = 旗・◆ = 入れる欄の駅。0 から時計回り</div></div>`;
+}
 function palPickHtml() {
-  if (!S.palPick) return `<div class="palpick"><small>材料を押すと、その駅が光る（ここの駅の帯と、環状線の図）</small></div>`;
-  const P = pickData(S.palPick), ctx = palCtxStation();
+  const ctx0 = palCtxStation();
+  if (!S.palPick) return `<div class="palpick"><small>材料を押すと、その駅が光る（ここの図と、環状線の図）</small>${miniRing(null, ctx0)}</div>`;
+  const P = pickData(S.palPick), ctx = ctx0;
   const dot = (id) => { const c = P.main.includes(id) ? "main" : P.use.includes(id) ? "use" : "";
     return `<span class="pst ${c}${id === ctx ? " ctx" : ""}" title="駅 ${esc(dn(id))}「${esc(stTitle(id))}」${c === "main" ? "・" + esc(P.mainT) : c === "use" ? "・名前が出てくる" : ""}${id === ctx ? "・入れる欄の駅" : ""}">${esc(id === "end" || id === "r02:end" ? "終" : dn(id).replace("02-", ""))}</span>`; };
   return `<div class="palpick"><div class="pph"><b>${esc(P.label)}</b><span class="pk1">● ${esc(P.mainT || "—")}: ${P.main.map((x) => "駅 " + esc(dn(x))).join("・") || "なし"}</span><span>○ 名前が出てくる駅: ${P.use.length ? P.use.map((x) => esc(dn(x))).join("・") : P.tok ? "ほかに無い" : "—"}</span>${ctx ? `<span class="pk3">◆ 入れる欄の駅 ${esc(dn(ctx))}${P.main.includes(ctx) ? "（●に入っている）" : ""}</span>` : ""}<button type="button" class="btn sb" data-pickmap>図で見る</button><button type="button" class="btn sb" data-pickclear>× 外す</button></div>
-    <div class="pstrip"><small>01</small>${R1L.map((x) => dot(x.id)).join("")}${dot("end")}</div><div class="pstrip"><small>02</small>${R2L.map((x) => dot("r02:" + x.id)).join("")}${dot("r02:end")}</div></div>`;
+    ${miniRing(P, ctx)}<div class="pstrip r01"><small>01</small>${R1L.map((x) => dot(x.id)).join("")}${dot("end")}</div><div class="pstrip r02"><small>02</small>${R2L.map((x) => dot("r02:" + x.id)).join("")}${dot("r02:end")}</div></div>`;
 }
 function refreshPick() {
   const pp = document.querySelector(".palpick"); if (pp) pp.outerHTML = palPickHtml();
@@ -1383,7 +1408,7 @@ function updatePalette() {
   const F = findPick().F, t = document.getElementById("palTarget"), ctx = palCtxStation();
   if (S.palTab === "file") { const b = document.querySelector(".palbody"); if (b) b.innerHTML = palChips(F); }
   if (t) t.textContent = S.lastLabel ? "入る欄: " + S.lastLabel : "先に、書く欄をクリックする";
-  if (S.palPick) { const pp = document.querySelector(".palpick"); if (pp) pp.outerHTML = palPickHtml(); }
+  { const pp = document.querySelector(".palpick"); if (pp) pp.outerHTML = palPickHtml(); }
   document.querySelectorAll(".chip[data-pm]").forEach((c) => { const m = matOf(F.task, c.dataset.pm); if (!m || !ctx) return; const a = availAt(m, ctx); c.classList.remove("ok", "oth", "ng"); c.classList.add(a === true || a === "call" ? "ok" : a === "other" ? "oth" : "ng"); });
 }
 function insertToken(tok) {
@@ -1820,6 +1845,7 @@ function onSearchInput(v) {   // 打つたびに、図・結果・もう1つの�
   for (const sel of ["[data-snip]", "[data-gsearch]"]) { const e = document.querySelector(sel); if (e && e.value !== v) e.value = v; }
   const r = document.querySelector(".fbox .findres"); if (r) r.innerHTML = findResults(v);
   const c = document.querySelector("[data-gclear]"); if (c) c.disabled = !v;
+  { const pp = document.querySelector(".palpick"); if (pp) pp.outerHTML = palPickHtml(); }
   if (S.level === "ring") { const w = document.querySelector(".scargo-wrap"); if (w) w.innerHTML = searchCargoBox(cur()); const cg = document.querySelector(".detail .cargo"); if (cg) cg.innerHTML = cargoHtml(cur());
     const pd = document.getElementById("pdet"); if (pd) pd.outerHTML = paramsHtml(cur());
     const ns = document.querySelector("[data-lsnewst]"); if (ns) { const y = window.scrollY, a = document.activeElement; render(); window.scrollTo({ top: y }); const g = document.querySelector(a && a.matches("[data-gsearch]") ? "[data-gsearch]" : "[data-snip]"); if (g && a && a.matches("[data-gsearch],[data-snip]")) { g.focus(); g.setSelectionRange(g.value.length, g.value.length); } } }
@@ -2070,7 +2096,7 @@ function findPanel(bar) {
     return `<tr${side && side.st === s.id ? ' class="cur"' : ""}><td><button type="button" class="btn" data-tst="${s.id}">${dn(s.id)}. ${esc(s.title)}</button></td><td>${col((f) => f === "autodealer.py")}</td><td>${col((f) => f.startsWith("players/"))}</td><td>${col((f) => f === "card.py")}</td></tr>`; }).join("")}</tbody></table></div></details>`;
   return `${bar}<div class="tsum find" style="--t:${FIND_C}"><p><b>アイデアの置き場所を探す</b>（タスク B・C）。自由に考えたアイデアを、1 タスク → 2 いつ動くか → 3 材料 → 4 メモした変数 の順に選ぶと、環状線の駅・ファイル・関数・入れる行まで絞り、材料の今の使われ方と、そのまま使えるプロンプトを作る。図では、入れる駅（ここに入れる）と、材料が入る駅を色の輪で囲む。</p>
     <label class="memo"><b>アイデア（自由に。このブラウザに残る）</b><textarea data-memo rows="2" placeholder="例: ディーラーの表が 2〜6 のときは 12 から stand する／3連敗したら掛け金を半分にする">${esc(memo)}</textarea></label>
-    ${ex}${step1}${step2}${step3}${step4}${logicPanel(F, side)}${palette(F)}${result}${cards}${prompt}${F.task ? consultBlock() : ""}${files}</div>`;
+    <div class="fgrid${F.task ? "" : " nopal"}"><div class="fmain">${ex}${step1}${step2}${step3}${step4}${logicPanel(F, side)}${result}${cards}${prompt}${F.task ? consultBlock() : ""}${files}</div>${F.task ? `<aside class="fside">${palette(F)}</aside>` : ""}</div></div>`;
 }
 function rtaskPanel() {
   const bar = `<span class="tfl">タスクで絞る</span><div class="seg tseg">${[["", "なし"], ...RTASKS, ["REF", "参考実装"], ["FIND", "置き場所を探す"]].map(([k, t]) => `<button type="button" data-rtask="${k}" aria-pressed="${(S.rtask || "") === k}" style="--c:${k === "REF" ? REF_C : k === "FIND" ? FIND_C : k ? TASKS[k].c : "var(--fg)"}">${t}</button>`).join("")}</div>`;
