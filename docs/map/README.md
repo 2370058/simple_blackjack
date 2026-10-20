@@ -88,6 +88,8 @@ PC（幅 1000px 以上）では、パレットを右の列に置き、上に環�
 
 2 の図の箱と行は、実行したときのモジュール名・クラス名・メソッド名で書いてあります（`card.Card.sum`、`players.player_simple.BlackjackPlayer.input` など。autodealer.py を python3 で動かすとモジュール名は `__main__` になります）。
 
+GitHub Pages: `.github/workflows/pages.yml` が、main に push するたびに `build.py` を流して `ring.html` を作り、Pages に載せる（https://2370058.github.io/simple_blackjack/ ）。最初の1回だけ、GitHub の Settings → Pages の Source を「GitHub Actions」にする（fork なので、Actions タブでワークフローを有効にする必要がある場合もある）。
+
 ```bash
 python docs/map/build.py      # ring.html を作る（コミットしない）
 open docs/map/ring.html       # Mac（Windows は start、Linux は xdg-open）
